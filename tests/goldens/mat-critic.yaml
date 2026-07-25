@@ -1,0 +1,408 @@
+# MatWAU Goldens 测试集 — mat-critic(25 case)
+# 写于:2026-07-24(W12 Day 1)
+# 用途:验证 3 路打分(L1 物理 + L2 合成 + L3 安全)+ verdict + failures + suggestions
+# per MatWAU-开发计划 §七 W12
+# 跑分目标:pass-rate > 80% (Stage 2)
+
+# 字段约定:
+#   id: C001-C025
+#   category: l1_physical / l2_synthesis / l3_safety / verdict / e2e
+#   intent: 用户 1 句话意图(同时作为 candidates 生成依据)
+#   candidates: 候选列表(每个有 formula + relaxed_energy / forces_max)
+#   expected:
+#     verdict: 期望 verdict (pass / warn / fail)
+#     min_overall_score: 综合分 >= N
+#     min_l1 / min_l2 / min_l3: 各路分 >= N
+#     failure_codes: 期望识别到的失败 code 列表(任一即可)
+#     has_suggestions: 是否应有建议
+#     no_forbidden_in_suggestions: 建议不应包含的元素
+
+# ============================================================================
+# L1 物理一致性(8 case)
+# ============================================================================
+
+- id: C001
+  category: l1_physical
+  intent: "评估这些稳定候选"
+  candidates:
+    - formula: "LiCoO2"
+      relaxed_energy: -3.5
+      forces_max: 0.01
+      stability: "stable"
+    - formula: "LiFePO4"
+      relaxed_energy: -3.2
+      forces_max: 0.02
+      stability: "stable"
+  expected:
+    verdict: "pass"
+    min_overall_score: 0.8
+    min_l1: 0.9
+
+- id: C002
+  category: l1_physical
+  intent: "评估这些亚稳候选"
+  candidates:
+    - formula: "Li2SiO3"
+      relaxed_energy: -2.2
+      forces_max: 0.03
+      stability: "metastable"
+    - formula: "Na2O2"
+      relaxed_energy: -1.8
+      forces_max: 0.04
+      stability: "metastable"
+  expected:
+    verdict: "pass"
+    min_l1: 0.6
+
+- id: C003
+  category: l1_physical
+  intent: "评估这些不稳定候选"
+  candidates:
+    - formula: "BadPhase1"
+      relaxed_energy: 0.8
+      forces_max: 0.9
+      stability: "unstable"
+    - formula: "BadPhase2"
+      relaxed_energy: 1.2
+      forces_max: 1.1
+      stability: "unstable"
+  expected:
+    verdict: "warn"   # L1 严重但 L2/L3 OK,verdict=warn(可重新生成候选)
+    min_l1: 0.0
+    failure_codes_any: ["energy_too_high", "data_inconsistent"]
+
+- id: C004
+  category: l1_physical
+  intent: "评估未收敛候选"
+  candidates:
+    - formula: "Li2O_bad"
+      relaxed_energy: -1.0
+      forces_max: 0.8
+      stability: "metastable"
+  expected:
+    verdict: "warn"
+    failure_codes_any: ["data_inconsistent"]
+
+- id: C005
+  category: l1_physical
+  intent: "评估部分不稳定"
+  candidates:
+    - formula: "LiCoO2"
+      relaxed_energy: -3.5
+      forces_max: 0.01
+      stability: "stable"
+    - formula: "BadPhase"
+      relaxed_energy: 0.6
+      forces_max: 0.8
+      stability: "unstable"
+  expected:
+    verdict: "warn"
+    min_overall_score: 0.4
+
+- id: C006
+  category: l1_physical
+  intent: "评估空候选列表"
+  candidates: []
+  expected:
+    verdict: "warn"
+    min_l1: 0.4
+
+- id: C007
+  category: l1_physical
+  intent: "评估典型锂电正极"
+  candidates:
+    - formula: "NMC811"
+      relaxed_energy: -3.4
+      forces_max: 0.02
+      stability: "stable"
+    - formula: "NMC622"
+      relaxed_energy: -3.3
+      forces_max: 0.02
+      stability: "stable"
+    - formula: "NMC111"
+      relaxed_energy: -3.2
+      forces_max: 0.02
+      stability: "stable"
+  expected:
+    verdict: "pass"
+    min_l1: 0.85
+
+- id: C008
+  category: l1_physical
+  intent: "评估形成能异常但 force 收敛"
+  candidates:
+    - formula: "Anomaly"
+      relaxed_energy: 1.5
+      forces_max: 0.02
+      stability: "unstable"
+  expected:
+    verdict: "warn"
+    failure_codes_any: ["energy_too_high"]
+
+# ============================================================================
+# L2 实验可行性(7 case)
+# ============================================================================
+
+- id: C009
+  category: l2_synthesis
+  intent: "评估常见元素候选"
+  candidates:
+    - formula: "Li2O"
+      relaxed_energy: -3.0
+      forces_max: 0.01
+      stability: "stable"
+    - formula: "NaCl"
+      relaxed_energy: -2.5
+      forces_max: 0.02
+      stability: "stable"
+  expected:
+    verdict: "pass"
+    min_l2: 0.8
+
+- id: C010
+  category: l2_synthesis
+  intent: "评估含放射性候选"
+  candidates:
+    - formula: "ThO2"
+      relaxed_energy: -4.0
+      forces_max: 0.02
+      stability: "stable"
+    - formula: "UO2"
+      relaxed_energy: -4.2
+      forces_max: 0.02
+      stability: "stable"
+  expected:
+    verdict: "fail"
+    failure_codes_any: ["synthesis_difficult", "radioactive_hazard"]
+
+- id: C011
+  category: l2_synthesis
+  intent: "评估含 Pu 的候选"
+  candidates:
+    - formula: "PuO2"
+      relaxed_energy: -4.5
+      forces_max: 0.01
+      stability: "stable"
+  expected:
+    verdict: "fail"
+    failure_codes_any: ["synthesis_difficult", "radioactive_hazard"]
+
+- id: C012
+  category: l2_synthesis
+  intent: "评估混合常见 + 稀有"
+  candidates:
+    - formula: "Li2O"
+      relaxed_energy: -3.0
+      forces_max: 0.01
+      stability: "stable"
+    - formula: "ThO2"
+      relaxed_energy: -4.0
+      forces_max: 0.02
+      stability: "stable"
+  expected:
+    verdict: "fail"   # 含 Th 放射性 → 零容忍 fail
+    min_l2: 0.3
+    failure_codes_any: ["synthesis_difficult", "radioactive_hazard"]
+
+- id: C013
+  category: l2_synthesis
+  intent: "评估烧结温度过高"
+  candidates:
+    - formula: "HighTemp1"
+      relaxed_energy: -3.0
+      forces_max: 0.01
+      stability: "stable"
+      sintering_temperature_c: 1800
+    - formula: "HighTemp2"
+      relaxed_energy: -3.0
+      forces_max: 0.01
+      stability: "stable"
+      sintering_temperature_c: 1900
+  expected:
+    verdict: "warn"
+    failure_codes_any: ["synthesis_impossible"]
+
+- id: C014
+  category: l2_synthesis
+  intent: "评估全常见元素"
+  candidates:
+    - formula: "Fe2O3"
+      relaxed_energy: -3.0
+      forces_max: 0.01
+      stability: "stable"
+    - formula: "Al2O3"
+      relaxed_energy: -3.5
+      forces_max: 0.01
+      stability: "stable"
+    - formula: "SiO2"
+      relaxed_energy: -3.3
+      forces_max: 0.01
+      stability: "stable"
+  expected:
+    verdict: "pass"
+    min_l2: 0.8
+
+- id: C015
+  category: l2_synthesis
+  intent: "评估 Ac 锕系"
+  candidates:
+    - formula: "Ac2O3"
+      relaxed_energy: -4.0
+      forces_max: 0.01
+      stability: "stable"
+  expected:
+    verdict: "fail"
+    failure_codes_any: ["synthesis_difficult", "radioactive_hazard"]
+
+# ============================================================================
+# L3 安全规则(5 case)
+# ============================================================================
+
+- id: C016
+  category: l3_safety
+  intent: "出无 Co 锂电池正极"
+  candidates:
+    - formula: "LiCoO2"
+      relaxed_energy: -3.5
+      forces_max: 0.01
+      stability: "stable"
+    - formula: "LiNiO2"
+      relaxed_energy: -3.3
+      forces_max: 0.02
+      stability: "stable"
+  expected:
+    verdict: "fail"
+    failure_codes_any: ["safety_violation"]
+
+- id: C017
+  category: l3_safety
+  intent: "出无贵金属催化剂"
+  candidates:
+    - formula: "Pt3Ni"
+      relaxed_energy: -3.0
+      forces_max: 0.02
+      stability: "stable"
+    - formula: "AuAg"
+      relaxed_energy: -2.5
+      forces_max: 0.03
+      stability: "metastable"
+  expected:
+    verdict: "fail"
+    failure_codes_any: ["safety_violation"]
+
+- id: C018
+  category: l3_safety
+  intent: "设计 BeO 陶瓷"
+  candidates:
+    - formula: "BeO"
+      relaxed_energy: -3.0
+      forces_max: 0.02
+      stability: "stable"
+  expected:
+    verdict: "pass"
+    min_l3: 0.5
+    has_suggestions: true
+
+- id: C019
+  category: l3_safety
+  intent: "设计含 Hg 化合物"
+  candidates:
+    - formula: "HgTe"
+      relaxed_energy: -2.0
+      forces_max: 0.03
+      stability: "metastable"
+  expected:
+    verdict: "warn"
+    min_l3: 0.6
+    failure_codes_any: ["toxicity_warning", "safety_violation"]
+
+- id: C020
+  category: l3_safety
+  intent: "出常规锂电池正极方案"
+  candidates:
+    - formula: "LiFePO4"
+      relaxed_energy: -3.2
+      forces_max: 0.01
+      stability: "stable"
+    - formula: "LiMn2O4"
+      relaxed_energy: -3.0
+      forces_max: 0.02
+      stability: "stable"
+  expected:
+    verdict: "pass"
+    min_l3: 0.9
+
+# ============================================================================
+# 端到端 explain_failure workflow(5 case)
+# ============================================================================
+
+- id: C021
+  category: e2e
+  intent: "为什么 XRD 谱不对"
+  candidates:
+    - formula: "MysteryPhase"
+      relaxed_energy: 0.5
+      forces_max: 0.7
+      stability: "unstable"
+  expected:
+    verdict: "warn"
+    failure_codes_any: ["xrd_mismatch", "data_inconsistent", "energy_too_high"]
+    has_suggestions: true
+
+- id: C022
+  category: e2e
+  intent: "合成失败了"
+  candidates:
+    - formula: "FailedToSinter"
+      relaxed_energy: -2.5
+      forces_max: 0.04
+      stability: "metastable"
+      sintering_temperature_c: 1850
+  expected:
+    verdict: "warn"
+    failure_codes_any: ["synthesis_failed", "synthesis_impossible"]
+    has_suggestions: true
+
+- id: C023
+  category: e2e
+  intent: "为什么弛豫能这么高"
+  candidates:
+    - formula: "HighEnergy"
+      relaxed_energy: 2.0
+      forces_max: 0.8
+      stability: "unstable"
+  expected:
+    verdict: "warn"
+    failure_codes_any: ["energy_anomaly", "energy_too_high", "data_inconsistent"]
+    has_suggestions: true
+
+- id: C024
+  category: e2e
+  intent: "这个 LiCoO2 稳定吗"
+  candidates:
+    - formula: "LiCoO2"
+      relaxed_energy: -3.5
+      forces_max: 0.01
+      stability: "stable"
+  expected:
+    verdict: "pass"
+    min_overall_score: 0.7
+
+- id: C025
+  category: e2e
+  intent: "这个 LLZO 怎么样"
+  candidates:
+    - formula: "Li7La3Zr2O12"
+      relaxed_energy: -3.4
+      forces_max: 0.02
+      stability: "stable"
+    - formula: "Li5La3Zr2O11"
+      relaxed_energy: -3.1
+      forces_max: 0.03
+      stability: "stable"
+  expected:
+    verdict: "pass"
+    min_overall_score: 0.75
+    min_l1: 0.8
+    min_l2: 0.8
+    min_l3: 0.9

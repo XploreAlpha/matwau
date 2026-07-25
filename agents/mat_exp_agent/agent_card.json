@@ -1,0 +1,119 @@
+{
+  "name": "mat-exp-agent",
+  "version": "0.1.0",
+  "description": "材料科学实验规划 agent(实验老师)— 给实验员出 XRD 理论谱 + 烧结参数方案(Stage 1 mock / Stage 2 接真实验设备)",
+  "universe_labels": {
+    "domain": "materials-science",
+    "tier": "high-performance",
+    "gpu": "false",
+    "language": "python",
+    "external_dependency": "xrd-instrument-sintering-furnace"
+  },
+  "skills": [
+    "xrd-peak-finding",
+    "bragg-equation-mock",
+    "sintering-recipe-recommendation",
+    "experimental-protocol-design",
+    "atmosphere-selection"
+  ],
+  "endpoints": {
+    "invoke": "http://mat-exp-agent:18805/v1/invoke",
+    "healthz": "http://mat-exp-agent:18805/healthz"
+  },
+  "input_artifacts": [
+    {
+      "name": "jobs",
+      "type": "array",
+      "description": "mat-hpc-agent 输出的 HPC job 列表,每个 {job_id, formula, status}(必填)"
+    },
+    {
+      "name": "simulated",
+      "type": "array",
+      "description": "备选:mat-sim-agent 输出的 SimCandidate 列表"
+    },
+    {
+      "name": "candidates",
+      "type": "array",
+      "description": "备选:mat-gen-agent 输出的 GenCandidate 列表"
+    },
+    {
+      "name": "budget",
+      "type": "number",
+      "description": "可选总预算 ¥(超出仅警告不阻断)"
+    }
+  ],
+  "output_artifacts": [
+    {
+      "name": "recipes",
+      "type": "array",
+      "description": "实验方案列表,每个 {formula, xrd, sintering}"
+    },
+    {
+      "name": "xrd",
+      "type": "object",
+      "description": "XRD 衍射谱 {formula, wavelength_angstrom, lattice_a, peaks: [{hkl, two_theta, intensity}]}"
+    },
+    {
+      "name": "sintering",
+      "type": "object",
+      "description": "烧结参数 {formula, temperature_celsius, pressure_mpa, time_hours, atmosphere, reference}"
+    },
+    {
+      "name": "input_count",
+      "type": "integer",
+      "description": "输入候选数"
+    },
+    {
+      "name": "sint_temp_range",
+      "type": "array",
+      "description": "烧结温度范围 [min, max] ℃"
+    },
+    {
+      "name": "reply",
+      "type": "string",
+      "description": "自然语言总结(总方案数 + 烧结温度范围 + top-3 主峰位置)"
+    }
+  ],
+  "xrd_method": {
+    "equation": "nλ = 2d sin(θ)",
+    "wavelength_angstrom": 1.5406,
+    "source": "Cu Kα",
+    "hkl_set": "立方晶系常见 (hkl)(18 个)",
+    "intensity_model": "Stage 1 mock(多重性 × 强度因子 + ±10 噪声)",
+    "valid_2theta_range": "5°-90°(per 标准 XRD 扫描范围)"
+  },
+  "sintering_database": {
+    "matching_strategy": "关键词匹配(按公式含元素/类别)",
+    "fields": ["temperature_celsius", "pressure_mpa", "time_hours", "atmosphere", "reference"],
+    "categories": [
+      "锂电池正极(850℃ / air / 12h)",
+      "LLZO 固态电解质(1100℃ / air / 24h)",
+      "硫化物固态电解质(300℃ / Ar / 8h)",
+      "钙钛矿太阳能(550℃ / N2 / 4h)",
+      "氧化物催化剂(500℃ / air / 6h)",
+      "YBCO 超导(950℃ / O2 / 24h)",
+      "热电 Bi2Te3(500℃ / Ar / 8h)",
+      "永磁合金(1100℃ / vacuum / 4h)",
+      "宽禁带半导体(1500℃ / N2 / 12h)"
+    ],
+    "fallback": "通用 fallback(800℃ / air / 12h)"
+  },
+  "cost_estimates": {
+    "cost_per_recipe_yuan": 50.0,
+    "typical_per_call": 250.0,
+    "components": "XRD 测试 + 烧结耗材 + 气氛"
+  },
+  "stage": "phase-1-mvp",
+  "mock_mode": true,
+  "mock_reason": "Stage 1 本机无 XRD 仪器 + 烧结炉,真对接切 WAU v1.0.0 GA + 实验室设备后启用",
+  "downstream_agents": [
+    "mat-critic(W11,3 路交叉验证对比实验 + HPC 结果)",
+    "mat-data-lineage(W13,持久化 recipe_id + lineage_id)"
+  ],
+  "upstream_agents": [
+    "mat-hpc-agent(主要,产出 List[HPCJobResult])",
+    "mat-sim-agent(备选,直接传 List[SimCandidate])",
+    "mat-gen-agent(备选,直接传 List[GenCandidate])"
+  ],
+  "four_stage_pipeline": "mat-gen → mat-sim → mat-hpc → mat-exp"
+}

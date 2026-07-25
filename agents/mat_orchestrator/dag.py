@@ -1,0 +1,441 @@
+"""dag.py — DAG 节点 + 边数据结构 + 5 workflow 模板
+
+per MatWAU-开发计划 §七 W10
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
+
+
+# ============================================================================
+# DAG 节点
+# ============================================================================
+
+
+@dataclass
+class DAGNode:
+    """1 个 DAG 节点(执行 1 个 mat agent)"""
+
+    node_id: str                                    # 唯一 ID
+    agent_name: str                                 # 调用的 agent
+    inputs: Dict[str, str] = field(default_factory=dict)  # 从其他节点的 outputs 取数据
+    output_key: str = "result"                      # 节点输出 key
+    description: str = ""                           # 人类可读描述
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "node_id": self.node_id,
+            "agent_name": self.agent_name,
+            "inputs": self.inputs,
+            "output_key": self.output_key,
+            "description": self.description,
+        }
+
+
+# ============================================================================
+# DAG 执行结果
+# ============================================================================
+
+
+@dataclass
+class NodeResult:
+    """1 个节点执行结果"""
+
+    node_id: str
+    agent_name: str
+    success: bool
+    outputs: Dict[str, Any] = field(default_factory=dict)
+    error: Optional[str] = None
+    duration_seconds: float = 0.0
+
+    def to_summary(self) -> str:
+        status = "✅" if self.success else "❌"
+        n_outputs = len(self.outputs)
+        return (
+            f"   {status} {self.node_id} ({self.agent_name}, {self.duration_seconds:.2f}s): "
+            f"{n_outputs} outputs"
+        )
+
+
+@dataclass
+class WorkflowResult:
+    """1 个 workflow 执行结果"""
+
+    workflow_name: str                              # 5 workflow 名
+    subclass: str                                   # 触发 workflow 的子类
+    node_results: List[NodeResult] = field(default_factory=list)
+    total_duration_seconds: float = 0.0
+    success: bool = False
+    error: Optional[str] = None
+
+    # 最终输出(per workflow 类型)
+    final_outputs: Dict[str, Any] = field(default_factory=dict)
+
+    def to_summary(self) -> str:
+        lines = []
+        status = "✅" if self.success else "❌"
+        lines.append(f"{status} {self.workflow_name}({self.subclass}, {self.total_duration_seconds:.2f}s)")
+        for nr in self.node_results:
+            lines.append(nr.to_summary())
+        return "\n".join(lines)
+
+
+# ============================================================================
+# DAG 类
+# ============================================================================
+
+
+class DAG:
+    """简单 DAG(顺序节点列表,Stage 1 不用并行)"""
+
+    def __init__(self, name: str, nodes: List[DAGNode]) -> None:
+        self.name = name
+        self.nodes = nodes
+
+    def add_node(self, node: DAGNode) -> None:
+        self.nodes.append(node)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "nodes": [n.to_dict() for n in self.nodes],
+        }
+
+    def __repr__(self) -> str:
+        return f"DAG(name={self.name}, nodes={[n.node_id for n in self.nodes]})"
+
+
+# ============================================================================
+# DAG 执行器
+# ============================================================================
+
+
+class DAGExecutor:
+    """DAG 执行器(顺序执行节点,把 outputs 传下去)"""
+
+    def __init__(self, agent_registry: Dict[str, Any]) -> None:
+        """构造
+
+        Args:
+            agent_registry: {agent_name: agent_instance}
+        """
+        self.agent_registry = agent_registry
+
+    def execute(
+        self,
+        dag: DAG,
+        *,
+        initial_inputs: Dict[str, Any],
+    ) -> WorkflowResult:
+        """执行 DAG
+
+        Args:
+            dag: DAG 实例
+            initial_inputs: 初始输入(第 1 节点用)
+
+        Returns:
+            WorkflowResult
+        """
+        result = WorkflowResult(
+            workflow_name=dag.name,
+            subclass=initial_inputs.get("subclass", "unknown"),
+        )
+
+        t_total = time.time()
+        outputs: Dict[str, Any] = dict(initial_inputs)
+
+        for node in dag.nodes:
+            t0 = time.time()
+            try:
+                agent = self.agent_registry.get(node.agent_name)
+                if agent is None:
+                    raise RuntimeError(f"agent {node.agent_name} 未注册")
+
+                # 拼装 agent request
+                agent_inputs = {}
+                for input_key, src_key in node.inputs.items():
+                    # src_key 可能是 "initial.xxx" / "node_id.output_key" / 字面值
+                    if src_key.startswith("initial."):
+                        actual_key = src_key[len("initial."):]
+                        if actual_key in initial_inputs:
+                            agent_inputs[input_key] = initial_inputs[actual_key]
+                        continue
+
+                    if "." in src_key:
+                        # "node_id.output_key" 形式
+                        src_node_id, src_output_key = src_key.split(".", 1)
+                        for nr in result.node_results:
+                            if nr.node_id == src_node_id:
+                                agent_inputs[input_key] = nr.outputs.get(src_output_key)
+                                break
+                        continue
+
+                    # 字面值(没有 "." 且不是 "initial" 前缀,直接当字面值)
+                    # 优先 outputs(避免硬覆盖),fallback 用 src_key 当字面值
+                    if src_key in outputs:
+                        agent_inputs[input_key] = outputs[src_key]
+                    else:
+                        agent_inputs[input_key] = src_key  # 字面值
+
+                # 构造 AgentRequest
+                from matwau.core.agent_base import AgentRequest
+
+                # 默认 message + artifacts
+                message = agent_inputs.get("message", "")
+                artifacts = {k: v for k, v in agent_inputs.items() if k != "message"}
+
+                # W15: 把 domain 透传到 req.context(让下游 agent 走对应 backend)
+                req_context = {
+                    "domain": initial_inputs.get("domain"),
+                }
+
+                req = AgentRequest(
+                    run_id=f"{dag.name}-{node.node_id}",
+                    message=message,
+                    artifacts=artifacts if artifacts else None,
+                    budget=initial_inputs.get("budget"),
+                    context=req_context,
+                )
+
+                # 跑 agent
+                response = agent.run(req)
+                node_output = {
+                    node.output_key: response,
+                    "response": response,
+                    "artifacts": response.artifacts,
+                    "reply": response.reply,
+                    "confidence": response.confidence,
+                    "cost": response.cost,
+                }
+                # 也存每个 artifact
+                if response.artifacts:
+                    for k, v in response.artifacts.items():
+                        node_output[k] = v
+
+                node_result = NodeResult(
+                    node_id=node.node_id,
+                    agent_name=node.agent_name,
+                    success=True,
+                    outputs=node_output,
+                    duration_seconds=time.time() - t0,
+                )
+            except Exception as e:
+                node_result = NodeResult(
+                    node_id=node.node_id,
+                    agent_name=node.agent_name,
+                    success=False,
+                    error=str(e),
+                    duration_seconds=time.time() - t0,
+                )
+
+            result.node_results.append(node_result)
+
+            if not node_result.success:
+                result.success = False
+                result.error = f"节点 {node.node_id} 失败: {node_result.error}"
+                result.total_duration_seconds = time.time() - t_total
+                return result
+
+            # 把节点输出合并到 outputs,供下游节点用
+            outputs.update(node_result.outputs)
+
+        # 全部成功
+        result.success = True
+        result.total_duration_seconds = time.time() - t_total
+        # final_outputs = 最后节点的 outputs
+        if result.node_results:
+            result.final_outputs = result.node_results[-1].outputs
+        return result
+
+
+# ============================================================================
+# 5 workflow 模板
+# ============================================================================
+
+
+def experiment_planning_workflow() -> DAG:
+    """experiment_planning:4 段(mat-gen → sim → hpc → exp)"""
+    return DAG(
+        name="experiment_planning",
+        nodes=[
+            DAGNode(
+                node_id="gen",
+                agent_name="mat-gen-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="gen_response",
+                description="生成候选结构",
+            ),
+            DAGNode(
+                node_id="sim",
+                agent_name="mat-sim-agent",
+                inputs={
+                    "message": "弛豫",
+                    "candidates": "gen.candidates",
+                },
+                output_key="sim_response",
+                description="CHGNet 秒级弛豫",
+            ),
+            DAGNode(
+                node_id="hpc",
+                agent_name="mat-hpc-agent",
+                inputs={
+                    "message": "提交 VASP",
+                    "simulated": "sim.simulated",
+                },
+                output_key="hpc_response",
+                description="提交 VASP HPC",
+            ),
+            DAGNode(
+                node_id="exp",
+                agent_name="mat-exp-agent",
+                inputs={
+                    "message": "出实验方案",
+                    "jobs": "hpc.jobs",
+                },
+                output_key="exp_response",
+                description="出 XRD + 烧结方案",
+            ),
+        ],
+    )
+
+
+def design_new_material_workflow() -> DAG:
+    """design_new_material:2 段(mat-gen → mat-sim) + 选 top-N
+
+    不跑 HPC(用户先选 top-N 再决定要不要 HPC)
+    """
+    return DAG(
+        name="design_new_material",
+        nodes=[
+            DAGNode(
+                node_id="gen",
+                agent_name="mat-gen-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="gen_response",
+                description="生成候选结构(n_samples 通常 = 10)",
+            ),
+            DAGNode(
+                node_id="sim",
+                agent_name="mat-sim-agent",
+                inputs={
+                    "message": "弛豫",
+                    "candidates": "gen.candidates",
+                },
+                output_key="sim_response",
+                description="CHGNet 秒级弛豫,选 top-N 稳定候选",
+            ),
+        ],
+    )
+
+
+def optimize_existing_workflow() -> DAG:
+    """optimize_existing:mat-sim 迭代 + 用户反馈
+
+    Stage 1 mock:跑 1 次 mat-sim(后续可加 loop)
+    """
+    return DAG(
+        name="optimize_existing",
+        nodes=[
+            DAGNode(
+                node_id="sim",
+                agent_name="mat-sim-agent",
+                inputs={"message": "初始.user_intent"},
+                output_key="sim_response",
+                description="CHGNet 弛豫现有配方",
+            ),
+            DAGNode(
+                node_id="gen_optimized",
+                agent_name="mat-gen-agent",
+                inputs={
+                    "message": "基于弛豫结果优化",
+                    "candidates": "sim.simulated",
+                },
+                output_key="gen_response",
+                description="基于弛豫结果生成优化候选",
+            ),
+        ],
+    )
+
+
+def explain_failure_workflow() -> DAG:
+    """explain_failure:mat-critic(W12 写,接真 agent)
+
+    Stage 1(W12 之后):跑 MatCriticAgent 3 路交叉验证
+    - 接 candidates / simulated / jobs / recipes 4 种上游数据(从 initial_inputs)
+    - Stage 2 接 LLM 复核
+
+    注:candidates 是可选的。如果用户只问"为什么 XRD 不对" 而没附数据,
+    MatCriticAgent 内部会用 explain_failure() 给出文本建议。
+    """
+    return DAG(
+        name="explain_failure",
+        nodes=[
+            DAGNode(
+                node_id="critic",
+                agent_name="mat-critic-agent",
+                inputs={
+                    "message": "initial.user_intent",
+                    "candidates": "initial.candidates",  # 可选,默认 None
+                },
+                output_key="critic_response",
+                description="mat-critic(W12): 3 路交叉验证(物理/合成/安全)",
+            ),
+        ],
+    )
+
+
+def literature_review_workflow() -> DAG:
+    """literature_review:mat-lit(W14 已写,替换原 stub)
+
+    Stage 1: 关键词提取 + mock 文献库 + 模板综述
+    Stage 2(WAU v1.0.0 GA 后):接 arXiv + Materials Project + ICSD + PubChem 真 API
+    """
+    return DAG(
+        name="literature_review",
+        nodes=[
+            DAGNode(
+                node_id="lit",
+                agent_name="mat-lit-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="lit_response",
+                description="mat-lit(W14): 文献综述员",
+            ),
+        ],
+    )
+
+
+# 子类 → workflow 映射
+WORKFLOW_BY_SUBCLASS = {
+    "experiment_planning": experiment_planning_workflow,
+    "design_new_material": design_new_material_workflow,
+    "optimize_existing": optimize_existing_workflow,
+    "explain_failure": explain_failure_workflow,
+    "literature_review": literature_review_workflow,
+}
+
+
+def get_workflow_for_subclass(subclass: str) -> Optional[DAG]:
+    """根据子类选 workflow"""
+    factory = WORKFLOW_BY_SUBCLASS.get(subclass)
+    if factory is None:
+        return None
+    return factory()
+
+
+__all__ = [
+    "DAGNode",
+    "DAG",
+    "NodeResult",
+    "WorkflowResult",
+    "DAGExecutor",
+    "experiment_planning_workflow",
+    "design_new_material_workflow",
+    "optimize_existing_workflow",
+    "explain_failure_workflow",
+    "literature_review_workflow",
+    "WORKFLOW_BY_SUBCLASS",
+    "get_workflow_for_subclass",
+]

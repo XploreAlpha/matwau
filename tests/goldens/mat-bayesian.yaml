@@ -1,0 +1,584 @@
+# MatWAU Goldens 测试集 — mat-bayesian(25 case)
+# 写于:2026-07-24(W13 Day 1)
+# 用途:验证 GP + TPE 2 算法 + acquisition + suggest_next_batch
+# per MatWAU-开发计划 §七 W13
+# 跑分目标:pass-rate > 80% (Stage 2)
+
+# 字段约定:
+#   id: B001-B025
+#   category: gp / tpe / integration / e2e
+#   intent: 用户 1 句话意图
+#   expected:
+#     algorithm: 期望 algorithm_used (gp / tpe / ensemble)
+#     status: searching / converging / converged
+#     min_n_suggest / exact_n_suggest: next_batch 长度
+#     has_best_so_far: 是否应有 best_so_far
+#     min_convergence: convergence >= N
+#     exclude_in_next_batch: 不应在 next_batch 的化学式
+#     include_in_next_batch: 应在 next_batch 的化学式
+#     forbidden_ok: 是否验证 forbidden 已应用
+#     no_observed_in_next_batch: 已观测点不应再推荐
+
+# artifacts:
+#   observed: List[{formula, score}]
+#   pool: List[{formula}]
+
+# ============================================================================
+# GP 算法(6 case)
+# ============================================================================
+
+- id: B001
+  category: gp
+  intent: "用 GP 算法推荐下一批候选"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+      - {formula: "MgO", score: 2.8}
+      - {formula: "Al2O3", score: 3.1}
+      - {formula: "SiO2", score: 2.9}
+      - {formula: "TiO2", score: 3.3}
+      - {formula: "ZrO2", score: 3.4}
+    pool:
+      - {formula: "LiCoO2"}  # 已观测
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Na2O"}
+      - {formula: "K2O"}
+      - {formula: "Li2SiO3"}
+      - {formula: "LiAlO2"}
+  expected:
+    algorithm: "gp"
+    status: "converging"
+    min_n_suggest: 3
+    no_observed_in_next_batch: ["LiCoO2"]
+
+- id: B002
+  category: gp
+  intent: "GP + EI acquisition"
+  artifacts:
+    observed:
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiNiO2", score: 3.3}
+      - {formula: "LiMnO2", score: 3.0}
+      - {formula: "LiFePO4", score: 3.2}
+      - {formula: "Li2MnO3", score: 2.8}
+    pool:
+      - {formula: "Li2CoO3"}
+      - {formula: "Li2NiO3"}
+      - {formula: "Li2MnO3"}   # 已观测
+      - {formula: "Li3CoO3"}
+      - {formula: "Li3NiO3"}
+  expected:
+    algorithm: "gp"
+    min_n_suggest: 3
+    exclude_in_next_batch: ["Li2MnO3"]
+
+- id: B003
+  category: gp
+  intent: "GP + UCB acquisition(更激进探索)"
+  artifacts:
+    observed:
+      - {formula: "Fe2O3", score: 3.0}
+      - {formula: "Al2O3", score: 3.1}
+      - {formula: "Cr2O3", score: 2.9}
+    pool:
+      - {formula: "Fe3O4"}
+      - {formula: "Al2SiO5"}
+      - {formula: "CrO2"}
+      - {formula: "V2O3"}
+      - {formula: "Sc2O3"}
+      - {formula: "Y2O3"}
+      - {formula: "La2O3"}
+  expected:
+    algorithm: "gp"
+    acquisition: "ucb"
+    min_n_suggest: 3
+
+- id: B004
+  category: gp
+  intent: "GP + PI acquisition(保守)"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "Na2O", score: 2.2}
+      - {formula: "K2O", score: 1.9}
+    pool:
+      - {formula: "Rb2O"}
+      - {formula: "Cs2O"}
+      - {formula: "Fr2O"}
+      - {formula: "MgO"}
+      - {formula: "CaO"}
+  expected:
+    algorithm: "gp"
+    acquisition: "pi"
+    min_n_suggest: 2
+
+- id: B005
+  category: gp
+  intent: "GP 大样本(>= 10)直接收敛"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+      - {formula: "Al2O3", score: 3.1}
+      - {formula: "SiO2", score: 2.9}
+      - {formula: "TiO2", score: 3.3}
+      - {formula: "ZrO2", score: 3.4}
+      - {formula: "MgO", score: 2.8}
+      - {formula: "CaO", score: 2.7}
+      - {formula: "BaO", score: 2.6}
+      - {formula: "SrO", score: 2.5}
+      - {formula: "BeO", score: 2.4}
+    pool:
+      - {formula: "Li2O"}     # 已观测
+      - {formula: "NaCl"}     # 已观测
+      - {formula: "Fe2O3"}    # 已观测
+      - {formula: "MnO"}
+      - {formula: "CoO"}
+      - {formula: "NiO"}
+      - {formula: "CuO"}
+  expected:
+    algorithm: "gp"
+    min_n_suggest: 2
+    no_observed_in_next_batch: ["Li2O", "NaCl", "Fe2O3"]
+
+- id: B006
+  category: gp
+  intent: "GP 样本不足 fallback TPE"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+    pool:
+      - {formula: "Na2O"}
+      - {formula: "K2O"}
+      - {formula: "MgO"}
+  expected:
+    algorithm: "tpe"   # GP 样本 < 2 fallback
+    status: "searching"
+    min_n_suggest: 2
+
+# ============================================================================
+# TPE 算法(6 case)
+# ============================================================================
+
+- id: B007
+  category: tpe
+  intent: "TPE 基础推荐"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+    pool:
+      - {formula: "LiCoO2"}    # 已观测
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Na2O"}
+      - {formula: "Li2SiO3"}
+      - {formula: "LiAlO2"}
+  expected:
+    algorithm: "tpe"
+    min_n_suggest: 3
+    no_observed_in_next_batch: ["LiCoO2"]
+
+- id: B008
+  category: tpe
+  intent: "TPE 小样本 + 强制 EI"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+    pool:
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Li2SiO3"}
+  expected:
+    algorithm: "tpe"
+    acquisition: "ei"
+    min_n_suggest: 2
+
+- id: B009
+  category: tpe
+  intent: "TPE 全部已观测(无可推荐)"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+    pool:
+      - {formula: "Li2O"}
+      - {formula: "LiCoO2"}
+      - {formula: "LiFePO4"}
+  expected:
+    algorithm: "tpe"
+    exact_n_suggest: 0
+    status: "converged"
+
+- id: B010
+  category: tpe
+  intent: "TPE 用户禁元素"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+    pool:
+      - {formula: "LiCoO2"}
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Na2O"}
+      - {formula: "Li2SiO3"}
+  expected:
+    algorithm: "tpe"
+    forbidden_ok: true
+    exclude_in_next_batch: ["LiCoO2"]  # 被禁
+    min_n_suggest: 2
+
+- id: B011
+  category: tpe
+  intent: "TPE 大候选池(50+)"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+      - {formula: "Al2O3", score: 3.1}
+      - {formula: "SiO2", score: 2.9}
+    pool: []
+  expected:
+    algorithm: "tpe"
+    exact_n_suggest: 0
+    status: "converged"
+
+- id: B012
+  category: tpe
+  intent: "TPE + SimCandidate 输入"
+  artifacts:
+    observed: []  # 用 SimCandidate 模拟
+    pool: []      # 用 GenCandidate 模拟
+  expected:
+    algorithm: "tpe"
+    status: "searching"
+    min_n_suggest: 0   # 空 observed + 空 pool → 空 next_batch
+
+# ============================================================================
+# 集成决策(6 case)
+# ============================================================================
+
+- id: B013
+  category: integration
+  intent: "auto 算法:样本 < 10 → TPE"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+    pool:
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Na2O"}
+      - {formula: "Li2SiO3"}
+  expected:
+    algorithm: "tpe"   # n_observed = 5 < 10
+    min_n_suggest: 3
+
+- id: B014
+  category: integration
+  intent: "auto 算法:样本 >= 10 → GP"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+      - {formula: "Al2O3", score: 3.1}
+      - {formula: "SiO2", score: 2.9}
+      - {formula: "TiO2", score: 3.3}
+      - {formula: "ZrO2", score: 3.4}
+      - {formula: "MgO", score: 2.8}
+      - {formula: "CaO", score: 2.7}
+      - {formula: "BaO", score: 2.6}
+      - {formula: "SrO", score: 2.5}
+    pool:
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Na2O"}
+  expected:
+    algorithm: "gp"   # n_observed = 11 >= 10
+    min_n_suggest: 2
+
+- id: B015
+  category: integration
+  intent: "ensemble 算法(GP + TPE 并行)"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+    pool:
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Li2SiO3"}
+      - {formula: "LiAlO2"}
+      - {formula: "K2O"}
+  expected:
+    algorithm: "ensemble"
+    min_n_suggest: 3
+
+- id: B016
+  category: integration
+  intent: "自定义 n_suggest"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+    pool:
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Li2SiO3"}
+      - {formula: "LiAlO2"}
+      - {formula: "K2O"}
+  expected:
+    algorithm: "tpe"
+    min_n_suggest: 3
+    max_n_suggest: 5
+
+- id: B017
+  category: integration
+  intent: "连续多轮 BO 收敛"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+      - {formula: "Al2O3", score: 3.1}
+      - {formula: "SiO2", score: 2.9}
+      - {formula: "TiO2", score: 3.3}
+      - {formula: "ZrO2", score: 3.4}
+      - {formula: "MgO", score: 2.8}
+      - {formula: "CaO", score: 2.7}
+      - {formula: "BaO", score: 2.6}
+      - {formula: "SrO", score: 2.5}
+      - {formula: "MnO", score: 2.4}
+      - {formula: "CoO", score: 2.3}
+      - {formula: "NiO", score: 2.2}
+      - {formula: "CuO", score: 2.1}
+      - {formula: "ZnO", score: 2.0}
+      - {formula: "CdO", score: 1.9}
+      - {formula: "HgO", score: 1.8}
+      - {formula: "PbO", score: 1.7}
+    pool:
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Na2O"}
+  expected:
+    status: "converging"
+    min_n_suggest: 1
+
+- id: B018
+  category: integration
+  intent: "BO 已经收敛(无 pool)"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+    pool: []
+  expected:
+    status: "converged"
+    exact_n_suggest: 0
+
+# ============================================================================
+# 端到端(mat-gen → mat-sim → mat-bayesian 闭环)(7 case)
+# ============================================================================
+
+- id: B019
+  category: e2e
+  intent: "完整 mat-gen → mat-bayesian 闭环:发现 Li 类似物"
+  artifacts:
+    observed:
+      - {formula: "LiCoO2", score: 3.5, relaxed_energy: -3.5, stability: "stable"}
+      - {formula: "LiNiO2", score: 3.3, relaxed_energy: -3.3, stability: "stable"}
+      - {formula: "LiMnO2", score: 3.0, relaxed_energy: -3.0, stability: "stable"}
+      - {formula: "LiFePO4", score: 3.2, relaxed_energy: -3.2, stability: "stable"}
+      - {formula: "NaCl", score: 2.5, relaxed_energy: -2.5, stability: "stable"}
+    pool:
+      - {formula: "LiCoO2"}    # 已观测
+      - {formula: "LiNiO2"}    # 已观测
+      - {formula: "Li2SiO3"}
+      - {formula: "Li2TiO3"}
+      - {formula: "LiAlO2"}
+      - {formula: "LiGaO2"}
+      - {formula: "LiInO2"}
+      - {formula: "Li5La3Zr2O12"}
+  expected:
+    status: "searching"
+    min_n_suggest: 3
+    no_observed_in_next_batch: ["LiCoO2", "LiNiO2"]
+
+- id: B020
+  category: e2e
+  intent: "无 Co 推荐(mat-bayesian 排除 Co)"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+    pool:
+      - {formula: "LiCoO2"}
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "LiFePO4"}
+  expected:
+    algorithm: "tpe"
+    forbidden: ["Co"]
+    forbidden_ok: true
+    exclude_in_next_batch: ["LiCoO2"]
+    min_n_suggest: 2
+
+- id: B021
+  category: e2e
+  intent: "无人约束,BO 自由探索"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "NaCl", score: 2.5}
+    pool:
+      - {formula: "K2O"}
+      - {formula: "MgO"}
+      - {formula: "CaO"}
+      - {formula: "BaO"}
+      - {formula: "SrO"}
+      - {formula: "Rb2O"}
+      - {formula: "Cs2O"}
+  expected:
+    min_n_suggest: 3
+    max_n_suggest: 5
+
+- id: B022
+  category: e2e
+  intent: "BO 已经收敛但用户还想跑(返回空批)"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+      - {formula: "NaCl", score: 2.5}
+      - {formula: "Fe2O3", score: 3.0}
+      - {formula: "Al2O3", score: 3.1}
+      - {formula: "SiO2", score: 2.9}
+      - {formula: "TiO2", score: 3.3}
+      - {formula: "ZrO2", score: 3.4}
+      - {formula: "MgO", score: 2.8}
+      - {formula: "CaO", score: 2.7}
+      - {formula: "BaO", score: 2.6}
+      - {formula: "SrO", score: 2.5}
+      - {formula: "MnO", score: 2.4}
+      - {formula: "CoO", score: 2.3}
+      - {formula: "NiO", score: 2.2}
+      - {formula: "CuO", score: 2.1}
+      - {formula: "ZnO", score: 2.0}
+      - {formula: "CdO", score: 1.9}
+      - {formula: "HgO", score: 1.8}
+      - {formula: "PbO", score: 1.7}
+      - {formula: "FeO", score: 1.6}
+      - {formula: "MnO2", score: 1.5}
+      - {formula: "Ti2O3", score: 1.4}
+      - {formula: "Cr2O3", score: 1.3}
+      - {formula: "V2O3", score: 1.2}
+      - {formula: "Sc2O3", score: 1.1}
+      - {formula: "Y2O3", score: 1.0}
+      - {formula: "La2O3", score: 0.9}
+      - {formula: "Ce2O3", score: 0.8}
+      - {formula: "Pr2O3", score: 0.7}
+    pool:
+      - {formula: "Li2O"}    # 全部已观测
+      - {formula: "NaCl"}
+      - {formula: "Fe2O3"}
+      - {formula: "Al2O3"}
+      - {formula: "SiO2"}
+      - {formula: "TiO2"}
+      - {formula: "ZrO2"}
+      - {formula: "MgO"}
+      - {formula: "CaO"}
+      - {formula: "BaO"}
+      - {formula: "SrO"}
+      - {formula: "MnO"}
+      - {formula: "CoO"}
+      - {formula: "NiO"}
+      - {formula: "CuO"}
+      - {formula: "ZnO"}
+      - {formula: "CdO"}
+      - {formula: "HgO"}
+      - {formula: "PbO"}
+      - {formula: "FeO"}
+      - {formula: "MnO2"}
+      - {formula: "Ti2O3"}
+      - {formula: "Cr2O3"}
+      - {formula: "V2O3"}
+      - {formula: "Sc2O3"}
+      - {formula: "Y2O3"}
+      - {formula: "La2O3"}
+      - {formula: "Ce2O3"}
+      - {formula: "Pr2O3"}
+  expected:
+    exact_n_suggest: 0
+    status: "converged"
+
+- id: B023
+  category: e2e
+  intent: "MatBayesianAgent via AgentRequest"
+  artifacts:
+    observed:
+      - {formula: "LiCoO2", score: 3.5}
+      - {formula: "LiFePO4", score: 3.2}
+      - {formula: "LiNiO2", score: 3.3}
+    pool:
+      - {formula: "LiCoO2"}
+      - {formula: "Li2SiO3"}
+      - {formula: "LiAlO2"}
+      - {formula: "LiGaO2"}
+  expected:
+    min_n_suggest: 2
+    has_best_so_far: true
+
+- id: B024
+  category: e2e
+  intent: "BayesianConfig 自定义 acquisition"
+  artifacts:
+    observed:
+      - {formula: "Li2O", score: 2.0}
+      - {formula: "LiCoO2", score: 3.5}
+    pool:
+      - {formula: "LiNiO2"}
+      - {formula: "LiMnO2"}
+      - {formula: "Na2O"}
+  expected:
+    algorithm: "tpe"
+    acquisition: "ei"
+    min_n_suggest: 2
+
+- id: B025
+  category: e2e
+  intent: "SimCandidate 转 ObservedPoint"
+  artifacts:
+    observed: []   # 模拟 SimCandidate 形式
+    pool: []
+  expected:
+    algorithm: "tpe"
+    status: "searching"
+    min_n_suggest: 0

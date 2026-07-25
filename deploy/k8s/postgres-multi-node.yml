@@ -1,0 +1,197 @@
+# MatWAU Postgres multi-node cluster(W29 主从 + read replica)
+# 用法:
+#   kubectl apply -f deploy/k8s/postgres-multi-node.yml
+
+# ============================================================================
+# 1. Postgres Primary(主库,处理写入)
+# ============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matwau-postgres-primary-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: matwau-postgres-primary
+  labels:
+    app: matwau
+    component: postgres-primary
+spec:
+  serviceName: matwau-postgres-primary
+  replicas: 1
+  selector:
+    matchLabels:
+      app: matwau
+      component: postgres-primary
+  template:
+    metadata:
+      labels:
+        app: matwau
+        component: postgres-primary
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_USER
+          value: matwau
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: matwau-secrets
+              key: MATWAU_PG_PASSWORD
+        - name: POSTGRES_DB
+          value: matwau
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: matwau-postgres-primary-pvc
+      - name: init-script
+        configMap:
+          name: matwau-postgres-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matwau-postgres-primary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: matwau
+    component: postgres-primary
+
+---
+# ============================================================================
+# 2. Postgres Replica(从库,处理只读)
+# ============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matwau-postgres-replica-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matwau-postgres-replica
+  labels:
+    app: matwau
+    component: postgres-replica
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: matwau
+      component: postgres-replica
+  template:
+    metadata:
+      labels:
+        app: matwau
+        component: postgres-replica
+    spec:
+      containers:
+      - name: postgres-replica
+        image: postgres:16-alpine
+        command:
+        - pg_basebackup
+        - -h
+        - matwau-postgres-primary
+        - -D
+        - /var/lib/postgresql/data
+        - -U
+        - matwau
+        - -Fp
+        - -Xs
+        - -P
+        - -R
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: matwau-secrets
+              key: MATWAU_PG_PASSWORD
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: matwau-postgres-replica-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: matwau-postgres-replica
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: matwau
+    component: postgres-replica
+
+---
+# ============================================================================
+# 3. Postgres init ConfigMap(per W23 init.sql)
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: matwau-postgres-init
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS lineage_records (
+        lineage_id      TEXT PRIMARY KEY,
+        run_id          TEXT NOT NULL,
+        parent_run_id   TEXT,
+        agent_name      TEXT NOT NULL,
+        input_hash      TEXT NOT NULL DEFAULT '',
+        output_hash     TEXT NOT NULL DEFAULT '',
+        timestamp       TEXT NOT NULL,
+        duration_seconds REAL NOT NULL DEFAULT 0,
+        cost            REAL NOT NULL DEFAULT 0,
+        metadata        JSONB NOT NULL DEFAULT '{}'::jsonb
+    );
+    CREATE INDEX IF NOT EXISTS idx_lineage_records_run_id ON lineage_records(run_id);
+    CREATE INDEX IF NOT EXISTS idx_lineage_records_parent_run ON lineage_records(parent_run_id);
+    CREATE INDEX IF NOT EXISTS idx_lineage_records_agent ON lineage_records(agent_name);
+    CREATE INDEX IF NOT EXISTS idx_lineage_records_timestamp ON lineage_records(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_lineage_records_metadata ON lineage_records USING GIN(metadata);
+    SET timezone = 'UTC';

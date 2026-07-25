@@ -1,0 +1,164 @@
+# MatWAU Goldens 测试集 — mat-orchestrator(20 case)
+# 写于:2026-07-24(W10 Day 1)
+# 用途:验证 5 workflow 调度 + DAG 执行 + 子类路由
+# per MatWAU-开发计划 §七 W10
+
+# 字段约定:
+#   id: O001-O020
+#   category: workflow / routing / e2e
+#   intent: 用户 1 句话意图
+#   expected:
+#     workflow: 期望 workflow 名
+#     subclass: 期望子类
+#     min_nodes_success: 至少多少节点成功
+#     final_outputs_has: 最终输出应含的 key
+
+# ============================================================================
+# workflow 路由测试(10 case)
+# ============================================================================
+
+- id: O001
+  category: workflow
+  intent: "出 LiCoO2 实验方案"
+  expected:
+    workflow: "experiment_planning"
+    subclass: "experiment_planning"
+    min_nodes_success: 4
+    final_outputs_has: ["artifacts"]
+
+- id: O002
+  category: workflow
+  intent: "实验规划 LiFePO4"
+  expected:
+    workflow: "experiment_planning"
+    min_nodes_success: 4
+
+- id: O003
+  category: workflow
+  intent: "出 LLZO 固态电解质实验方案"
+  expected:
+    workflow: "experiment_planning"
+    min_nodes_success: 4
+
+- id: O004
+  category: workflow
+  intent: "设计新型锂电池正极材料"
+  expected:
+    workflow: "design_new_material"
+    min_nodes_success: 2
+
+- id: O005
+  category: workflow
+  intent: "寻找新的固态电解质"
+  expected:
+    workflow: "design_new_material"
+    min_nodes_success: 2
+
+- id: O006
+  category: workflow
+  intent: "design new catalyst"
+  expected:
+    workflow: "design_new_material"
+    min_nodes_success: 2
+
+- id: O007
+  category: workflow
+  intent: "优化 LiCoO2 配方"
+  expected:
+    workflow: "optimize_existing"
+    min_nodes_success: 2
+
+- id: O008
+  category: workflow
+  intent: "为什么 XRD 谱不对"
+  expected:
+    workflow: "explain_failure"
+    min_nodes_success: 1
+
+- id: O009
+  category: workflow
+  intent: "Review 一下 LLZO 最新进展"
+  expected:
+    workflow: "literature_review"
+    min_nodes_success: 1
+
+- id: O010
+  category: workflow
+  intent: "literature survey of perovskite"
+  expected:
+    workflow: "literature_review"
+    min_nodes_success: 1
+
+# ============================================================================
+# 端到端 workflow 跑分(10 case)
+# ============================================================================
+
+- id: O011
+  category: e2e
+  intent: "出无钴锂电池正极实验方案"
+  expected:
+    workflow: "experiment_planning"
+    min_nodes_success: 4
+
+- id: O012
+  category: e2e
+  intent: "出 LLZO 实验方案,无贵金属"
+  expected:
+    workflow: "experiment_planning"
+    min_nodes_success: 4
+
+- id: O013
+  category: e2e
+  intent: "出 MoS2 HER 催化剂实验方案"
+  expected:
+    workflow: "experiment_planning"
+    min_nodes_success: 4
+
+- id: O014
+  category: e2e
+  intent: "出 Bi2Te3 热电材料实验方案"
+  expected:
+    workflow: "experiment_planning"
+    min_nodes_success: 4
+
+- id: O015
+  category: e2e
+  intent: "设计新型固态电解质"
+  expected:
+    workflow: "design_new_material"
+    min_nodes_success: 2
+
+- id: O016
+  category: e2e
+  intent: "寻找新的锂电池正极材料"
+  expected:
+    workflow: "design_new_material"
+    min_nodes_success: 2
+
+- id: O017
+  category: e2e
+  intent: "优化 NMC811 配方"
+  expected:
+    workflow: "optimize_existing"
+    min_nodes_success: 2
+
+- id: O018
+  category: e2e
+  intent: "为什么这个 MoS2 XRD 谱不对"
+  expected:
+    workflow: "explain_failure"
+    min_nodes_success: 1
+
+- id: O019
+  category: e2e
+  intent: "Review 一下钙钛矿最新进展"
+  expected:
+    workflow: "literature_review"
+    min_nodes_success: 1
+
+- id: O020
+  category: e2e
+  intent: "出 CsPbI3 钙钛矿太阳能实验方案"
+  expected:
+    workflow: "experiment_planning"
+    min_nodes_success: 4

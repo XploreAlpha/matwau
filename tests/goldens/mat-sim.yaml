@@ -1,0 +1,383 @@
+# MatWAU Goldens 测试集 — mat-sim(50 case)
+# 写于:2026-07-24(W4 Day 1)
+# 用途:mat-sim 升级 mock / 真 CHGNet 后跑这套 case,验证 pass-rate > 50% (Stage 1) / > 80% (Stage 2)
+# per MatWAU-Harness-Loop-工程心法实践.md §5.5
+# 注:mat-sim Goldens 是从 mat-gen Goldens 衍生(mat-gen 输出 → mat-sim 输入)
+
+# ============================================================================
+# 锂电池正极材料弛豫(Li-ion cathode relaxation,15 case)
+# ============================================================================
+
+- id: S001
+  category: Li-ion cathode relaxation
+  intent: "弛豫 LiCoO2 候选结构"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 5"
+    top_5_energy_below: -2.5
+  must_pass_sim: true
+
+- id: S002
+  category: Li-ion cathode relaxation
+  intent: "对 LiFePO4 (LFP) 候选做 CHGNet 弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "Fe", "P", "O"]
+    num_candidates: ">= 5"
+    top_5_energy_below: -3.0
+  must_pass_sim: true
+
+- id: S003
+  category: Li-ion cathode relaxation
+  intent: "弛豫 LiNi0.8Mn0.1Co0.1O2 (NMC811)"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn", "Co"]
+    num_candidates: ">= 5"
+
+- id: S004
+  category: Li-ion cathode relaxation
+  intent: "Li-rich 正极 Li2MnO3 弛豫"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_contain_any: ["Mn", "O"]
+    num_candidates: ">= 5"
+
+- id: S005
+  category: Li-ion cathode relaxation
+  intent: "无钴 Li-ion 正极候选弛豫"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_not_contain_any: ["Co"]
+    num_candidates: ">= 8"
+
+- id: S006
+  category: Li-ion cathode relaxation
+  intent: "弛豫高镍 NMC 候选"
+  expected:
+    formula_must_contain_any: ["Ni"]
+    num_candidates: ">= 5"
+
+- id: S007
+  category: Li-ion cathode relaxation
+  intent: "弛豫 LiNiO2 候选"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_contain_any: ["Ni", "O"]
+    num_candidates: ">= 5"
+
+- id: S008
+  category: Li-ion cathode relaxation
+  intent: "LiMn2O4 尖晶石结构弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "Mn", "O"]
+    num_candidates: ">= 5"
+
+- id: S009
+  category: Li-ion cathode relaxation
+  intent: "LiFePO4 高倍率弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "Fe", "P", "O"]
+    num_candidates: ">= 3"
+    top_5_energy_below: -3.0
+
+- id: S010
+  category: Li-ion cathode relaxation
+  intent: "弛豫 LiCoO2 高压相"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 5"
+
+- id: S011
+  category: Li-ion cathode relaxation
+  intent: "LiNi1/3Mn1/3Co1/3O2 三元材料弛豫"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn", "Co"]
+    num_candidates: ">= 5"
+
+- id: S012
+  category: Li-ion cathode relaxation
+  intent: "无钴 LiNi0.5Mn0.5O2 弛豫"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn"]
+    formula_must_not_contain_any: ["Co"]
+    num_candidates: ">= 5"
+
+- id: S013
+  category: Li-ion cathode relaxation
+  intent: "Li4Ti5O12 负极弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "Ti", "O"]
+    num_candidates: ">= 5"
+
+- id: S014
+  category: Li-ion cathode relaxation
+  intent: "弛豫 LiFeSO4F 新型正极"
+  expected:
+    formula_must_contain_any: ["Li", "Fe"]
+    num_candidates: ">= 3"
+
+- id: S015
+  category: Li-ion cathode relaxation
+  intent: "Li2FeSiO4 聚阴离子正极弛豫"
+  expected:
+    formula_must_contain_any: ["Li", "Fe", "Si"]
+    num_candidates: ">= 3"
+
+# ============================================================================
+# 固态电解质弛豫(Solid electrolyte relaxation,15 case)
+# ============================================================================
+
+- id: S016
+  category: Solid electrolyte relaxation
+  intent: "弛豫 LLZO Li7La3Zr2O12 候选"
+  expected:
+    formula_must_contain_all: ["Li", "La", "Zr", "O"]
+    num_candidates: ">= 5"
+    top_5_energy_below: -3.5
+
+- id: S017
+  category: Solid electrolyte relaxation
+  intent: "对 Li3PS4 硫化物电解质候选做 CHGNet 弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "P", "S"]
+    num_candidates: ">= 5"
+
+- id: S018
+  category: Solid electrolyte relaxation
+  intent: "无贵金属固态电解质弛豫"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_not_contain_any: ["Pt", "Au", "Ag"]
+    num_candidates: ">= 8"
+
+- id: S019
+  category: Solid electrolyte relaxation
+  intent: "Li6PS5Cl argyrodite 弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "P", "S", "Cl"]
+    num_candidates: ">= 5"
+
+- id: S020
+  category: Solid electrolyte relaxation
+  intent: "Li10GeP2S12 LGPS 弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "Ge", "P", "S"]
+    num_candidates: ">= 5"
+
+- id: S021
+  category: Solid electrolyte relaxation
+  intent: "Li1.3Al0.3Ti1.7(PO4)3 LATP 弛豫"
+  expected:
+    formula_must_contain_any: ["Li", "Ti", "P"]
+    num_candidates: ">= 3"
+
+- id: S022
+  category: Solid electrolyte relaxation
+  intent: "Li7La3Zr2O12 Ta 掺杂弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "La", "Zr", "O"]
+    num_candidates: ">= 5"
+
+- id: S023
+  category: Solid electrolyte relaxation
+  intent: "Na 超离子导体 Na3Zr2Si2PO12 弛豫"
+  expected:
+    formula_must_contain_all: ["Na", "Zr", "Si", "P", "O"]
+    num_candidates: ">= 3"
+
+- id: S024
+  category: Solid electrolyte relaxation
+  intent: "LiPON 薄膜电解质弛豫"
+  expected:
+    formula_must_contain_any: ["Li", "P", "O", "N"]
+    num_candidates: ">= 3"
+
+- id: S025
+  category: Solid electrolyte relaxation
+  intent: "卤化物 Li3YCl6 弛豫"
+  expected:
+    formula_must_contain_any: ["Li", "Y", "Cl"]
+    num_candidates: ">= 3"
+
+- id: S026
+  category: Solid electrolyte relaxation
+  intent: "反钙钛矿 Li3OCl 弛豫"
+  expected:
+    formula_must_contain_all: ["Li", "O", "Cl"]
+    num_candidates: ">= 3"
+
+- id: S027
+  category: Solid electrolyte relaxation
+  intent: "Li3PS4 + LiI 复合电解质弛豫"
+  expected:
+    formula_must_contain_any: ["Li", "P", "S"]
+    num_candidates: ">= 3"
+
+- id: S028
+  category: Solid electrolyte relaxation
+  intent: "Li2ZrCl6 新型卤化物弛豫"
+  expected:
+    formula_must_contain_any: ["Li", "Zr", "Cl"]
+    num_candidates: ">= 3"
+
+- id: S029
+  category: Solid electrolyte relaxation
+  intent: "Li5.5PS4.5Cl1.5 argyrodite 弛豫"
+  expected:
+    formula_must_contain_any: ["Li", "P", "S"]
+    num_candidates: ">= 3"
+
+- id: S030
+  category: Solid electrolyte relaxation
+  intent: "Li9.54Si1.74P1.44S11.4Cl0.6 LGPS 改性弛豫"
+  expected:
+    formula_must_contain_any: ["Li", "Si", "P"]
+    num_candidates: ">= 3"
+
+# ============================================================================
+# 催化剂弛豫(Catalyst relaxation,10 case)
+# ============================================================================
+
+- id: S031
+  category: Catalyst relaxation
+  intent: "弛豫 Pt 催化剂候选(HER)"
+  expected:
+    formula_must_contain_any: ["Pt"]
+    num_candidates: ">= 3"
+
+- id: S032
+  category: Catalyst relaxation
+  intent: "无 Pt 催化剂候选弛豫"
+  expected:
+    formula_must_not_contain_any: ["Pt"]
+    formula_must_contain_any: ["Fe", "Co", "Ni", "Mn"]
+    num_candidates: ">= 5"
+
+- id: S033
+  category: Catalyst relaxation
+  intent: "弛豫 MoS2 析氢催化剂"
+  expected:
+    formula_must_contain_all: ["Mo", "S"]
+    num_candidates: ">= 3"
+
+- id: S034
+  category: Catalyst relaxation
+  intent: "弛豫单原子催化剂 Fe-N-C"
+  expected:
+    formula_must_contain_any: ["Fe", "N", "C"]
+    num_candidates: ">= 3"
+
+- id: S035
+  category: Catalyst relaxation
+  intent: "弛豫 Co3O4 析氧催化剂"
+  expected:
+    formula_must_contain_all: ["Co", "O"]
+    num_candidates: ">= 3"
+
+- id: S036
+  category: Catalyst relaxation
+  intent: "NiFe LDH 析氧弛豫"
+  expected:
+    formula_must_contain_all: ["Ni", "Fe"]
+    num_candidates: ">= 3"
+
+- id: S037
+  category: Catalyst relaxation
+  intent: "弛豫 Cu2O 光催化剂"
+  expected:
+    formula_must_contain_all: ["Cu", "O"]
+    num_candidates: ">= 3"
+
+- id: S038
+  category: Catalyst relaxation
+  intent: "BiVO4 太阳能水氧化弛豫"
+  expected:
+    formula_must_contain_any: ["Bi", "V", "O"]
+    num_candidates: ">= 3"
+
+- id: S039
+  category: Catalyst relaxation
+  intent: "ZrO2 载体弛豫"
+  expected:
+    formula_must_contain_all: ["Zr", "O"]
+    num_candidates: ">= 3"
+
+- id: S040
+  category: Catalyst relaxation
+  intent: "MnO2 氧还原弛豫"
+  expected:
+    formula_must_contain_all: ["Mn", "O"]
+    num_candidates: ">= 3"
+
+# ============================================================================
+# 其他材料(Other materials,10 case)
+# ============================================================================
+
+- id: S041
+  category: Solar cell relaxation
+  intent: "弛豫 CsPbI3 钙钛矿"
+  expected:
+    formula_must_contain_any: ["Cs", "Pb", "I"]
+    num_candidates: ">= 3"
+
+- id: S042
+  category: Solar cell relaxation
+  intent: "弛豫 CH3NH3PbI3 钙钛矿"
+  expected:
+    formula_must_contain_any: ["Pb", "I"]
+    num_candidates: ">= 3"
+
+- id: S043
+  category: Hydrogen storage relaxation
+  intent: "弛豫 MgH2 储氢材料"
+  expected:
+    formula_must_contain_all: ["Mg", "H"]
+    num_candidates: ">= 3"
+
+- id: S044
+  category: Hydrogen storage relaxation
+  intent: "弛豫 LaNi5 储氢合金"
+  expected:
+    formula_must_contain_any: ["La", "Ni"]
+    num_candidates: ">= 3"
+
+- id: S045
+  category: Superconductor relaxation
+  intent: "弛豫 YBa2Cu3O7 YBCO 超导"
+  expected:
+    formula_must_contain_any: ["Y", "Ba", "Cu"]
+    num_candidates: ">= 3"
+
+- id: S046
+  category: Thermoelectric relaxation
+  intent: "弛豫 Bi2Te3 热电材料"
+  expected:
+    formula_must_contain_all: ["Bi", "Te"]
+    num_candidates: ">= 3"
+
+- id: S047
+  category: Magnetic relaxation
+  intent: "弛豫 Nd2Fe14B 永磁"
+  expected:
+    formula_must_contain_any: ["Nd", "Fe"]
+    num_candidates: ">= 3"
+
+- id: S048
+  category: Magnetic relaxation
+  intent: "弛豫 SmCo5 永磁"
+  expected:
+    formula_must_contain_any: ["Sm", "Co"]
+    num_candidates: ">= 3"
+
+- id: S049
+  category: Semiconductor relaxation
+  intent: "弛豫 GaN 半导体"
+  expected:
+    formula_must_contain_all: ["Ga", "N"]
+    num_candidates: ">= 3"
+
+- id: S050
+  category: Semiconductor relaxation
+  intent: "弛豫 SiC 宽禁带半导体"
+  expected:
+    formula_must_contain_all: ["Si", "C"]
+    num_candidates: ">= 3"

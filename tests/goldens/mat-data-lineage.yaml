@@ -1,0 +1,185 @@
+# MatWAU Goldens 测试集 — mat-data-lineage(12 case)
+# 写于:2026-07-24(W14 Day 3)
+# 用途:验证 lineage 记录 + ancestors/descendants/tree 查询
+# per MatWAU-开发计划 §七 W14
+# 跑分目标:pass-rate > 50% (Stage 1) / > 80% (Stage 2)
+
+# 字段约定:
+#   id: D001-D012
+#   category: record / hash / query / e2e
+#   intent: 用户 1 句话
+#   expected:
+#     has_lineage_id: 记录应有 lineage_id
+#     has_run_id: 记录应有 run_id
+#     store_size: 期望 store size
+#     query_type: 期望 query 类型
+#     target_run_id: 查询目标
+#     has_ancestors / has_descendants: 期望血缘存在
+#     min_count: 期望至少多少条
+#     hash_format: 期望 hash 长度
+
+# ============================================================================
+# 记录模式(4 case)
+# ============================================================================
+
+- id: D001
+  category: record
+  intent: "记录 1 个 mat-gen run"
+  artifacts:
+    query_type: "record"
+    run_id: "run-001"
+    agent_name: "mat-gen-agent"
+    input_artifacts:
+      message: "design new"
+    output_artifacts:
+      candidates:
+        - {formula: "LiCoO2"}
+        - {formula: "LiFePO4"}
+  expected:
+    has_lineage_id: true
+    has_run_id: "run-001"
+    store_size: 1
+
+- id: D002
+  category: record
+  intent: "记录 1 个 mat-sim run(带 parent)"
+  artifacts:
+    query_type: "record"
+    run_id: "run-002"
+    agent_name: "mat-sim-agent"
+    input_artifacts:
+      candidates:
+        - {formula: "LiCoO2"}
+    output_artifacts:
+      simulated:
+        - {formula: "LiCoO2", relaxed_energy: -3.5}
+    parent_run_id: "run-001"
+  expected:
+    has_lineage_id: true
+    has_run_id: "run-002"
+    store_size: 2
+
+- id: D003
+  category: record
+  intent: "记录 1 个 mat-critic run"
+  artifacts:
+    query_type: "record"
+    run_id: "run-003"
+    agent_name: "mat-critic-agent"
+    input_artifacts:
+      candidates:
+        - {formula: "LiCoO2"}
+    output_artifacts:
+      verdict: "pass"
+    parent_run_id: "run-002"
+  expected:
+    has_lineage_id: true
+    store_size: 3
+
+- id: D004
+  category: record
+  intent: "记录 1 个 mat-hpc run"
+  artifacts:
+    query_type: "record"
+    run_id: "run-004"
+    agent_name: "mat-hpc-agent"
+    input_artifacts:
+      jobs:
+        - {job_id: "vasp-001"}
+    output_artifacts:
+      results:
+        - {energy: -5.2}
+    parent_run_id: "run-003"
+    cost: 100.0
+  expected:
+    has_lineage_id: true
+    store_size: 4
+
+# ============================================================================
+# Hash 计算(2 case)
+# ============================================================================
+
+- id: D005
+  category: hash
+  intent: "同样输入产生同样 hash"
+  expected:
+    hash_format: 16  # 16 字符 SHA256 prefix
+    hash_stable: true
+
+- id: D006
+  category: hash
+  intent: "不同输入产生不同 hash"
+  expected:
+    hash_stable: true
+    hash_different: true
+
+# ============================================================================
+# 查询模式(3 case)
+# ============================================================================
+
+- id: D007
+  category: query
+  intent: "查 run-003 的 ancestors"
+  artifacts:
+    query_type: "ancestors"
+    target_run_id: "run-003"
+  expected:
+    query_type: "ancestors"
+    target_run_id: "run-003"
+    has_ancestors: true
+    min_count: 2
+
+- id: D008
+  category: query
+  intent: "查 run-001 的 descendants"
+  artifacts:
+    query_type: "descendants"
+    target_run_id: "run-001"
+  expected:
+    query_type: "descendants"
+    target_run_id: "run-001"
+    has_descendants: true
+    min_count: 3
+
+- id: D009
+  category: query
+  intent: "查 run-002 的 tree"
+  artifacts:
+    query_type: "tree"
+    target_run_id: "run-002"
+  expected:
+    query_type: "tree"
+    target_run_id: "run-002"
+    min_count: 1
+
+# ============================================================================
+# 端到端(3 case)
+# ============================================================================
+
+- id: D010
+  category: e2e
+  intent: "完整 4 段 lineage + tree 查询"
+  artifacts:
+    query_type: "tree"
+    target_run_id: "run-002"
+  expected:
+    query_type: "tree"
+    min_count: 1
+    has_ancestors: true
+    has_descendants: true
+
+- id: D011
+  category: e2e
+  intent: "JSON 导出"
+  expected:
+    json_exportable: true
+
+- id: D012
+  category: e2e
+  intent: "完整 5 段 + 2 支 lineage"
+  artifacts:
+    query_type: "ancestors"
+    target_run_id: "run-005"
+  expected:
+    min_count: 4
+    has_ancestors: true

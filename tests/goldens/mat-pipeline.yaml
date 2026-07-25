@@ -1,0 +1,238 @@
+# MatWAU Goldens 测试集 — mat-pipeline 集成测试(25 case)
+# 写于:2026-07-24(W8 Day 1)
+# 用途:验证 4 段管线(mat-gen → mat-sim → mat-hpc → mat-exp)端到端工作流整合质量
+# per MatWAU-开发计划 §5.6 + W8 测试 + 优化
+# 跑分目标:pass-rate > 80% (Stage 2)
+
+# 字段约定:
+#   id: P001-P025
+#   category: pipeline-XXX
+#   intent: 用户 1 句话需求
+#   expected:
+#     elements: 必含元素列表
+#     forbidden: 禁止元素列表(可选)
+#     min_recipes: 最少最终实验方案数
+#     min_stages_success: 至少多少段成功(默认 4)
+#     max_cost_yuan: 单次 pipeline 总成本上限(可选)
+#   must_pass_sim / must_pass_lit / must_pass_eis: 跨 agent 标记(预留)
+
+# ============================================================================
+# 锂电池正极集成测试(8 case)
+# ============================================================================
+
+- id: P001
+  category: pipeline-li-ion
+  intent: "出 LiCoO2 锂电池正极实验方案"
+  expected:
+    elements: ["Li", "Co", "O"]
+    min_recipes: 2
+    min_stages_success: 4
+  must_pass_sim: true
+
+- id: P002
+  category: pipeline-li-ion
+  intent: "LiFePO4 LFP 实验方案"
+  expected:
+    elements: ["Li", "Fe", "P", "O"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P003
+  category: pipeline-li-ion
+  intent: "NMC811 高镍正极实验方案"
+  expected:
+    elements_any: ["Ni", "Mn", "Co"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P004
+  category: pipeline-li-ion
+  intent: "无钴 LiNi0.5Mn0.5O2 实验方案"
+  expected:
+    elements: ["Li", "Ni", "Mn", "O"]
+    forbidden: ["Co"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P005
+  category: pipeline-li-ion
+  intent: "LiMn2O4 尖晶石实验方案"
+  expected:
+    elements: ["Li", "Mn", "O"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P006
+  category: pipeline-li-ion
+  intent: "LiNiO2 实验方案"
+  expected:
+    elements: ["Li", "Ni", "O"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P007
+  category: pipeline-li-ion
+  intent: "Li4Ti5O12 负极实验方案"
+  expected:
+    elements: ["Li", "Ti", "O"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P008
+  category: pipeline-li-ion
+  intent: "高镍无钴 NMC 实验方案"
+  expected:
+    elements_any: ["Ni", "Mn"]
+    forbidden: ["Co"]
+    min_recipes: 2
+    min_stages_success: 4
+
+# ============================================================================
+# 固态电解质集成测试(7 case)
+# ============================================================================
+
+- id: P009
+  category: pipeline-solid-electrolyte
+  intent: "LLZO Li7La3Zr2O12 固态电解质实验方案"
+  expected:
+    elements: ["Li", "La", "Zr", "O"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P010
+  category: pipeline-solid-electrolyte
+  intent: "LGPS Li10GeP2S12 实验方案"
+  expected:
+    elements: ["Li", "Ge", "P", "S"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P011
+  category: pipeline-solid-electrolyte
+  intent: "Li3PS4 硫化物电解质实验方案"
+  expected:
+    elements: ["Li", "P", "S"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P012
+  category: pipeline-solid-electrolyte
+  intent: "无贵金属 LLZO 固态电解质实验方案"
+  expected:
+    elements: ["Li", "La", "Zr", "O"]
+    forbidden: ["Pt", "Au", "Ag"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P013
+  category: pipeline-solid-electrolyte
+  intent: "Li6PS5Cl argyrodite 实验方案"
+  expected:
+    elements: ["Li", "P", "S", "Cl"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P014
+  category: pipeline-solid-electrolyte
+  intent: "Na3Zr2Si2PO12 Na 超离子导体实验方案"
+  expected:
+    elements: ["Na", "Zr", "Si", "P", "O"]
+    min_recipes: 1
+    min_stages_success: 4
+
+- id: P015
+  category: pipeline-solid-electrolyte
+  intent: "LATP Li1.3Al0.3Ti1.7(PO4)3 实验方案"
+  expected:
+    elements_any: ["Li", "Ti", "P"]
+    min_recipes: 1
+    min_stages_success: 4
+
+# ============================================================================
+# 催化剂集成测试(5 case)
+# ============================================================================
+
+- id: P016
+  category: pipeline-catalyst
+  intent: "MoS2 析氢 HER 催化剂实验方案"
+  expected:
+    elements: ["Mo", "S"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P017
+  category: pipeline-catalyst
+  intent: "无 Pt 析氢催化剂实验方案"
+  expected:
+    elements_any: ["Fe", "Co", "Ni", "Mn"]
+    forbidden: ["Pt"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P018
+  category: pipeline-catalyst
+  intent: "Co3O4 析氧 OER 催化剂实验方案"
+  expected:
+    elements: ["Co", "O"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P019
+  category: pipeline-catalyst
+  intent: "NiFe LDH 析氧催化剂实验方案"
+  expected:
+    elements: ["Ni", "Fe"]
+    min_recipes: 2
+    min_stages_success: 4
+
+- id: P020
+  category: pipeline-catalyst
+  intent: "单原子催化剂 Fe-N-C 实验方案"
+  expected:
+    elements_any: ["Fe", "N", "C"]
+    min_recipes: 1
+    min_stages_success: 4
+
+# ============================================================================
+# 其他材料集成测试(5 case)
+# ============================================================================
+
+- id: P021
+  category: pipeline-other
+  intent: "CsPbI3 钙钛矿太阳能实验方案"
+  expected:
+    elements_any: ["Cs", "Pb", "I"]
+    min_recipes: 1
+    min_stages_success: 4
+
+- id: P022
+  category: pipeline-other
+  intent: "YBa2Cu3O7 YBCO 超导实验方案"
+  expected:
+    elements_any: ["Y", "Ba", "Cu"]
+    min_recipes: 1
+    min_stages_success: 4
+
+- id: P023
+  category: pipeline-other
+  intent: "Bi2Te3 热电材料实验方案"
+  expected:
+    elements: ["Bi", "Te"]
+    min_recipes: 1
+    min_stages_success: 4
+
+- id: P024
+  category: pipeline-other
+  intent: "Nd2Fe14B 永磁实验方案"
+  expected:
+    elements_any: ["Nd", "Fe"]
+    min_recipes: 1
+    min_stages_success: 4
+
+- id: P025
+  category: pipeline-other
+  intent: "GaN 半导体实验方案"
+  expected:
+    elements: ["Ga", "N"]
+    min_recipes: 1
+    min_stages_success: 4

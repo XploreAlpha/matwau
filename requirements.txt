@@ -1,0 +1,14 @@
+# MatWAU 依赖(Stage 1 mock)
+# per MatWAU-开发计划 §5.6 W8 测试 + 优化
+# 本机无 GPU / 超算,只用纯 Python + mock
+
+# 测试
+pytest>=7.0
+pytest-cov>=4.0
+pyyaml>=6.0
+
+# 数据
+pydantic>=2.0
+
+# Lint(可选,CI 用)
+ruff>=0.1.0

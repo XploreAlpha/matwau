@@ -1,0 +1,119 @@
+{
+  "name": "mat-hpc-agent",
+  "version": "0.1.0",
+  "description": "材料科学超算对接员 — 对 mat-sim 弛豫后候选提交 VASP HPC 计算(Stage 1 mock,Stage 2 接真 Slurm + VASP)",
+  "universe_labels": {
+    "domain": "materials-science",
+    "tier": "high-performance",
+    "gpu": "false",
+    "language": "python",
+    "external_dependency": "slurm-cluster"
+  },
+  "skills": [
+    "vasp-input-generation",
+    "slurm-job-submission",
+    "hpc-resource-estimation",
+    "cost-calculation",
+    "stability-filtering"
+  ],
+  "endpoints": {
+    "invoke": "http://mat-hpc-agent:18804/v1/invoke",
+    "healthz": "http://mat-hpc-agent:18804/healthz"
+  },
+  "input_artifacts": [
+    {
+      "name": "simulated",
+      "type": "array",
+      "description": "mat-sim-agent 输出的弛豫候选,每个 {formula, cif, relaxed_energy, stability, relaxation_converged}(必填)"
+    },
+    {
+      "name": "calc_type",
+      "type": "string",
+      "description": "VASP 计算类型:'relax'(默认) / 'static' / 'dos' / 'band'"
+    },
+    {
+      "name": "filter_unstable",
+      "type": "boolean",
+      "description": "是否过滤掉 unstable 候选(默认 true,unstable 不值得花 HPC 钱)"
+    },
+    {
+      "name": "cost_threshold",
+      "type": "number",
+      "description": "单 job cost 阈值 ¥,超过 → status=blocked(默认 1000)"
+    },
+    {
+      "name": "budget",
+      "type": "number",
+      "description": "可选总预算 ¥(超出仅警告不阻断)"
+    }
+  ],
+  "output_artifacts": [
+    {
+      "name": "jobs",
+      "type": "array",
+      "description": "HPC job 列表,每个 {job_id, formula, status, estimated_cost, walltime_hours, n_nodes, n_cores_per_node, vasp_inputs, slurm_script}"
+    },
+    {
+      "name": "stats",
+      "type": "object",
+      "description": "统计 {total, submitted, completed, failed, blocked, total_cost, total_walltime}"
+    },
+    {
+      "name": "input_count",
+      "type": "integer",
+      "description": "输入候选数"
+    },
+    {
+      "name": "filtered_count",
+      "type": "integer",
+      "description": "过滤后候选数(unstable 已过滤)"
+    },
+    {
+      "name": "reply",
+      "type": "string",
+      "description": "自然语言总结(状态分布 + 总成本 + top-3)"
+    }
+  ],
+  "vasp_inputs_generated": [
+    "INCAR(ENCUT=520, EDIFF=1e-5, IBRION=2, ISIF=3, NSW=100)",
+    "KPOINTS(Monkhorst-Pack 6x6x6 自动网格)",
+    "POSCAR(晶格 + 元素 + 坐标)",
+    "POTCAR.spec(Stage 1 mock / Stage 2 接 Materials Project API)"
+  ],
+  "slurm_directives": [
+    "#SBATCH --job-name=vasp_<formula>",
+    "#SBATCH --nodes=N",
+    "#SBATCH --ntasks-per-node=cores",
+    "#SBATCH --time=HH:MM:00",
+    "#SBATCH --partition=normal"
+  ],
+  "cost_estimates": {
+    "cost_per_node_hour_yuan": 10.0,
+    "small_system_atoms_lt_10": "1 node × 24 cores × 1-2h ≈ ¥10-50",
+    "medium_system_atoms_10_50": "1 node × 48 cores × 2-6h ≈ ¥100-300",
+    "large_system_atoms_50_200": "2 nodes × 48 cores × 6-24h ≈ ¥600-5000",
+    "huge_system_atoms_gt_200": "4 nodes × 48 cores × 24+h ≈ ¥10000+"
+  },
+  "stage": "phase-1-mvp",
+  "mock_mode": true,
+  "mock_reason": "Stage 1 本机无 Slurm + VASP,真对接切 WAU v1.0.0 GA + 服务器超算后启用",
+  "downstream_agents": [
+    "mat-critic(W11,3 路交叉验证对比 HPC 结果)",
+    "mat-data-lineage(W13,持久化 job_id + lineage_id)"
+  ],
+  "upstream_agents": [
+    "mat-sim-agent(产出 List[SimCandidate])",
+    "mat-gen-agent(备选,直接传 List[GenCandidate] 跳过 sim)"
+  ],
+  "stability_filter": {
+    "default_behavior": "filter_unstable=True",
+    "keep_stabilities": ["stable", "metastable"],
+    "filter_stabilities": ["unstable"],
+    "rationale": "unstable 不值得花 HPC 钱(per dev plan §5.4)"
+  },
+  "safety_thresholds": {
+    "cost_per_job_yuan": 1000.0,
+    "block_action": "status=blocked,需 supervisor 审批",
+    "rationale": "per dev plan §5.4 + SafetyGuard §5.4"
+  }
+}

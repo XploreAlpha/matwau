@@ -1,0 +1,387 @@
+# MatWAU Goldens 测试集 — mat-gen(50 case)
+# 写于:2026-07-24(W1 Day 2)
+# 用途:mat-gen 升级 prompt / LLM 后跑这套 case,验证 pass-rate > 80%
+# per MatWAU-Harness-Loop-工程心法实践.md §5.5
+
+# ============================================================================
+# 锂电池正极材料(Li-ion cathode,15 case)
+# ============================================================================
+
+- id: G001
+  category: Li-ion cathode
+  intent: "设计 Li-ion cathode,能量密度 > 500 Wh/kg"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 10"
+    top_5_energy_below: -3.0  # eV/atom
+  must_pass_sim: true
+
+- id: G002
+  category: Li-ion cathode
+  intent: "找高能量密度锂硫电池正极材料"
+  expected:
+    formula_must_contain_any: ["Li", "S"]
+    num_candidates: ">= 5"
+  must_pass_lit: true
+
+- id: G003
+  category: Li-ion cathode
+  intent: "设计 Li-rich 正极材料,容量 > 250 mAh/g"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 8"
+  must_pass_sim: true
+
+- id: G004
+  category: Li-ion cathode
+  intent: "无钴 Li-ion 正极(降低对刚果矿依赖)"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_not_contain_any: ["Co"]
+    num_candidates: ">= 10"
+
+- id: G005
+  category: Li-ion cathode
+  intent: "高镍三元 NMC 正极,Ni 含量 > 80%"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn", "Co"]
+    num_candidates: ">= 5"
+  must_pass_sim: true
+
+- id: G006
+  category: Li-ion cathode
+  intent: "磷酸铁锂(LFP)正极的改性方案"
+  expected:
+    formula_must_contain_all: ["Li", "Fe", "P", "O"]
+    num_candidates: ">= 3"
+
+- id: G007
+  category: Li-ion cathode
+  intent: "锂离子电池 5V 级正极材料(高电压平台)"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 6"
+  must_pass_sim: true
+
+- id: G008
+  category: Li-ion cathode
+  intent: "锂空气电池正极催化剂"
+  expected:
+    formula_must_contain_any: ["Pt", "Au", "Ag", "C"]
+    num_candidates: ">= 5"
+
+- id: G009
+  category: Li-ion cathode
+  intent: "低成本锂离子正极,不含 Ni/Co"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_not_contain_any: ["Ni", "Co"]
+    num_candidates: ">= 10"
+
+- id: G010
+  category: Li-ion cathode
+  intent: "尖晶石结构 LiMn2O4 改进方案"
+  expected:
+    formula_must_contain_all: ["Li", "Mn", "O"]
+    num_candidates: ">= 3"
+
+- id: G011
+  category: Li-ion cathode
+  intent: "固态锂电池正极(与固态电解质匹配)"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 8"
+  must_pass_sim: true
+
+- id: G012
+  category: Li-ion cathode
+  intent: "锂离子电池正极,高倍率(快充)"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 6"
+
+- id: G013
+  category: Li-ion cathode
+  intent: "低温 Li-ion 正极(-40℃ 工作)"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 5"
+  must_pass_sim: true
+
+- id: G014
+  category: Li-ion cathode
+  intent: "层状氧化物正极 LiNiO2 稳定性改进"
+  expected:
+    formula_must_contain_all: ["Li", "Ni", "O"]
+    num_candidates: ">= 3"
+
+- id: G015
+  category: Li-ion cathode
+  intent: "Li-ion 正极材料,循环寿命 > 5000 次"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 5"
+
+# ============================================================================
+# 固态电解质(Solid electrolyte,15 case)
+# ============================================================================
+
+- id: G016
+  category: Solid electrolyte
+  intent: "找室温下能导电的固态电解质,不含贵金属"
+  expected:
+    formula_must_contain_any: ["Li", "Na", "Mg"]
+    formula_must_not_contain_any: ["Co", "Ni", "Pt"]
+    num_candidates: ">= 20"
+  must_pass_eis: true
+
+- id: G017
+  category: Solid electrolyte
+  intent: "硫化物固态电解质(Li2S-P2S5 体系改进)"
+  expected:
+    formula_must_contain_all: ["Li", "S"]
+    num_candidates: ">= 8"
+  must_pass_sim: true
+
+- id: G018
+  category: Solid electrolyte
+  intent: "氧化物固态电解质 LLZO 改进方案"
+  expected:
+    formula_must_contain_all: ["Li", "La", "Zr", "O"]
+    num_candidates: ">= 5"
+
+- id: G019
+  category: Solid electrolyte
+  intent: "聚合物固态电解质 PEO 改性"
+  expected:
+    formula_must_contain_any: ["C", "H", "O"]
+    num_candidates: ">= 3"
+
+- id: G020
+  category: Solid electrolyte
+  intent: "锂离子电导率 > 1 mS/cm 的固态电解质"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 10"
+  must_pass_sim: true
+  must_pass_eis: true
+
+- id: G021
+  category: Solid electrolyte
+  intent: "钠离子固态电解质 NASICON 结构"
+  expected:
+    formula_must_contain_all: ["Na", "Si", "O"]
+    num_candidates: ">= 5"
+
+- id: G022
+  category: Solid electrolyte
+  intent: "卤化物固态电解质(Li3YCl6 体系)"
+  expected:
+    formula_must_contain_any: ["Li", "Cl", "Br", "I"]
+    num_candidates: ">= 5"
+  must_pass_sim: true
+
+- id: G023
+  category: Solid electrolyte
+  intent: "锂镧锆氧(LLZO)Ta 掺杂方案"
+  expected:
+    formula_must_contain_all: ["Li", "La", "Zr", "O"]
+    num_candidates: ">= 4"
+
+- id: G024
+  category: Solid electrolyte
+  intent: "反钙钛矿固态电解质 Li3OCl"
+  expected:
+    formula_must_contain_all: ["Li", "O", "Cl"]
+    num_candidates: ">= 3"
+
+- id: G025
+  category: Solid electrolyte
+  intent: "硫银锗矿 Li6PS5Cl 改进"
+  expected:
+    formula_must_contain_all: ["Li", "P", "S"]
+    num_candidates: ">= 4"
+
+- id: G026
+  category: Solid electrolyte
+  intent: "无锂固态电解质(Na / Mg 体系)"
+  expected:
+    formula_must_contain_any: ["Na", "Mg"]
+    formula_must_not_contain: "Li"
+    num_candidates: ">= 6"
+
+- id: G027
+  category: Solid electrolyte
+  intent: "室温钠离子固态电解质"
+  expected:
+    formula_must_contain: "Na"
+    num_candidates: ">= 5"
+  must_pass_sim: true
+
+- id: G028
+  category: Solid electrolyte
+  intent: "镁离子固态电解质 Mg2+ 导体"
+  expected:
+    formula_must_contain: "Mg"
+    num_candidates: ">= 4"
+
+- id: G029
+  category: Solid electrolyte
+  intent: "锂磷氧氮(LiPON)薄膜电解质改进"
+  expected:
+    formula_must_contain_all: ["Li", "P", "O", "N"]
+    num_candidates: ">= 3"
+
+- id: G030
+  category: Solid electrolyte
+  intent: "高电压窗口固态电解质(> 5V vs Li/Li+)"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 6"
+  must_pass_eis: true
+
+# ============================================================================
+# 催化材料(Catalyst,10 case)
+# ============================================================================
+
+- id: G031
+  category: Catalyst
+  intent: "析氢反应(HER)催化剂,无 Pt"
+  expected:
+    formula_must_contain_any: ["Mo", "W", "Ni", "Fe"]
+    formula_must_not_contain: "Pt"
+    num_candidates: ">= 8"
+
+- id: G032
+  category: Catalyst
+  intent: "析氧反应(OER)催化剂,用于电解水"
+  expected:
+    formula_must_contain_any: ["Ni", "Fe", "Co", "Mn"]
+    num_candidates: ">= 6"
+
+- id: G033
+  category: Catalyst
+  intent: "氧还原反应(ORR)催化剂,燃料电池用"
+  expected:
+    formula_must_contain_any: ["Pt", "Fe", "N", "C"]
+    num_candidates: ">= 5"
+
+- id: G034
+  category: Catalyst
+  intent: "CO2 还原催化剂,产物 CO"
+  expected:
+    formula_must_contain_any: ["Cu", "Ag", "Au"]
+    num_candidates: ">= 4"
+
+- id: G035
+  category: Catalyst
+  intent: "氮还原(NRR)合成氨催化剂"
+  expected:
+    formula_must_contain_any: ["Fe", "Ru", "Mo"]
+    num_candidates: ">= 5"
+
+- id: G036
+  category: Catalyst
+  intent: "光催化分解水制氢催化剂"
+  expected:
+    formula_must_contain_any: ["Ti", "O", "N", "C"]
+    num_candidates: ">= 6"
+
+- id: G037
+  category: Catalyst
+  intent: "CO 氧化催化剂,室温工作"
+  expected:
+    formula_must_contain_any: ["Au", "Pt", "Pd", "Cu"]
+    num_candidates: ">= 5"
+
+- id: G038
+  category: Catalyst
+  intent: "甲烷活化催化剂(CH4 → CH3OH)"
+  expected:
+    formula_must_contain_any: ["Cu", "Fe", "Mo"]
+    num_candidates: ">= 4"
+
+- id: G039
+  category: Catalyst
+  intent: "电催化 CO2 → C2H4(乙烯)"
+  expected:
+    formula_must_contain: "Cu"
+    num_candidates: ">= 3"
+
+- id: G040
+  category: Catalyst
+  intent: "廉价 Mn 基 OER 催化剂"
+  expected:
+    formula_must_contain_all: ["Mn", "O"]
+    formula_must_not_contain_any: ["Pt", "Ir", "Ru"]
+    num_candidates: ">= 5"
+
+# ============================================================================
+# 储氢 / 太阳能 / 其他(10 case)
+# ============================================================================
+
+- id: G041
+  category: Hydrogen storage
+  intent: "室温储氢材料,容量 > 5 wt%"
+  expected:
+    num_candidates: ">= 5"
+
+- id: G042
+  category: Solar cell
+  intent: "钙钛矿太阳能电池吸收层材料(CH3NH3PbI3 改进)"
+  expected:
+    formula_must_contain_all: ["Pb", "I"]
+    num_candidates: ">= 3"
+
+- id: G043
+  category: Solar cell
+  intent: "无铅钙钛矿太阳能电池材料"
+  expected:
+    formula_must_not_contain: "Pb"
+    num_candidates: ">= 5"
+
+- id: G044
+  category: Superconductor
+  intent: "高温超导材料,Tc > 77 K"
+  expected:
+    num_candidates: ">= 3"
+
+- id: G045
+  category: Thermoelectric
+  intent: "热电材料,ZT > 2"
+  expected:
+    num_candidates: ">= 5"
+
+- id: G046
+  category: Magnetic
+  intent: "永磁材料,无重稀土(Dy/Tb)"
+  expected:
+    formula_must_contain_any: ["Nd", "Pr", "Sm"]
+    formula_must_not_contain_any: ["Dy", "Tb"]
+    num_candidates: ">= 4"
+
+- id: G047
+  category: Hydrogen storage
+  intent: "镁基储氢合金 MgH2 改性"
+  expected:
+    formula_must_contain: "Mg"
+    num_candidates: ">= 3"
+
+- id: G048
+  category: Solar cell
+  intent: "染料敏化太阳能电池电解质"
+  expected:
+    num_candidates: ">= 3"
+
+- id: G049
+  category: Semiconductor
+  intent: "宽禁带半导体材料(Eg > 3 eV)"
+  expected:
+    num_candidates: ">= 6"
+
+- id: G050
+  category: Magnetic
+  intent: "软磁材料,高频低损耗"
+  expected:
+    formula_must_contain_any: ["Fe", "Ni", "Co"]
+    num_candidates: ">= 4"

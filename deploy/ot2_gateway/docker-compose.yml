@@ -1,0 +1,32 @@
+version: '3.8'
+# MatWAU OT-2 网关 docker-compose(W28)
+# 用法:docker compose -f deploy/ot2_gateway/docker-compose.yml up -d
+
+services:
+  ot2-simulator:
+    image: opentrons/opentrons-emulation:latest
+    container_name: matwau-ot2-simulator
+    ports:
+      - "31950:31950"     # OT-2 RPC 端口
+    volumes:
+      - ./protocols:/data/protocols:ro
+      - ./output:/data/output
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import opentrons; print('ok')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  matwau-gateway:
+    image: python:3.11-slim
+    container_name: matwau-ot2-gateway
+    depends_on:
+      - ot2-simulator
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ./protocols:/app/protocols
+      - ./output:/app/output
+    environment:
+      MATWAU_OT2_HOST: ot2-simulator
+      MATWAU_OT2_PORT: "31950"
+    command: ["python3", "/app/scripts/ot2_client.py"]

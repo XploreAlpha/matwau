@@ -1,0 +1,188 @@
+# MatWAU Goldens 测试集 — mat-lit(20 case)
+# 写于:2026-07-24(W14 Day 1)
+# 用途:验证 literature review 4 部分(background + state_of_art + gaps + suggestions)+ 关键词提取
+# per MatWAU-开发计划 §七 W14
+# 跑分目标:pass-rate > 80% (Stage 2)
+
+# 字段约定:
+#   id: L001-L020
+#   category: query / search / review / e2e
+#   intent: 用户 1 句话意图
+#   expected:
+#     min_n_results: 至少多少篇引用
+#     has_formula: 是否应识别到化学式
+#     has_material: 是否应识别到材料别名
+#     has_property: 是否应识别到属性词
+#     min_confidence: 最低 confidence
+#     has_gaps: 是否有 gaps
+#     has_suggestions: 是否有 suggestions
+#     specific_ref_title: 是否应包含特定文献标题
+#     specific_source: 引用来源
+
+# ============================================================================
+# Query 解析(5 case)
+# ============================================================================
+
+- id: L001
+  category: query
+  intent: "Review 一下 LLZO 最新进展"
+  expected:
+    has_material: ["LLZO"]
+    min_n_results: 1
+    specific_ref_title_contains: "Li7La3Zr2O12"
+
+- id: L002
+  category: query
+  intent: "LFP / NMC811 锂电池正极对比"
+  expected:
+    has_material_any: ["LFP", "NMC811"]
+    min_n_results: 2
+
+- id: L003
+  category: query
+  intent: "设计新型固态电解质,关注电导率"
+  expected:
+    has_property: ["电导率"]
+    min_n_results: 1
+
+- id: L004
+  category: query
+  intent: "LiCoO2 的稳定性研究"
+  expected:
+    has_formula: ["LiCoO2"]
+    has_property_any: ["稳定性", "stability"]
+    min_n_results: 1
+
+- id: L005
+  category: query
+  intent: "不相关的内容如 Hello World 测试"
+  expected:
+    min_n_results: 0
+    max_n_results: 1  # 落到 _generic_ 或 topic
+
+# ============================================================================
+# 文献检索(5 case)
+# ============================================================================
+
+- id: L006
+  category: search
+  intent: "找 LiCoO2 最近的高被引论文"
+  expected:
+    min_n_results: 2
+    has_formula: ["LiCoO2"]
+    specific_source_any: ["arXiv", "Materials Project"]
+
+- id: L007
+  category: search
+  intent: "NASICON 钠离子固态电解质"
+  expected:
+    has_material: ["NASICON"]
+    min_n_results: 1
+
+- id: L008
+  category: search
+  intent: "LLZO 跟 Li 金属负极的界面"
+  expected:
+    has_material: ["LLZO"]
+    min_n_results: 1
+
+- id: L009
+  category: search
+  intent: "锂电池热失控"
+  expected:
+    has_domain: ["锂电池", "battery"]
+    min_n_results: 1
+
+- id: L010
+  category: search
+  intent: "燃料电池催化剂"
+  expected:
+    has_domain: ["燃料电池", "catalyst", "催化剂"]
+    min_n_results: 1
+
+# ============================================================================
+# 综述生成(5 case)
+# ============================================================================
+
+- id: L011
+  category: review
+  intent: "Review 一下 LLZO 最新进展,关注电导率和稳定性"
+  expected:
+    has_material: ["LLZO"]
+    has_property: ["电导率", "稳定性"]
+    min_n_results: 2
+    min_confidence: 0.7
+    has_gaps: true
+    has_suggestions: true
+
+- id: L012
+  category: review
+  intent: "出无 Co 锂电池正极,关注能量密度"
+  expected:
+    min_n_results: 1
+    min_confidence: 0.5
+    has_suggestions: true
+
+- id: L013
+  category: review
+  intent: "NMC811 高镍正极国内外现状"
+  expected:
+    has_material_any: ["NMC", "NMC811"]
+    min_n_results: 1
+    min_confidence: 0.6
+
+- id: L014
+  category: review
+  intent: "NaCl rocksalt 结构的稳定性"
+  expected:
+    has_formula: ["NaCl"]
+    min_n_results: 1
+    min_confidence: 0.5
+
+- id: L015
+  category: review
+  intent: "磁性材料有哪些"
+  expected:
+    has_property: ["磁性", "magnetic"]
+    min_n_results: 1
+
+# ============================================================================
+# 端到端(5 case)
+# ============================================================================
+
+- id: L016
+  category: e2e
+  intent: "我刚设计出 LLZO,想看最新文献"
+  expected:
+    has_material: ["LLZO"]
+    min_n_results: 1
+    has_suggestions: true
+
+- id: L017
+  category: e2e
+  intent: "锂电池正极的 doping 研究"
+  expected:
+    min_n_results: 1
+    min_confidence: 0.5
+
+- id: L018
+  category: e2e
+  intent: "PVDF 介电性能综述"
+  expected:
+    has_material: ["PVDF"]
+    min_n_results: 1
+
+- id: L019
+  category: e2e
+  intent: "高熵合金的形成能"
+  expected:
+    min_n_results: 1
+    min_confidence: 0.5
+
+- id: L020
+  category: e2e
+  intent: "PZT 压电陶瓷的电学性能"
+  expected:
+    has_material: ["PZT"]
+    min_n_results: 1
+    min_confidence: 0.5

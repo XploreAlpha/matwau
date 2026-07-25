@@ -1,0 +1,167 @@
+# material-domain-router.yaml — W15 MaterialDomainRouter Goldens
+#
+# 跨 3 域(无机晶体 / 高分子 / 纳米)+ 跨 agent 集成测试
+# 验证 domain 识别 + backend 路由 + 端到端成本差异化
+#
+# per MatWAU-开发计划 §七 W15
+
+- id: D001
+  category: detect_domain
+  intent: "出 LiCoO2 实验方案"
+  expected:
+    domain: "inorganic_crystal"
+    gen_backend: "mattergen"
+    sim_backend: "chgnet"
+    hpc_engine: "vasp"
+
+- id: D002
+  category: detect_domain
+  intent: "优化 NMC811 配方"
+  expected:
+    domain: "inorganic_crystal"
+    gen_backend: "mattergen"
+
+- id: D003
+  category: detect_domain
+  intent: "设计 LLZO 固态电解质"
+  expected:
+    domain: "inorganic_crystal"
+    hpc_engine: "vasp"
+
+- id: D004
+  category: detect_domain
+  intent: "出钙钛矿太阳能电池方案"
+  expected:
+    domain: "inorganic_crystal"
+
+- id: D005
+  category: detect_domain
+  intent: "优化 Bi2Te3 热电配方"
+  expected:
+    domain: "inorganic_crystal"
+
+- id: D006
+  category: detect_domain
+  intent: "算 PMMA 玻璃化转变温度 Tg"
+  expected:
+    domain: "polymer"
+    gen_backend: "polymer_rnn"
+    sim_backend: "ani1x"
+    hpc_engine: "lammps"
+
+- id: D007
+  category: detect_domain
+  intent: "设计 PDMS 柔性电子基底"
+  expected:
+    domain: "polymer"
+
+- id: D008
+  category: detect_domain
+  intent: "3D 打印 PLA 实验方案"
+  expected:
+    domain: "polymer"
+
+- id: D009
+  category: detect_domain
+  intent: "出 PEDOT:PSS 导电聚合物方案"
+  expected:
+    domain: "polymer"
+
+- id: D010
+  category: detect_domain
+  intent: "设计水凝胶伤口敷料"
+  expected:
+    domain: "polymer"
+
+- id: D011
+  category: detect_domain
+  intent: "设计 CdSe 量子点"
+  expected:
+    domain: "nano"
+    gen_backend: "diffusion_nano"
+    sim_backend: "orbnet_dft"
+    hpc_engine: "cp2k"
+
+- id: D012
+  category: detect_domain
+  intent: "算石墨烯电导率"
+  expected:
+    domain: "nano"
+
+- id: D013
+  category: detect_domain
+  intent: "出 MoS2 单层实验方案"
+  expected:
+    domain: "nano"
+
+- id: D014
+  category: detect_domain
+  intent: "ZIF-8 MOF 储氢"
+  expected:
+    domain: "nano"
+
+- id: D015
+  category: detect_domain
+  intent: "CVD 生长 CNT"
+  expected:
+    domain: "nano"
+
+- id: D016
+  category: e2e_cost
+  intent: "出 LiCoO2 实验方案"
+  domain: "inorganic_crystal"
+  workflow: "experiment_planning"
+  n_candidates: 10
+  expected:
+    hpc_unit_cost: 100.0
+    sim_unit_cost: 0.5
+    gen_unit_cost: 0.06
+
+- id: D017
+  category: e2e_cost
+  intent: "出 PMMA 实验方案"
+  domain: "polymer"
+  workflow: "experiment_planning"
+  n_candidates: 10
+  expected:
+    hpc_unit_cost: 30.0
+    sim_unit_cost: 0.2
+    gen_unit_cost: 0.02
+
+- id: D018
+  category: e2e_cost
+  intent: "设计 CdSe 量子点"
+  domain: "nano"
+  workflow: "experiment_planning"
+  n_candidates: 10
+  expected:
+    hpc_unit_cost: 80.0
+    sim_unit_cost: 0.4
+    gen_unit_cost: 0.08
+
+- id: D019
+  category: profile_completeness
+  intent: "verify_all_3_profiles"
+  expected:
+    required_fields:
+      - name
+      - display_name_zh
+      - description
+      - elements
+      - material_aliases
+      - property_keywords
+      - domain_keywords
+      - gen_backend
+      - sim_backend
+      - hpc_engine
+      - lit_backend
+      - exp_methods
+      - unit_cost
+
+- id: D020
+  category: backward_compat
+  intent: "出 LiCoO2 实验方案"  # 不传 domain
+  domain: null  # W14 行为
+  expected:
+    domain_detected: "inorganic_crystal"
+    backend: "mattergen"

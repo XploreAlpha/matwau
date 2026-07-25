@@ -1,0 +1,377 @@
+# MatWAU Goldens 测试集 — mat-hpc(50 case)
+# 写于:2026-07-24(W5 Day 1)
+# 用途:mat-hpc 升级 mock / 真 Slurm 后跑这套 case,验证 pass-rate > 50% (Stage 1) / > 80% (Stage 2)
+# per MatWAU-Harness-Loop-工程心法实践.md §5.5
+# 注:mat-hpc Goldens 是从 mat-sim Goldens 衍生(mat-sim 输出 → mat-hpc 输入)
+
+# ============================================================================
+# 锂电池正极材料 HPC(Li-ion cathode HPC,15 case)
+# ============================================================================
+
+- id: H001
+  category: Li-ion cathode HPC
+  intent: "提交 LiCoO2 VASP relax 计算"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 3"
+
+- id: H002
+  category: Li-ion cathode HPC
+  intent: "对 LiFePO4 (LFP) 做 VASP 静态自洽"
+  expected:
+    formula_must_contain_all: ["Li", "Fe", "P", "O"]
+    num_candidates: ">= 3"
+
+- id: H003
+  category: Li-ion cathode HPC
+  intent: "提交 NMC811 LiNi0.8Mn0.1Co0.1O2 relax"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn", "Co"]
+    num_candidates: ">= 3"
+
+- id: H004
+  category: Li-ion cathode HPC
+  intent: "Li2MnO3 Li-rich VASP relax"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_contain_any: ["Mn", "O"]
+    num_candidates: ">= 3"
+
+- id: H005
+  category: Li-ion cathode HPC
+  intent: "无钴 Li-ion 正极候选 VASP 提交"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_not_contain_any: ["Co"]
+    num_candidates: ">= 5"
+
+- id: H006
+  category: Li-ion cathode HPC
+  intent: "高镍 NMC 候选 VASP"
+  expected:
+    formula_must_contain_any: ["Ni"]
+    num_candidates: ">= 3"
+
+- id: H007
+  category: Li-ion cathode HPC
+  intent: "LiNiO2 VASP relax"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_contain_any: ["Ni", "O"]
+    num_candidates: ">= 3"
+
+- id: H008
+  category: Li-ion cathode HPC
+  intent: "LiMn2O4 尖晶石 VASP"
+  expected:
+    formula_must_contain_all: ["Li", "Mn", "O"]
+    num_candidates: ">= 3"
+
+- id: H009
+  category: Li-ion cathode HPC
+  intent: "LiFePO4 高倍率 VASP static"
+  expected:
+    formula_must_contain_all: ["Li", "Fe", "P", "O"]
+    num_candidates: ">= 3"
+
+- id: H010
+  category: Li-ion cathode HPC
+  intent: "LiCoO2 高压相 VASP"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 3"
+
+- id: H011
+  category: Li-ion cathode HPC
+  intent: "LiNi1/3Mn1/3Co1/3O2 三元 VASP"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn", "Co"]
+    num_candidates: ">= 3"
+
+- id: H012
+  category: Li-ion cathode HPC
+  intent: "无钴 LiNi0.5Mn0.5O2 VASP"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn"]
+    formula_must_not_contain_any: ["Co"]
+    num_candidates: ">= 3"
+
+- id: H013
+  category: Li-ion cathode HPC
+  intent: "Li4Ti5O12 负极 VASP"
+  expected:
+    formula_must_contain_all: ["Li", "Ti", "O"]
+    num_candidates: ">= 3"
+
+- id: H014
+  category: Li-ion cathode HPC
+  intent: "LiFeSO4F 新型正极 VASP"
+  expected:
+    formula_must_contain_any: ["Li", "Fe"]
+    num_candidates: ">= 2"
+
+- id: H015
+  category: Li-ion cathode HPC
+  intent: "Li2FeSiO4 聚阴离子 VASP"
+  expected:
+    formula_must_contain_any: ["Li", "Fe", "Si"]
+    num_candidates: ">= 2"
+
+# ============================================================================
+# 固态电解质 HPC(Solid electrolyte HPC,15 case)
+# ============================================================================
+
+- id: H016
+  category: Solid electrolyte HPC
+  intent: "提交 LLZO Li7La3Zr2O12 VASP relax"
+  expected:
+    formula_must_contain_all: ["Li", "La", "Zr", "O"]
+    num_candidates: ">= 3"
+
+- id: H017
+  category: Solid electrolyte HPC
+  intent: "Li3PS4 硫化物 VASP"
+  expected:
+    formula_must_contain_all: ["Li", "P", "S"]
+    num_candidates: ">= 3"
+
+- id: H018
+  category: Solid electrolyte HPC
+  intent: "无贵金属固态电解质 VASP"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_not_contain_any: ["Pt", "Au", "Ag"]
+    num_candidates: ">= 5"
+
+- id: H019
+  category: Solid electrolyte HPC
+  intent: "Li6PS5Cl argyrodite VASP"
+  expected:
+    formula_must_contain_all: ["Li", "P", "S", "Cl"]
+    num_candidates: ">= 3"
+
+- id: H020
+  category: Solid electrolyte HPC
+  intent: "Li10GeP2S12 LGPS VASP"
+  expected:
+    formula_must_contain_all: ["Li", "Ge", "P", "S"]
+    num_candidates: ">= 3"
+
+- id: H021
+  category: Solid electrolyte HPC
+  intent: "LATP Li1.3Al0.3Ti1.7(PO4)3 VASP"
+  expected:
+    formula_must_contain_any: ["Li", "Ti", "P"]
+    num_candidates: ">= 2"
+
+- id: H022
+  category: Solid electrolyte HPC
+  intent: "LLZO Ta 掺杂 VASP"
+  expected:
+    formula_must_contain_all: ["Li", "La", "Zr", "O"]
+    num_candidates: ">= 3"
+
+- id: H023
+  category: Solid electrolyte HPC
+  intent: "Na3Zr2Si2PO12 Na 超离子导体 VASP"
+  expected:
+    formula_must_contain_all: ["Na", "Zr", "Si", "P", "O"]
+    num_candidates: ">= 2"
+
+- id: H024
+  category: Solid electrolyte HPC
+  intent: "LiPON 薄膜 VASP"
+  expected:
+    formula_must_contain_any: ["Li", "P", "O", "N"]
+    num_candidates: ">= 2"
+
+- id: H025
+  category: Solid electrolyte HPC
+  intent: "Li3YCl6 卤化物 VASP"
+  expected:
+    formula_must_contain_any: ["Li", "Y", "Cl"]
+    num_candidates: ">= 2"
+
+- id: H026
+  category: Solid electrolyte HPC
+  intent: "反钙钛矿 Li3OCl VASP"
+  expected:
+    formula_must_contain_all: ["Li", "O", "Cl"]
+    num_candidates: ">= 2"
+
+- id: H027
+  category: Solid electrolyte HPC
+  intent: "Li3PS4 + LiI 复合 VASP"
+  expected:
+    formula_must_contain_any: ["Li", "P", "S"]
+    num_candidates: ">= 2"
+
+- id: H028
+  category: Solid electrolyte HPC
+  intent: "Li2ZrCl6 新型卤化物 VASP"
+  expected:
+    formula_must_contain_any: ["Li", "Zr", "Cl"]
+    num_candidates: ">= 2"
+
+- id: H029
+  category: Solid electrolyte HPC
+  intent: "Li5.5PS4.5Cl1.5 argyrodite VASP"
+  expected:
+    formula_must_contain_any: ["Li", "P", "S"]
+    num_candidates: ">= 2"
+
+- id: H030
+  category: Solid electrolyte HPC
+  intent: "LGPS 改性 Li9.54Si1.74P1.44S11.4Cl0.6 VASP"
+  expected:
+    formula_must_contain_any: ["Li", "Si", "P"]
+    num_candidates: ">= 2"
+
+# ============================================================================
+# 催化剂 HPC(Catalyst HPC,10 case)
+# ============================================================================
+
+- id: H031
+  category: Catalyst HPC
+  intent: "Pt 催化剂 VASP relax(HER)"
+  expected:
+    formula_must_contain_any: ["Pt"]
+    num_candidates: ">= 2"
+
+- id: H032
+  category: Catalyst HPC
+  intent: "无 Pt 催化剂 VASP"
+  expected:
+    formula_must_not_contain_any: ["Pt"]
+    formula_must_contain_any: ["Fe", "Co", "Ni", "Mn"]
+    num_candidates: ">= 3"
+
+- id: H033
+  category: Catalyst HPC
+  intent: "MoS2 析氢催化剂 VASP"
+  expected:
+    formula_must_contain_all: ["Mo", "S"]
+    num_candidates: ">= 2"
+
+- id: H034
+  category: Catalyst HPC
+  intent: "单原子催化剂 Fe-N-C VASP"
+  expected:
+    formula_must_contain_any: ["Fe", "N", "C"]
+    num_candidates: ">= 2"
+
+- id: H035
+  category: Catalyst HPC
+  intent: "Co3O4 析氧催化剂 VASP"
+  expected:
+    formula_must_contain_all: ["Co", "O"]
+    num_candidates: ">= 2"
+
+- id: H036
+  category: Catalyst HPC
+  intent: "NiFe LDH 析氧 VASP"
+  expected:
+    formula_must_contain_all: ["Ni", "Fe"]
+    num_candidates: ">= 2"
+
+- id: H037
+  category: Catalyst HPC
+  intent: "Cu2O 光催化剂 VASP"
+  expected:
+    formula_must_contain_all: ["Cu", "O"]
+    num_candidates: ">= 2"
+
+- id: H038
+  category: Catalyst HPC
+  intent: "BiVO4 太阳能水氧化 VASP"
+  expected:
+    formula_must_contain_any: ["Bi", "V", "O"]
+    num_candidates: ">= 2"
+
+- id: H039
+  category: Catalyst HPC
+  intent: "ZrO2 载体 VASP"
+  expected:
+    formula_must_contain_all: ["Zr", "O"]
+    num_candidates: ">= 2"
+
+- id: H040
+  category: Catalyst HPC
+  intent: "MnO2 氧还原 VASP"
+  expected:
+    formula_must_contain_all: ["Mn", "O"]
+    num_candidates: ">= 2"
+
+# ============================================================================
+# 其他材料 HPC(Other HPC,10 case)
+# ============================================================================
+
+- id: H041
+  category: Solar cell HPC
+  intent: "CsPbI3 钙钛矿 VASP"
+  expected:
+    formula_must_contain_any: ["Cs", "Pb", "I"]
+    num_candidates: ">= 2"
+
+- id: H042
+  category: Solar cell HPC
+  intent: "CH3NH3PbI3 钙钛矿 VASP"
+  expected:
+    formula_must_contain_any: ["Pb", "I"]
+    num_candidates: ">= 2"
+
+- id: H043
+  category: Hydrogen storage HPC
+  intent: "MgH2 储氢 VASP"
+  expected:
+    formula_must_contain_all: ["Mg", "H"]
+    num_candidates: ">= 2"
+
+- id: H044
+  category: Hydrogen storage HPC
+  intent: "LaNi5 储氢合金 VASP"
+  expected:
+    formula_must_contain_any: ["La", "Ni"]
+    num_candidates: ">= 2"
+
+- id: H045
+  category: Superconductor HPC
+  intent: "YBa2Cu3O7 YBCO 超导 VASP"
+  expected:
+    formula_must_contain_any: ["Y", "Ba", "Cu"]
+    num_candidates: ">= 2"
+
+- id: H046
+  category: Thermoelectric HPC
+  intent: "Bi2Te3 热电 VASP"
+  expected:
+    formula_must_contain_all: ["Bi", "Te"]
+    num_candidates: ">= 2"
+
+- id: H047
+  category: Magnetic HPC
+  intent: "Nd2Fe14B 永磁 VASP"
+  expected:
+    formula_must_contain_any: ["Nd", "Fe"]
+    num_candidates: ">= 2"
+
+- id: H048
+  category: Magnetic HPC
+  intent: "SmCo5 永磁 VASP"
+  expected:
+    formula_must_contain_any: ["Sm", "Co"]
+    num_candidates: ">= 2"
+
+- id: H049
+  category: Semiconductor HPC
+  intent: "GaN 半导体 VASP"
+  expected:
+    formula_must_contain_all: ["Ga", "N"]
+    num_candidates: ">= 2"
+
+- id: H050
+  category: Semiconductor HPC
+  intent: "SiC 宽禁带半导体 VASP"
+  expected:
+    formula_must_contain_all: ["Si", "C"]
+    num_candidates: ">= 2"

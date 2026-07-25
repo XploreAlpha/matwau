@@ -1,0 +1,57 @@
+{
+  "name": "mat-gen-agent",
+  "version": "0.1.0",
+  "description": "材料科学造物主 — 根据约束生成新晶体结构(CIF)",
+  "universe_labels": {
+    "domain": "materials-science",
+    "tier": "high-performance",
+    "gpu": "false",
+    "language": "python"
+  },
+  "skills": [
+    "crystal-generation",
+    "structure-design",
+    "candidates-ranking"
+  ],
+  "endpoints": {
+    "invoke": "http://mat-gen-agent:18802/v1/invoke",
+    "healthz": "http://mat-gen-agent:18802/healthz"
+  },
+  "input_artifacts": [
+    {
+      "name": "user_query",
+      "type": "string",
+      "description": "用户自然语言查询(必填)"
+    },
+    {
+      "name": "constraints",
+      "type": "object",
+      "description": "可选结构化约束(elements / n_samples / target_property / forbidden_elements)"
+    },
+    {
+      "name": "budget",
+      "type": "number",
+      "description": "可选预算 ¥(超出仅警告不阻断)"
+    }
+  ],
+  "output_artifacts": [
+    {
+      "name": "candidates",
+      "type": "array",
+      "description": "候选结构列表,每个 {cif, formula, estimated_energy, confidence}"
+    },
+    {
+      "name": "reply",
+      "type": "string",
+      "description": "自然语言总结"
+    }
+  ],
+  "cost_estimates": {
+    "mattergen_per_candidate": 0.05,
+    "llm_per_candidate": 0.01,
+    "typical_per_call": 0.6
+  },
+  "stage": "phase-1-mvp",
+  "mock_mode": true,
+  "mock_reason": "Stage 1 本机无 GPU,真 MatterGen 切 WAU v1.0.0 GA 后启用"
+}

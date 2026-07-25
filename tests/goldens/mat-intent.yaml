@@ -1,0 +1,221 @@
+# MatWAU Goldens 测试集 — mat-intent(30 case)
+# 写于:2026-07-24(W9 Day 1)
+# 用途:验证 5 子类分类 + 11 material_system 识别 + 8 target_props 提取 + constraints
+# per MatWAU-开发计划 §六 W9
+# 跑分目标:pass-rate > 80% (Stage 2)
+
+# 字段约定:
+#   id: I001-I030
+#   category: classify / system / props / constraints / full
+#   intent: 用户 1 句话意图
+#   expected:
+#     subclass: 期望子类
+#     material_system: 期望 material_system
+#     target_props: 期望 target_props 列表
+#     elements: 期望必含元素
+#     forbidden: 期望禁止元素
+
+# ============================================================================
+# 子类分类测试(10 case)
+# ============================================================================
+
+- id: I001
+  category: classify
+  intent: "出 LiCoO2 锂电池正极实验方案"
+  expected:
+    subclass: "experiment_planning"
+
+- id: I002
+  category: classify
+  intent: "设计新型固态电解质"
+  expected:
+    subclass: "design_new_material"
+
+- id: I003
+  category: classify
+  intent: "优化 LiCoO2 配方"
+  expected:
+    subclass: "optimize_existing"
+
+- id: I004
+  category: classify
+  intent: "为什么这个 XRD 谱不对"
+  expected:
+    subclass: "explain_failure"
+
+- id: I005
+  category: classify
+  intent: "Review 一下 LLZO 最新进展"
+  expected:
+    subclass: "literature_review"
+
+- id: I006
+  category: classify
+  intent: "design new lithium battery cathode material"
+  expected:
+    subclass: "design_new_material"
+
+- id: I007
+  category: classify
+  intent: "experimental protocol for solid electrolyte"
+  expected:
+    subclass: "experiment_planning"
+
+- id: I008
+  category: classify
+  intent: "find new catalyst for HER"
+  expected:
+    subclass: "design_new_material"
+
+- id: I009
+  category: classify
+  intent: "why does this XRD pattern fail"
+  expected:
+    subclass: "explain_failure"
+
+- id: I010
+  category: classify
+  intent: "literature survey of perovskite solar cells"
+  expected:
+    subclass: "literature_review"
+
+# ============================================================================
+# material_system 识别测试(10 case)
+# ============================================================================
+
+- id: I011
+  category: system
+  intent: "出锂电池正极实验方案"
+  expected:
+    material_system: "li_ion_cathode"
+
+- id: I012
+  category: system
+  intent: "出 LLZO 固态电解质实验方案"
+  expected:
+    material_system: "solid_electrolyte"
+
+- id: I013
+  category: system
+  intent: "MoS2 析氢催化剂"
+  expected:
+    material_system: "catalyst_her"
+
+- id: I014
+  category: system
+  intent: "Co3O4 析氧 OER 催化剂"
+  expected:
+    material_system: "catalyst_oer"
+
+- id: I015
+  category: system
+  intent: "CsPbI3 钙钛矿太阳能"
+  expected:
+    material_system: "solar_cell"
+
+- id: I016
+  category: system
+  intent: "YBCO 高温超导实验"
+  expected:
+    material_system: "superconductor"
+
+- id: I017
+  category: system
+  intent: "Bi2Te3 热电材料实验"
+  expected:
+    material_system: "thermoelectric"
+
+- id: I018
+  category: system
+  intent: "Nd2Fe14B 永磁合金"
+  expected:
+    material_system: "permanent_magnet"
+
+- id: I019
+  category: system
+  intent: "GaN 半导体实验方案"
+  expected:
+    material_system: "semiconductor"
+
+- id: I020
+  category: system
+  intent: "MgH2 储氢材料"
+  expected:
+    material_system: "hydrogen_storage"
+
+# ============================================================================
+# constraints 提取测试(10 case)
+# ============================================================================
+
+- id: I021
+  category: constraints
+  intent: "出无钴锂电池正极实验方案"
+  expected:
+    subclass: "experiment_planning"
+    material_system: "li_ion_cathode"
+    forbidden_any: ["Co"]
+
+- id: I022
+  category: constraints
+  intent: "出 LLZO 实验方案,无贵金属"
+  expected:
+    subclass: "experiment_planning"
+    material_system: "solid_electrolyte"
+    forbidden_any: ["Pt", "Au", "Ag"]
+
+- id: I023
+  category: constraints
+  intent: "设计无 Pt 析氢催化剂"
+  expected:
+    subclass: "design_new_material"
+    material_system: "catalyst_her"
+    forbidden_any: ["Pt"]
+
+- id: I024
+  category: constraints
+  intent: "出 Bi2Te3 热电材料实验方案"
+  expected:
+    subclass: "experiment_planning"
+    material_system: "thermoelectric"
+    elements: ["Bi", "Te"]
+
+- id: I025
+  category: constraints
+  intent: "出 LiCoO2 实验方案,生成 10 个候选"
+  expected:
+    subclass: "experiment_planning"
+    elements_any: ["Li", "Co", "O"]
+    n_samples: 10
+
+- id: I026
+  category: constraints
+  intent: "design new solid electrolyte without Pt and Au"
+  expected:
+    forbidden_any: ["Pt", "Au"]
+
+- id: I027
+  category: constraints
+  intent: "出 MoS2 析氢催化剂,无 Co"
+  expected:
+    subclass: "experiment_planning"
+    material_system: "catalyst_her"
+    forbidden_any: ["Co"]
+
+- id: I028
+  category: constraints
+  intent: "出 CsPbI3 钙钛矿太阳能实验方案"
+  expected:
+    subclass: "experiment_planning"
+    material_system: "solar_cell"
+
+- id: I029
+  category: constraints
+  intent: "出 LLZO 实验方案,禁止: Co、Mn"
+  expected:
+    forbidden_any: ["Co", "Mn"]
+
+- id: I030
+  category: constraints
+  intent: "出锂离子电池正极,无 Co、无贵金属"
+  expected:
+    forbidden_any: ["Co", "Pt", "Au", "Ag"]

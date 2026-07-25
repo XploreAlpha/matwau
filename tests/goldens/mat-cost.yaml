@@ -1,0 +1,152 @@
+# MatWAU Goldens 测试集 — mat-cost(15 case)
+# 写于:2026-07-24(W14 Day 2)
+# 用途:验证 cost 估算 + over_budget 警告 + 降本建议
+# per MatWAU-开发计划 §七 W14
+# 跑分目标:pass-rate > 50% (Stage 1) / > 80% (Stage 2)
+
+# 字段约定:
+#   id: C001-C015
+#   category: unit_cost / workflow_cost / budget / reduction
+#   intent: 用户 1 句话
+#   expected:
+#     workflow: 期望 workflow
+#     min_total / max_total: 总成本区间
+#     min_breakdown: 期望包含的 agent
+#     over_budget: 是否期望超预算
+#     has_hpc_suggestion: 是否期望 HPC 降本建议
+#     has_exp_suggestion: 是否期望 exp 降本建议
+
+# ============================================================================
+# 单 agent 成本(3 case)
+# ============================================================================
+
+- id: C001
+  category: unit_cost
+  intent: "mat-gen-agent 单候选成本"
+  expected:
+    min_total: 0.05
+    max_total: 0.07
+
+- id: C002
+  category: unit_cost
+  intent: "mat-hpc-agent 单 job 成本"
+  expected:
+    min_total: 90.0
+    max_total: 110.0
+
+- id: C003
+  category: unit_cost
+  intent: "mat-sim-agent 1 候选"
+  expected:
+    min_total: 0.4
+    max_total: 0.6
+
+# ============================================================================
+# workflow 成本(5 case)
+# ============================================================================
+
+- id: C004
+  category: workflow_cost
+  intent: "experiment_planning 10 候选"
+  expected:
+    workflow: "experiment_planning"
+    min_breakdown: ["mat-gen-agent", "mat-sim-agent", "mat-hpc-agent", "mat-exp-agent"]
+    min_total: 100.0
+    max_total: 1000.0
+
+- id: C005
+  category: workflow_cost
+  intent: "design_new_material 5 候选"
+  expected:
+    workflow: "design_new_material"
+    min_breakdown: ["mat-gen-agent", "mat-sim-agent"]
+    min_total: 0.5
+    max_total: 5.0
+
+- id: C006
+  category: workflow_cost
+  intent: "optimize_existing 3 候选"
+  expected:
+    workflow: "optimize_existing"
+    min_breakdown: ["mat-sim-agent", "mat-gen-agent"]
+    min_total: 0.5
+    max_total: 5.0
+
+- id: C007
+  category: workflow_cost
+  intent: "explain_failure 1 候选"
+  expected:
+    workflow: "explain_failure"
+    min_breakdown: ["mat-critic-agent"]
+    min_total: 0.0
+    max_total: 1.0
+
+- id: C008
+  category: workflow_cost
+  intent: "literature_review 1 次"
+  expected:
+    workflow: "literature_review"
+    min_breakdown: ["mat-lit-agent"]
+    min_total: 0.0
+    max_total: 1.0
+
+# ============================================================================
+# Budget(4 case)
+# ============================================================================
+
+- id: C009
+  category: budget
+  intent: "experiment_planning 10 候选预算 200 元"
+  expected:
+    workflow: "experiment_planning"
+    over_budget: true
+    has_hpc_suggestion: true
+
+- id: C010
+  category: budget
+  intent: "experiment_planning 10 候选预算 1000 元"
+  expected:
+    workflow: "experiment_planning"
+    over_budget: false
+
+- id: C011
+  category: budget
+  intent: "design_new_material 5 候选预算 1 元"
+  expected:
+    workflow: "design_new_material"
+    over_budget: true
+
+- id: C012
+  category: budget
+  intent: "design_new_material 5 候选预算 10 元"
+  expected:
+    workflow: "design_new_material"
+    over_budget: false
+
+# ============================================================================
+# 降本建议(3 case)
+# ============================================================================
+
+- id: C013
+  category: reduction
+  intent: "HPC 占比高需要降本"
+  expected:
+    workflow: "experiment_planning"
+    min_breakdown: ["mat-hpc-agent"]
+    has_hpc_suggestion: true
+
+- id: C014
+  category: reduction
+  intent: "exp 实验成本高需要降本"
+  expected:
+    workflow: "experiment_planning"
+    min_breakdown: ["mat-exp-agent"]
+    has_exp_suggestion: true
+
+- id: C015
+  category: reduction
+  intent: "低预算多候选"
+  expected:
+    workflow: "experiment_planning"
+    over_budget: true
+    min_total: 100.0

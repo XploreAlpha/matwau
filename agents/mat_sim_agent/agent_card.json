@@ -1,0 +1,88 @@
+{
+  "name": "mat-sim-agent",
+  "version": "0.1.0",
+  "description": "材料科学快速试菜员 — 用 CHGNet MLIP 对候选结构做秒级预筛(弛豫 + 总能 + 稳定性分类)",
+  "universe_labels": {
+    "domain": "materials-science",
+    "tier": "high-performance",
+    "gpu": "false",
+    "language": "python"
+  },
+  "skills": [
+    "structure-relaxation",
+    "energy-estimation",
+    "stability-classification",
+    "mlip-inference"
+  ],
+  "endpoints": {
+    "invoke": "http://mat-sim-agent:18803/v1/invoke",
+    "healthz": "http://mat-sim-agent:18803/healthz"
+  },
+  "input_artifacts": [
+    {
+      "name": "candidates",
+      "type": "array",
+      "description": "mat-gen-agent 输出的候选列表,每个 {cif, formula, estimated_energy, confidence}(必填)"
+    },
+    {
+      "name": "filter_unstable",
+      "type": "boolean",
+      "description": "是否过滤掉 unstable 候选(可选,默认 false)"
+    },
+    {
+      "name": "stability_threshold",
+      "type": "string",
+      "description": "过滤阈值:'stable' / 'metastable' / 'unstable'(可选,默认 metastable)"
+    },
+    {
+      "name": "budget",
+      "type": "number",
+      "description": "可选预算 ¥(超出仅警告不阻断)"
+    }
+  ],
+  "output_artifacts": [
+    {
+      "name": "simulated",
+      "type": "array",
+      "description": "弛豫后候选列表,每个 {formula, cif, relaxed_energy, forces_max, relaxation_converged, stability, confidence}"
+    },
+    {
+      "name": "stats",
+      "type": "object",
+      "description": "统计 {total, converged, stable, metastable, unstable}"
+    },
+    {
+      "name": "input_count",
+      "type": "integer",
+      "description": "输入候选数"
+    },
+    {
+      "name": "reply",
+      "type": "string",
+      "description": "自然语言总结(收敛率 + 稳定性分布 + top-3 化学式)"
+    }
+  ],
+  "cost_estimates": {
+    "chgnet_per_candidate": 0.5,
+    "llm_per_candidate": 0.05,
+    "typical_per_call": 5.5
+  },
+  "stage": "phase-1-mvp",
+  "mock_mode": true,
+  "mock_reason": "Stage 1 本机无 GPU,真 CHGNet 切 WAU v1.0.0 GA + 服务器 GPU 后启用",
+  "downstream_agents": [
+    "mat-hpc-agent(接 simulated 中 stable/metastable 候选,提交 VASP 高精度计算)"
+  ],
+  "upstream_agents": [
+    "mat-gen-agent(产出 List[GenCandidate])"
+  ],
+  "three_tier_stability": {
+    "stable_threshold_eV_per_atom": -3.5,
+    "metastable_threshold_eV_per_atom": -2.5,
+    "description": "stable(<-3.5)/metastable(-3.5~-2.5)/unstable(>=-2.5)"
+  },
+  "convergence_criteria": {
+    "force_threshold_eV_per_angstrom": 0.05,
+    "mock_convergence_rate": 0.8
+  }
+}

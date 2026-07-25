@@ -1,0 +1,378 @@
+# MatWAU Goldens 测试集 — mat-exp(50 case)
+# 写于:2026-07-24(W6 Day 1)
+# 用途:mat-exp 升级 mock / 真 XRD 仪器后跑这套 case,验证 pass-rate > 50% (Stage 1) / > 80% (Stage 2)
+# per MatWAU-Harness-Loop-工程心法实践.md §5.5
+# 注:mat-exp Goldens 是从 mat-hpc Goldens 衍生(mat-hpc 输出 → mat-exp 输入)
+#     跑分时直接转 mat-gen 的 candidates 为 HPCJobResult(简化 4 段链路)
+
+# ============================================================================
+# 锂电池正极材料实验方案(Li-ion cathode exp,15 case)
+# ============================================================================
+
+- id: E001
+  category: Li-ion cathode exp
+  intent: "出 LiCoO2 实验方案(XRD + 烧结)"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 3"
+
+- id: E002
+  category: Li-ion cathode exp
+  intent: "LiFePO4 (LFP) 实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "Fe", "P", "O"]
+    num_candidates: ">= 3"
+
+- id: E003
+  category: Li-ion cathode exp
+  intent: "NMC811 LiNi0.8Mn0.1Co0.1O2 实验方案"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn", "Co"]
+    num_candidates: ">= 3"
+
+- id: E004
+  category: Li-ion cathode exp
+  intent: "Li2MnO3 Li-rich 实验方案"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_contain_any: ["Mn", "O"]
+    num_candidates: ">= 3"
+
+- id: E005
+  category: Li-ion cathode exp
+  intent: "无钴 Li-ion 正极实验方案"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_not_contain_any: ["Co"]
+    num_candidates: ">= 5"
+
+- id: E006
+  category: Li-ion cathode exp
+  intent: "高镍 NMC 实验方案"
+  expected:
+    formula_must_contain_any: ["Ni"]
+    num_candidates: ">= 3"
+
+- id: E007
+  category: Li-ion cathode exp
+  intent: "LiNiO2 实验方案"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_contain_any: ["Ni", "O"]
+    num_candidates: ">= 3"
+
+- id: E008
+  category: Li-ion cathode exp
+  intent: "LiMn2O4 尖晶石实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "Mn", "O"]
+    num_candidates: ">= 3"
+
+- id: E009
+  category: Li-ion cathode exp
+  intent: "LiFePO4 高倍率实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "Fe", "P", "O"]
+    num_candidates: ">= 3"
+
+- id: E010
+  category: Li-ion cathode exp
+  intent: "LiCoO2 高压相实验方案"
+  expected:
+    formula_must_contain: "Li"
+    num_candidates: ">= 3"
+
+- id: E011
+  category: Li-ion cathode exp
+  intent: "LiNi1/3Mn1/3Co1/3O2 三元实验方案"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn", "Co"]
+    num_candidates: ">= 3"
+
+- id: E012
+  category: Li-ion cathode exp
+  intent: "无钴 LiNi0.5Mn0.5O2 实验方案"
+  expected:
+    formula_must_contain_any: ["Ni", "Mn"]
+    formula_must_not_contain_any: ["Co"]
+    num_candidates: ">= 3"
+
+- id: E013
+  category: Li-ion cathode exp
+  intent: "Li4Ti5O12 负极实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "Ti", "O"]
+    num_candidates: ">= 3"
+
+- id: E014
+  category: Li-ion cathode exp
+  intent: "LiFeSO4F 新型正极实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "Fe"]
+    num_candidates: ">= 2"
+
+- id: E015
+  category: Li-ion cathode exp
+  intent: "Li2FeSiO4 聚阴离子实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "Fe", "Si"]
+    num_candidates: ">= 2"
+
+# ============================================================================
+# 固态电解质实验方案(Solid electrolyte exp,15 case)
+# ============================================================================
+
+- id: E016
+  category: Solid electrolyte exp
+  intent: "出 LLZO Li7La3Zr2O12 实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "La", "Zr", "O"]
+    num_candidates: ">= 3"
+
+- id: E017
+  category: Solid electrolyte exp
+  intent: "Li3PS4 硫化物电解质实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "P", "S"]
+    num_candidates: ">= 3"
+
+- id: E018
+  category: Solid electrolyte exp
+  intent: "无贵金属固态电解质实验方案"
+  expected:
+    formula_must_contain: "Li"
+    formula_must_not_contain_any: ["Pt", "Au", "Ag"]
+    num_candidates: ">= 5"
+
+- id: E019
+  category: Solid electrolyte exp
+  intent: "Li6PS5Cl argyrodite 实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "P", "S", "Cl"]
+    num_candidates: ">= 3"
+
+- id: E020
+  category: Solid electrolyte exp
+  intent: "Li10GeP2S12 LGPS 实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "Ge", "P", "S"]
+    num_candidates: ">= 3"
+
+- id: E021
+  category: Solid electrolyte exp
+  intent: "LATP Li1.3Al0.3Ti1.7(PO4)3 实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "Ti", "P"]
+    num_candidates: ">= 2"
+
+- id: E022
+  category: Solid electrolyte exp
+  intent: "LLZO Ta 掺杂实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "La", "Zr", "O"]
+    num_candidates: ">= 3"
+
+- id: E023
+  category: Solid electrolyte exp
+  intent: "Na3Zr2Si2PO12 Na 超离子导体实验方案"
+  expected:
+    formula_must_contain_all: ["Na", "Zr", "Si", "P", "O"]
+    num_candidates: ">= 2"
+
+- id: E024
+  category: Solid electrolyte exp
+  intent: "LiPON 薄膜电解质实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "P", "O", "N"]
+    num_candidates: ">= 2"
+
+- id: E025
+  category: Solid electrolyte exp
+  intent: "Li3YCl6 卤化物实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "Y", "Cl"]
+    num_candidates: ">= 2"
+
+- id: E026
+  category: Solid electrolyte exp
+  intent: "反钙钛矿 Li3OCl 实验方案"
+  expected:
+    formula_must_contain_all: ["Li", "O", "Cl"]
+    num_candidates: ">= 2"
+
+- id: E027
+  category: Solid electrolyte exp
+  intent: "Li3PS4 + LiI 复合电解质实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "P", "S"]
+    num_candidates: ">= 2"
+
+- id: E028
+  category: Solid electrolyte exp
+  intent: "Li2ZrCl6 新型卤化物实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "Zr", "Cl"]
+    num_candidates: ">= 2"
+
+- id: E029
+  category: Solid electrolyte exp
+  intent: "Li5.5PS4.5Cl1.5 argyrodite 实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "P", "S"]
+    num_candidates: ">= 2"
+
+- id: E030
+  category: Solid electrolyte exp
+  intent: "LGPS 改性 Li9.54Si1.74P1.44S11.4Cl0.6 实验方案"
+  expected:
+    formula_must_contain_any: ["Li", "Si", "P"]
+    num_candidates: ">= 2"
+
+# ============================================================================
+# 催化剂实验方案(Catalyst exp,10 case)
+# ============================================================================
+
+- id: E031
+  category: Catalyst exp
+  intent: "Pt 催化剂实验方案(HER)"
+  expected:
+    formula_must_contain_any: ["Pt"]
+    num_candidates: ">= 2"
+
+- id: E032
+  category: Catalyst exp
+  intent: "无 Pt 催化剂实验方案"
+  expected:
+    formula_must_not_contain_any: ["Pt"]
+    formula_must_contain_any: ["Fe", "Co", "Ni", "Mn"]
+    num_candidates: ">= 3"
+
+- id: E033
+  category: Catalyst exp
+  intent: "MoS2 析氢催化剂实验方案"
+  expected:
+    formula_must_contain_all: ["Mo", "S"]
+    num_candidates: ">= 2"
+
+- id: E034
+  category: Catalyst exp
+  intent: "单原子催化剂 Fe-N-C 实验方案"
+  expected:
+    formula_must_contain_any: ["Fe", "N", "C"]
+    num_candidates: ">= 2"
+
+- id: E035
+  category: Catalyst exp
+  intent: "Co3O4 析氧催化剂实验方案"
+  expected:
+    formula_must_contain_all: ["Co", "O"]
+    num_candidates: ">= 2"
+
+- id: E036
+  category: Catalyst exp
+  intent: "NiFe LDH 析氧实验方案"
+  expected:
+    formula_must_contain_all: ["Ni", "Fe"]
+    num_candidates: ">= 2"
+
+- id: E037
+  category: Catalyst exp
+  intent: "Cu2O 光催化剂实验方案"
+  expected:
+    formula_must_contain_all: ["Cu", "O"]
+    num_candidates: ">= 2"
+
+- id: E038
+  category: Catalyst exp
+  intent: "BiVO4 太阳能水氧化实验方案"
+  expected:
+    formula_must_contain_any: ["Bi", "V", "O"]
+    num_candidates: ">= 2"
+
+- id: E039
+  category: Catalyst exp
+  intent: "ZrO2 载体实验方案"
+  expected:
+    formula_must_contain_all: ["Zr", "O"]
+    num_candidates: ">= 2"
+
+- id: E040
+  category: Catalyst exp
+  intent: "MnO2 氧还原实验方案"
+  expected:
+    formula_must_contain_all: ["Mn", "O"]
+    num_candidates: ">= 2"
+
+# ============================================================================
+# 其他材料实验方案(Other exp,10 case)
+# ============================================================================
+
+- id: E041
+  category: Solar cell exp
+  intent: "CsPbI3 钙钛矿实验方案"
+  expected:
+    formula_must_contain_any: ["Cs", "Pb", "I"]
+    num_candidates: ">= 2"
+
+- id: E042
+  category: Solar cell exp
+  intent: "CH3NH3PbI3 钙钛矿实验方案"
+  expected:
+    formula_must_contain_any: ["Pb", "I"]
+    num_candidates: ">= 2"
+
+- id: E043
+  category: Hydrogen storage exp
+  intent: "MgH2 储氢材料实验方案"
+  expected:
+    formula_must_contain_all: ["Mg", "H"]
+    num_candidates: ">= 2"
+
+- id: E044
+  category: Hydrogen storage exp
+  intent: "LaNi5 储氢合金实验方案"
+  expected:
+    formula_must_contain_any: ["La", "Ni"]
+    num_candidates: ">= 2"
+
+- id: E045
+  category: Superconductor exp
+  intent: "YBa2Cu3O7 YBCO 超导实验方案"
+  expected:
+    formula_must_contain_any: ["Y", "Ba", "Cu"]
+    num_candidates: ">= 2"
+
+- id: E046
+  category: Thermoelectric exp
+  intent: "Bi2Te3 热电材料实验方案"
+  expected:
+    formula_must_contain_all: ["Bi", "Te"]
+    num_candidates: ">= 2"
+
+- id: E047
+  category: Magnetic exp
+  intent: "Nd2Fe14B 永磁实验方案"
+  expected:
+    formula_must_contain_any: ["Nd", "Fe"]
+    num_candidates: ">= 2"
+
+- id: E048
+  category: Magnetic exp
+  intent: "SmCo5 永磁实验方案"
+  expected:
+    formula_must_contain_any: ["Sm", "Co"]
+    num_candidates: ">= 2"
+
+- id: E049
+  category: Semiconductor exp
+  intent: "GaN 半导体实验方案"
+  expected:
+    formula_must_contain_all: ["Ga", "N"]
+    num_candidates: ">= 2"
+
+- id: E050
+  category: Semiconductor exp
+  intent: "SiC 宽禁带半导体实验方案"
+  expected:
+    formula_must_contain_all: ["Si", "C"]
+    num_candidates: ">= 2"
