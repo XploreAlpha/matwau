@@ -5,6 +5,50 @@
 
 ---
 
+## [v1.1-Academic] - 2026-07-26 — 教学 + 部署 + 宣传配套合集
+
+### Added(新增)
+- **W37.2 — 8 周教学手册**(8 件 ~1201 行):
+  - `docs/teaching_manual/README.md` — 教学手册入口索引
+  - `docs/teaching_manual/01_overview.md` — 课程导入 + 4 步上手
+  - `docs/teaching_manual/02_8week_curriculum.md` — 8 周详细大纲
+  - `docs/teaching_manual/04_grading_rubric.md` — 100 分评分标准
+  - `docs/teaching_manual/03_demo_scripts/W1_intent_classification.py` — W1 demo
+  - `docs/teaching_manual/03_demo_scripts/W2_xrd_peak_decode.py` — W2 demo
+  - `docs/teaching_manual/03_demo_scripts/W3_bayesian_optimize.py` — W3 demo
+  - `docs/teaching_manual/03_demo_scripts/W4_critic_L1L4.py` — W4 demo
+- **W37.4 — Docker Compose 单机包**(8 件 ~833 行):
+  - `deploy/academic/Dockerfile` — python:3.11-slim + 非 root + healthcheck
+  - `deploy/academic/docker-compose.yml` — 2 service + 2 volume
+  - `deploy/academic/serve.py` — HTTP API 8 端点
+  - `deploy/academic/.env.example` — DB 密码 + LLM env 模板
+  - `deploy/academic/.dockerignore` — 构建排除规则
+  - `deploy/academic/deploy_academic.sh` — 一键部署脚本
+  - `docs/deploy_academic.md` — IT 部署完整文档
+- **W37.5 — 招生宣传样板**:
+  - `docs/outreach/academic_pitch.md` — 10 节 + 2 Mermaid + 11 维对比表 + 1 分钟脚本
+- **W37.6 — 8 周课堂 PPT 讲义**:
+  - `docs/teaching_manual/slides_8week.md` — 1154 行 + 51 PPT 页 + 13 Mermaid 流程图
+- **`RELEASE_NOTES_v1.1-Academic.md`** — 本次发版说明(本文档配套)
+
+### Changed(变更)
+- `deploy/academic/VERSION` 从 `v1.0-Academic` → **`v1.1-Academic`**
+- `deploy/academic/serve.py` `/version` 端点反映 v1.1-Academic
+
+### Deprecated(即将弃用)
+- 无
+
+### Removed(移除)
+- 无(完全向后兼容)
+
+### Fixed(修复)
+- 无(0 代码改动)
+
+### Security(安全)
+- API key 走 `.env` 文件,**绝不进对话 + 不进 git**(W37.4 模板)
+
+---
+
 ## [v1.0-Academic] - 2026-07-26 — 学院版首发
 
 ### Added(新增)

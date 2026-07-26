@@ -135,9 +135,13 @@ matwau/                              ← 项目根(无头后端)
 - ✅ Apache 2.0 LICENSE
 - ✅ 双署名 NOTICE
 - ✅ 维护承诺 MAINTENANCE.md
-- 📋 W37.1 — Docker Compose 单机包(下次)
-- 📋 W37.2 — 教学手册 v1.0(下次)
-- 📋 W37.3 — 学院版 Release v1.0-Academic(下次)
+- ✅ W37.0 — 学院版捐赠法律框架
+- ✅ W37.2 — 8 周教学手册(1201 行 + 4 demo 脚本)
+- ✅ W37.3 — 学院版 Release v1.0-Academic
+- ✅ W37.4 — Docker Compose 单机包(833 行 + 8 端点 HTTP API)
+- ✅ W37.5 — 招生宣传样板(11 维对比表 + 1 分钟脚本)
+- ✅ W37.6 — 8 周课堂 PPT(1154 行 + 51 PPT 页 + 13 Mermaid 图)
+- ✅ W37.8 — 学院版 Release v1.1-Academic(本次)
 
 ---
 
