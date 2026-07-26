@@ -73,6 +73,31 @@ USER_FORBIDDEN_KEYWORDS = [
 
 
 # ============================================================================
+# W30 新增常量 - 跨机器人一致性
+# ============================================================================
+
+# 4 路权重(总 1.0)
+WEIGHT_L1_PHYSICAL = 0.3
+WEIGHT_L2_SYNTHESIS = 0.3
+WEIGHT_L3_SAFETY = 0.2
+WEIGHT_L4_CROSS_ROBOT = 0.2
+
+# W30 新增 - 5 个 FailureType.code
+FAIL_XRD_PHASE_MISMATCH = "xrd_phase_mismatch"
+FAIL_EDS_EXTRA_ELEMENTS = "eds_extra_elements"
+FAIL_DSC_CLASS_MISMATCH = "dsc_class_mismatch"
+FAIL_CROSS_ROBOT_INCONSISTENCY = "cross_robot_inconsistency"
+FAIL_DATA_CONSISTENCY_LOW = "data_consistency_low"
+
+# 跨机器人规则名(给 issues 和 suggestions 用)
+RULE_R1_XRD_PHASE = "R1_xrd_phase_in_synth_product"
+RULE_R2_EDS_ELEMENTS = "R2_eds_elements_subset_of_synth"
+RULE_R3_DSC_CLASS = "R3_dsc_class_matches_synth"
+RULE_R4_COST_SANITY = "R4_synth_cost_per_gram"
+RULE_R5_XRD_PEAK_COUNT = "R5_xrd_peak_count_for_crystallinity"
+
+
+# ============================================================================
 # 数据结构
 # ============================================================================
 
@@ -81,11 +106,37 @@ USER_FORBIDDEN_KEYWORDS = [
 class CriticScore:
     """1 路打分(0-1)"""
 
-    name: str                           # L1 / L2 / L3
+    name: str                           # L1 / L2 / L3 / L4
     score: float                        # 0-1,越高越可信
     weight: float                       # 该路权重
     issues: List[str] = field(default_factory=list)   # 问题列表
     suggestions: List[str] = field(default_factory=list)  # 修复建议
+
+
+# W30 - L4 跨机器人一致性打分
+@dataclass
+class CrossRobotScore:
+    """L4 跨机器人一致性打分(W30 新增)
+
+    吃 ChemistReport 中 4 robot 结果,跑物理一致性验证:
+    - R1 XRD matched_phase vs synth.product_formula
+    - R2 EDS 元素 ⊆ synth 化学式
+    - R3 DSC Tg/Tm 类一致
+    - R4 cost-per-gram sanity(Round 2)
+    - R5 XRD peak count 与结晶性(Round 2)
+
+    注:不复用 CriticScore(继承会跟 dataclass 字段顺序冲突),独立 dataclass
+    但保持相同字段语义(name/score/weight/issues/suggestions),CriticVerdict.to_dict() 一致处理
+    """
+
+    name: str = "L4_cross_robot"
+    score: float = 0.0
+    weight: float = 0.2
+    issues: List[str] = field(default_factory=list)
+    suggestions: List[str] = field(default_factory=list)
+    consistent: bool = True             # 4 robot 结果是否一致
+    rules_passed: List[str] = field(default_factory=list)
+    rules_failed: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -108,6 +159,7 @@ class CriticVerdict:
     l1: CriticScore                     # 物理一致性
     l2: CriticScore                     # 实验可行性
     l3: CriticScore                     # 安全规则
+    cross_robot: CrossRobotScore = field(default_factory=CrossRobotScore)  # W30 NEW
     failures: List[FailureType] = field(default_factory=list)
     top_suggestions: List[str] = field(default_factory=list)
 
@@ -129,6 +181,14 @@ class CriticVerdict:
                 "score": round(self.l3.score, 3),
                 "weight": self.l3.weight,
                 "issues": self.l3.issues,
+            },
+            "l4_cross_robot": {  # W30 NEW
+                "score": round(self.cross_robot.score, 3),
+                "weight": self.cross_robot.weight,
+                "issues": self.cross_robot.issues,
+                "consistent": self.cross_robot.consistent,
+                "rules_passed": self.cross_robot.rules_passed,
+                "rules_failed": self.cross_robot.rules_failed,
             },
             "failures": [
                 {
@@ -205,7 +265,7 @@ def score_l1_physical(candidates: List[Any], req_message: str = "") -> CriticSco
         return CriticScore(
             name="L1_physical",
             score=0.5,
-            weight=0.4,
+            weight=WEIGHT_L1_PHYSICAL,
             issues=["无候选,无法评估物理一致性"],
             suggestions=["确认上游 mat-gen / mat-sim / mat-hpc 至少产出 1 个候选"],
         )
@@ -270,7 +330,7 @@ def score_l1_physical(candidates: List[Any], req_message: str = "") -> CriticSco
     return CriticScore(
         name="L1_physical",
         score=score,
-        weight=0.4,
+        weight=WEIGHT_L1_PHYSICAL,
         issues=issues[:5],  # 最多 5 条
         suggestions=suggestions[:5],
     )
@@ -351,7 +411,7 @@ def score_l2_synthesis(candidates: List[Any], req_message: str = "") -> CriticSc
         return CriticScore(
             name="L2_synthesis",
             score=0.5,
-            weight=0.4,
+            weight=WEIGHT_L2_SYNTHESIS,
             issues=["无候选"],
             suggestions=["确认上游产出候选"],
         )
@@ -401,7 +461,7 @@ def score_l2_synthesis(candidates: List[Any], req_message: str = "") -> CriticSc
     return CriticScore(
         name="L2_synthesis",
         score=score,
-        weight=0.4,
+        weight=WEIGHT_L2_SYNTHESIS,
         issues=issues[:5],
         suggestions=suggestions[:5],
     )
@@ -443,7 +503,7 @@ def score_l3_safety(candidates: List[Any], req_message: str = "") -> CriticScore
         return CriticScore(
             name="L3_safety",
             score=0.7,
-            weight=0.2,
+            weight=WEIGHT_L3_SAFETY,
             issues=["无候选"],
             suggestions=[],
         )
@@ -506,7 +566,7 @@ def score_l3_safety(candidates: List[Any], req_message: str = "") -> CriticScore
     return CriticScore(
         name="L3_safety",
         score=score,
-        weight=0.2,
+        weight=WEIGHT_L3_SAFETY,
         issues=issues[:5],
         suggestions=suggestions[:5],
     )
@@ -638,6 +698,7 @@ def aggregate_verdict(
     l2: CriticScore,
     l3: CriticScore,
     failures: List[FailureType],
+    cross_robot: Optional[CrossRobotScore] = None,
 ) -> str:
     """综合判定 pass / warn / fail
 
@@ -647,8 +708,20 @@ def aggregate_verdict(
     - warning(物理异常 / 合成困难 / 高毒)→ warn(即使总分高)
     - 纯 warning + 总分高 → warn
     - 无 critical / warning + 总分高 → pass
+
+    W30:支持 4 路加权(L1/L2/L3/L4 cross_robot)。如未传 cross_robot,沿用原 3 路加权。
     """
-    overall = l1.score * l1.weight + l2.score * l2.weight + l3.score * l3.weight
+    if cross_robot is None or cross_robot.score == 0.0:
+        # 向后兼容 - 3 路加权
+        overall = l1.score * l1.weight + l2.score * l2.weight + l3.score * l3.weight
+    else:
+        # W30 - 4 路加权
+        overall = (
+            l1.score * l1.weight
+            + l2.score * l2.weight
+            + l3.score * l3.weight
+            + cross_robot.score * cross_robot.weight
+        )
 
     # 1. critical(安全零容忍)→ 立即 fail
     critical_failures = [f for f in failures if f.severity == "critical"]
@@ -679,7 +752,9 @@ def evaluate_candidates(
     user_intent: str = "",
     prior_failures: List[FailureType] = None,
 ) -> CriticVerdict:
-    """3 路交叉验证主入口
+    """3 路交叉验证主入口(W30 保持向后兼容 — 默认走 3 路,不打 L4)
+
+    如需 4 路(L1/L2/L3/L4 cross_robot),请用 `evaluate_chemist_report(report, user_intent=...)`。
 
     Args:
         candidates: 候选列表(GenCandidate / SimCandidate / HPCJobResult / ExpRecipe / dict)
@@ -687,7 +762,7 @@ def evaluate_candidates(
         prior_failures: 上游失败信息(可选,用于交叉验证)
 
     Returns:
-        CriticVerdict
+        CriticVerdict (cross_robot 字段为空 default)
     """
     # L1 / L2 / L3 打分
     l1 = score_l1_physical(candidates, user_intent)
@@ -705,7 +780,7 @@ def evaluate_candidates(
     if prior_failures:
         failures.extend(prior_failures)
 
-    # 综合分
+    # 综合分(3 路)
     overall = l1.score * l1.weight + l2.score * l2.weight + l3.score * l3.weight
 
     # verdict
@@ -735,6 +810,242 @@ def evaluate_candidates(
         failures=failures,
         top_suggestions=top_suggestions,
     )
+
+
+def evaluate_chemist_report(
+    report: Any,
+    *,
+    user_intent: str = "",
+) -> CriticVerdict:
+    """W30 新入口:吃 ChemistReport,跑 L1-L4 4 路打分(含跨机器人一致性)
+
+    Args:
+        report: ChemistReport dataclass(or dict 含 robot_results 字段)
+        user_intent: 用户原始意图(用于 L2/L3 user-forbidden 关键词)
+
+    Returns:
+        CriticVerdict with cross_robot 字段填充
+
+    实现:
+    1. 从 report.robot_results 抽 4 robot artifacts → RobotEvidence 列表
+    2. 把 4 robot 结果展平 → 走 L1/L2/L3 (per-robot 元素 + 物理证据)
+    3. 跑 L4 跨机器人一致性(5 条规则)
+    4. 4 路加权 → verdict
+    """
+    # 0. 懒加载避免循环 import
+    from .cross_robot import build_robot_evidence_list, evaluate_cross_robot
+
+    # 1. 抽 ChemistReport 字段
+    if isinstance(report, dict):
+        robot_results = report.get("robot_results", [])
+        target_sample = report.get("target_sample", "")
+    else:
+        # ChemistReport dataclass
+        robot_results = getattr(report, "robot_results", []) or []
+        target_sample = getattr(report, "target_sample", "") or ""
+
+    # 2. 抽 4 robot 物理证据
+    robot_evidence = build_robot_evidence_list(robot_results)
+
+    # 3. 展平给 L1/L2/L3 用 — 用 robot_evidence 转 candidates 形式
+    # L1 看 energy,这里没有 DFT/HPC 数据,robot 都没有 → L1 默认 0.7
+    # L2 看 element availability → 从 synth.product_formula + EM EDS 取元素
+    # L3 看 user_forbidden + 毒/放射 → 从所有 robot artifacts 取元素
+    l1_candidates = _evidence_to_l1_candidates(robot_evidence)
+    l2_candidates = _evidence_to_l2_candidates(robot_evidence, target_sample)
+    l3_candidates = _evidence_to_l3_candidates(robot_evidence, target_sample)
+
+    # 4. 跑 L1/L2/L3
+    l1 = score_l1_physical(l1_candidates, user_intent)
+    l2 = score_l2_synthesis(l2_candidates, user_intent)
+    l3 = score_l3_safety(l3_candidates, user_intent)
+
+    # 5. 跑 L4 跨机器人一致性
+    cross_result = evaluate_cross_robot(robot_evidence)
+    l4 = _cross_result_to_score(cross_result)
+
+    # 6. 失败识别(原 3 路 + W30 跨机器人新增)
+    failures = identify_failures(l1, l2, l3)
+    failures.extend(_cross_result_to_failures(cross_result))
+
+    # 7. 关键词诊断(per user_intent 触发)
+    if user_intent:
+        keyword_failures = _keyword_based_failures(user_intent)
+        failures.extend(keyword_failures)
+
+    # 8. 4 路加权
+    overall = (
+        l1.score * l1.weight
+        + l2.score * l2.weight
+        + l3.score * l3.weight
+        + l4.score * l4.weight
+    )
+
+    # 9. verdict(传入 l4 让 critical failure 检查用上 L4 失败)
+    verdict = aggregate_verdict(l1, l2, l3, failures, cross_robot=l4)
+
+    # 10. top 建议:4 路合并
+    all_suggestions = []
+    for s in [l3, l4, l2, l1]:
+        for sug in s.suggestions:
+            if sug not in all_suggestions:
+                all_suggestions.append(sug)
+    for f in failures:
+        for sug in f.fix_suggestions:
+            if sug not in all_suggestions:
+                all_suggestions.append(sug)
+    top_suggestions = all_suggestions[:5]
+
+    return CriticVerdict(
+        overall_score=round(overall, 3),
+        verdict=verdict,
+        l1=l1,
+        l2=l2,
+        l3=l3,
+        cross_robot=l4,
+        failures=failures,
+        top_suggestions=top_suggestions,
+    )
+
+
+# W30 helpers - 把 RobotEvidence 转成 L1/L2/L3 兼容的 candidates 格式
+def _evidence_to_l1_candidates(evidence_list: List[Any]) -> List[Dict[str, Any]]:
+    """从 RobotEvidence 转 L1 物理一致性 candidates(只有 synth 能给能量)
+
+    L1 看 energy/forces_max,robot 没有 DFT 输出 → 默认给空 list 让 L1 走默认分
+    """
+    cands = []
+    for ev in evidence_list:
+        if not ev.success:
+            continue
+        cand = {"formula": ev.formula or ev.synth_product_formula or "?"}
+        cands.append(cand)
+    return cands
+
+
+def _evidence_to_l2_candidates(evidence_list: List[Any], target_sample: str) -> List[Dict[str, Any]]:
+    """从 RobotEvidence 转 L2 实验可行性 candidates(用 synth.product + EM EDS 元素)"""
+    cands = []
+    for ev in evidence_list:
+        if not ev.success:
+            continue
+        formula = ev.synth_product_formula or ev.formula or target_sample or "?"
+        cand = {"formula": formula}
+        cands.append(cand)
+    return cands
+
+
+def _evidence_to_l3_candidates(evidence_list: List[Any], target_sample: str) -> List[Dict[str, Any]]:
+    """从 RobotEvidence 转 L3 安全 candidates(所有 robot 都给一个 formula 候选)"""
+    cands = []
+    for ev in evidence_list:
+        if not ev.success:
+            continue
+        formula = ev.formula or ev.synth_product_formula or target_sample or "?"
+        cand = {"formula": formula}
+        cands.append(cand)
+    return cands
+
+
+def _cross_result_to_score(cross_result: Any) -> CrossRobotScore:
+    """CrossRobotResult → CrossRobotScore dataclass"""
+    return CrossRobotScore(
+        name="L4_cross_robot",
+        score=cross_result.score,
+        weight=WEIGHT_L4_CROSS_ROBOT,
+        issues=cross_result.issues[:5],
+        suggestions=cross_result.suggestions[:5],
+        consistent=cross_result.consistent,
+        rules_passed=cross_result.rules_passed,
+        rules_failed=cross_result.rules_failed,
+    )
+
+
+def _cross_result_to_failures(cross_result: Any) -> List[FailureType]:
+    """CrossRobotResult → FailureType 列表(W30 新增 5 个 code)"""
+    failures = []
+
+    # 看 rules_failed,把每条失败规则转 1 个 FailureType
+    rules_failed = cross_result.rules_failed or []
+    issues = cross_result.issues or []
+
+    # R1 XRD phase mismatch → critical(数据不一致,产物对不上)
+    if RULE_R1_XRD_PHASE in rules_failed:
+        failures.append(FailureType(
+            code=FAIL_XRD_PHASE_MISMATCH,
+            severity="critical",
+            confidence=0.9,
+            evidence=[i for i in issues if "XRD" in i or "phase" in i.lower()][:3],
+            fix_suggestions=[
+                "复核 mat-robot-synth 产物",
+                "检查 XRD 样品是否被污染",
+                "对比 ICSD 数据库参考谱",
+            ],
+        ))
+
+    # R2 EDS 元素超出 → warning(可能是污染物)
+    if RULE_R2_EDS_ELEMENTS in rules_failed:
+        failures.append(FailureType(
+            code=FAIL_EDS_EXTRA_ELEMENTS,
+            severity="warning",
+            confidence=0.85,
+            evidence=[i for i in issues if "EDS" in i or "元素" in i][:3],
+            fix_suggestions=[
+                "检查 EM 样品制备:是否被污染",
+                "复核 synth 配方是否漏元素",
+            ],
+        ))
+
+    # R3 DSC 类不一致 → warning
+    if RULE_R3_DSC_CLASS in rules_failed:
+        failures.append(FailureType(
+            code=FAIL_DSC_CLASS_MISMATCH,
+            severity="warning",
+            confidence=0.8,
+            evidence=[i for i in issues if "DSC" in i or "Tg" in i or "Tm" in i][:3],
+            fix_suggestions=[
+                "复核 DSC 升温程序(可能选错温度区间)",
+                "确认样品类别(polymer/metal/ceramic)",
+            ],
+        ))
+
+    # R4 cost sanity → warning
+    if RULE_R4_COST_SANITY in rules_failed:
+        failures.append(FailureType(
+            code=FAIL_DATA_CONSISTENCY_LOW,
+            severity="warning",
+            confidence=0.7,
+            evidence=[i for i in issues if "cost" in i.lower() or "yield" in i.lower()][:3],
+            fix_suggestions=[
+                "复核 synth 产率报告",
+                "检查成本估算函数",
+            ],
+        ))
+
+    # R5 XRD peak count → warning
+    if RULE_R5_XRD_PEAK_COUNT in rules_failed:
+        failures.append(FailureType(
+            code=FAIL_DATA_CONSISTENCY_LOW,
+            severity="warning",
+            confidence=0.7,
+            evidence=[i for i in issues if "peak" in i.lower() or "结晶" in i][:3],
+            fix_suggestions=[
+                "检查 XRD 样品是否 amorphous(玻璃)",
+                "增加曝光时间或样品量",
+            ],
+        ))
+
+    # 整体不一致 → 1 个 info 提示
+    if not cross_result.consistent and not rules_failed:
+        failures.append(FailureType(
+            code=FAIL_CROSS_ROBOT_INCONSISTENCY,
+            severity="warning",
+            confidence=0.6,
+            evidence=cross_result.issues[:3],
+            fix_suggestions=["人工复核 4 机器人结果的一致性"],
+        ))
+
+    return failures
 
 
 def _keyword_based_failures(user_intent: str) -> List[FailureType]:
@@ -876,11 +1187,28 @@ def explain_failure(
 
 __all__ = [
     "CriticScore",
+    "CrossRobotScore",
     "CriticVerdict",
     "FailureType",
     "evaluate_candidates",
+    "evaluate_chemist_report",  # W30 NEW
     "explain_failure",
     "score_l1_physical",
     "score_l2_synthesis",
     "score_l3_safety",
+    # W30 NEW 常量
+    "WEIGHT_L1_PHYSICAL",
+    "WEIGHT_L2_SYNTHESIS",
+    "WEIGHT_L3_SAFETY",
+    "WEIGHT_L4_CROSS_ROBOT",
+    "FAIL_XRD_PHASE_MISMATCH",
+    "FAIL_EDS_EXTRA_ELEMENTS",
+    "FAIL_DSC_CLASS_MISMATCH",
+    "FAIL_CROSS_ROBOT_INCONSISTENCY",
+    "FAIL_DATA_CONSISTENCY_LOW",
+    "RULE_R1_XRD_PHASE",
+    "RULE_R2_EDS_ELEMENTS",
+    "RULE_R3_DSC_CLASS",
+    "RULE_R4_COST_SANITY",
+    "RULE_R5_XRD_PEAK_COUNT",
 ]

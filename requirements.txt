@@ -10,5 +10,11 @@ pyyaml>=6.0
 # 数据
 pydantic>=2.0
 
+# W32 — LineageStore PostgresBackend 依赖(可选;无 psycopg 自动降级到 SQLite)
+psycopg[binary]>=3.1
+
+# W33 — LLMReviewer(可选;无 openai 包 → 自动跳过 LLM 复核)
+openai>=1.0
+
 # Lint(可选,CI 用)
 ruff>=0.1.0

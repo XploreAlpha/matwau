@@ -20,8 +20,9 @@ Stage 2 接 mat-lit / mat-critic
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 # 允许直接 python3 -m 运行
 _AGENT_DIR = Path(__file__).resolve().parent
@@ -86,12 +87,20 @@ class MatOrchestrator:
         exp_agent=None,
         critic_agent=None,
         lit_agent=None,
+        lineage_store=None,            # W32 — LineageStore 实例(默认 None → 不打 lineage)
+        lineage_recorder=None,         # W32 — LineageRecorder 实例(默认 None → 不打 lineage)
+        enable_lineage: bool = True,   # W32 — False → 关闭 lineage(测试用)
     ) -> None:
         """构造
 
         不传任何 agent → 用默认(Stage 1 mock)
         critic_agent 不传 → 自动懒加载 MatCriticAgent(W12 新增,替换原 StubAgent)
         lit_agent 不传 → 自动懒加载 MatLitAgent(W14 新增,替换原 StubAgent)
+
+        W32 新增:
+        - lineage_store: 显式注入 LineageStore(None → 默认从 get_lineage_store() 拿)
+        - lineage_recorder: 显式注入 LineageRecorder(优先于 lineage_store)
+        - enable_lineage: False → 关闭 lineage hook(测试 / CI 友好)
         """
         # 懒加载
         if gen_agent is None or sim_agent is None or hpc_agent is None or exp_agent is None:
@@ -146,6 +155,23 @@ class MatOrchestrator:
 
         # DAG executor
         self.executor = DAGExecutor(self.agent_registry)
+
+        # W32 — Lineage 注入
+        self._lineage_recorder = None
+        if enable_lineage:
+            if lineage_recorder is not None:
+                self._lineage_recorder = lineage_recorder
+            elif lineage_store is not None:
+                # 包 LineageStore → LineageRecorder
+                from agents.mat_data_lineage_agent import LineageRecorder
+                self._lineage_recorder = LineageRecorder(store=lineage_store)
+            else:
+                # 默认从 get_lineage_store() 工厂拿
+                from matwau.configs import get_lineage_store
+                from agents.mat_data_lineage_agent import LineageRecorder
+                store = get_lineage_store()
+                if store is not None:
+                    self._lineage_recorder = LineageRecorder(store=store)
 
     # ========================================================================
     # 公开 API
@@ -210,6 +236,15 @@ class MatOrchestrator:
 
         # Stage 3: 跑 DAG
         result = self.executor.execute(workflow, initial_inputs=initial_inputs)
+
+        # W32 — Lineage hook:workflow 终点记录
+        if self._lineage_recorder is not None:
+            self._lineage_recorder.record_workflow_result(
+                workflow_name=result.workflow_name,
+                subclass=mi.subclass,
+                result=result,
+            )
+
         return result
 
     def run_with_intent(
@@ -240,7 +275,190 @@ class MatOrchestrator:
             "mat_intent": mat_intent,
         }
 
-        return self.executor.execute(workflow, initial_inputs=initial_inputs)
+        result = self.executor.execute(workflow, initial_inputs=initial_inputs)
+
+        # W32 — Lineage hook:workflow 终点记录
+        if self._lineage_recorder is not None:
+            self._lineage_recorder.record_workflow_result(
+                workflow_name=result.workflow_name,
+                subclass=mat_intent.subclass,
+                result=result,
+            )
+
+        return result
+
+    def run_batch(
+        self,
+        experiments: List["ChemistTask"],
+        *,
+        parallel: bool = True,
+        max_workers: int = 4,
+        critic_agent: Optional[Any] = None,
+    ) -> "BatchWorkflowResult":
+        """W31 — 跑 N 个 experiment 并行,每个跑完接 critic L4 复核,聚合 BatchWorkflowResult
+
+        Args:
+            experiments: List[ChemistTask](每项含 target_sample + robot_steps + budget)
+            parallel: True → ThreadPoolExecutor 并行;False → 串行
+            max_workers: 并行 worker 数(默认 4)
+            critic_agent: 可选 MatCriticAgent,默认 None → 内部 create_default_agent()
+
+        Returns:
+            BatchWorkflowResult(overall_verdict + experiment_results)
+        """
+        from uuid import uuid4
+        from .dag import BatchWorkflowResult, ExperimentResult
+        from .parallel_runner import ParallelBatchRunner
+
+        if not experiments:
+            return BatchWorkflowResult(
+                n_total=0, n_passed=0, n_warned=0, n_failed=0, n_blocked=0,
+                overall_verdict="fail", parallel=parallel, max_workers=max_workers,
+            )
+
+        # 1. 准备 critic agent
+        critic = critic_agent if critic_agent is not None else self.critic_agent
+
+        start_time = time.time()
+
+        # 2. 构造 worker callables
+        def _run_one(idx: int, task: "ChemistTask") -> ExperimentResult:
+            from agents.mat_chemist_agent import MatChemistAgent
+
+            chemist = MatChemistAgent()
+            exp_id = f"exp-{idx}-{uuid4().hex[:6]}"
+            t0 = time.time()
+            chem_cost = 0.0
+            try:
+                # Step A: 跑 chemist
+                chem_req = AgentRequest(
+                    run_id=f"{exp_id}-chemist",
+                    message=task.goal,
+                    artifacts={"task": task},
+                )
+                chem_resp = chemist.run(chem_req)
+                chem_cost = chem_resp.cost if hasattr(chem_resp, "cost") else chem_resp.artifacts.get("total_cost_cny", 0.0)
+
+                # W31 patch 后 artifacts["report"] = ChemistReport 对象
+                report = chem_resp.artifacts.get("report")
+                if report is None:
+                    return ExperimentResult(
+                        experiment_id=exp_id,
+                        target_sample=task.target_sample,
+                        chemist_report=None,
+                        critic_verdict=None,
+                        cost_cny=0.0,
+                        duration_seconds=time.time() - t0,
+                        verdict="fail",
+                        error="chemist returned no report",
+                    )
+
+                # W32 — Lineage hook:chemist 跑完记 1 条
+                if self._lineage_recorder is not None:
+                    self._lineage_recorder.record_chemist_report(
+                        experiment_id=exp_id,
+                        task=task,
+                        report=report,
+                        cost=chem_cost,
+                        duration_seconds=time.time() - t0,
+                    )
+
+                # Step B: 接 critic L4
+                critic_t0 = time.time()
+                critic_req = AgentRequest(
+                    run_id=f"{exp_id}-critic",
+                    message=f"{task.target_sample} 表征复核",
+                    artifacts={"report": report},
+                )
+                critic_resp = critic.run(critic_req)
+                critic_duration = time.time() - critic_t0
+                verdict_obj = critic_resp.artifacts.get("verdict")
+                critic_verdict = critic_resp.artifacts.get("critic_verdict")
+
+                # W32 — Lineage hook:critic 跑完记 1 条(parent = chemist)
+                if self._lineage_recorder is not None:
+                    self._lineage_recorder.record_critic_verdict(
+                        experiment_id=exp_id,
+                        target_sample=task.target_sample,
+                        critic_verdict=critic_verdict,
+                        cost=critic_resp.cost if hasattr(critic_resp, "cost") else 0.0,
+                        duration_seconds=critic_duration,
+                        user_intent=task.goal,
+                    )
+
+                return ExperimentResult(
+                    experiment_id=exp_id,
+                    target_sample=task.target_sample,
+                    chemist_report=report,
+                    critic_verdict=critic_verdict,
+                    cost_cny=chem_cost,
+                    duration_seconds=time.time() - t0,
+                    verdict=verdict_obj.verdict if verdict_obj else "fail",
+                )
+            except Exception as e:
+                return ExperimentResult(
+                    experiment_id=exp_id,
+                    target_sample=task.target_sample,
+                    chemist_report=None,
+                    critic_verdict=None,
+                    cost_cny=0.0,
+                    duration_seconds=time.time() - t0,
+                    verdict="fail",
+                    error=f"{type(e).__name__}: {e}",
+                )
+
+        callables = [_make_callable(_run_one, i, t) for i, t in enumerate(experiments)]
+
+        # 3. fan-out via ParallelBatchRunner
+        runner = ParallelBatchRunner(max_workers=max_workers if parallel else 1)
+        results = runner.run_all(callables)
+
+        # 4. fan-in 聚合
+        n_total = len(results)
+        n_passed = sum(1 for r in results if r.verdict == "pass")
+        n_warned = sum(1 for r in results if r.verdict == "warn")
+        n_failed = sum(1 for r in results if r.verdict == "fail")
+        n_blocked = sum(1 for r in results if r.blocked)
+        total_cost = sum(r.cost_cny for r in results)
+        total_duration = time.time() - start_time
+
+        # overall_verdict 逻辑:全 pass → pass;部分 pass/warn → warn;全 fail → fail
+        if n_passed == n_total and n_total > 0:
+            overall_verdict = "pass"
+        elif n_passed > 0 or n_warned > 0:
+            overall_verdict = "warn"
+        else:
+            overall_verdict = "fail"
+
+        batch_result = BatchWorkflowResult(
+            workflow_name="multi_experiment_characterization",
+            n_total=n_total,
+            n_passed=n_passed,
+            n_warned=n_warned,
+            n_failed=n_failed,
+            n_blocked=n_blocked,
+            experiment_results=results,
+            total_cost_cny=total_cost,
+            total_duration_seconds=total_duration,
+            overall_verdict=overall_verdict,
+            parallel=parallel,
+            max_workers=max_workers,
+        )
+
+        # W32 — Lineage hook:每 experiment + batch 总览
+        if self._lineage_recorder is not None:
+            for r in results:
+                self._lineage_recorder.record_experiment_result(r)
+            self._lineage_recorder.record_batch_workflow_result(batch_result)
+
+        return batch_result
+
+
+def _make_callable(fn, idx, task):
+    """构造一个 closure 捕获 idx + task,避免 lambda 默认参数陷阱"""
+    def _callable():
+        return fn(idx, task)
+    return _callable
 
 
 def create_default_orchestrator() -> MatOrchestrator:

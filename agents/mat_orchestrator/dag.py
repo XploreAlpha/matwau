@@ -425,6 +425,174 @@ def get_workflow_for_subclass(subclass: str) -> Optional[DAG]:
     return factory()
 
 
+# ============================================================================
+# W31 — 多实验并行表征(Stage 3 JARVIS 雏形)
+# ============================================================================
+
+
+@dataclass
+class ExperimentResult:
+    """1 个 experiment 的完整结果(chemist + critic)
+
+    W31 设计:聚合 1 次 MatChemistAgent.run + 1 次 MatCriticAgent.run
+    - chemist_report 含 4 robot 物理证据(per W26)
+    - critic_verdict 含 L4 跨机器人一致性(per W30)
+    - verdict 取 critic.verdict(pass/warn/fail)
+    - error 字段记录异常(parallel_runner 异常隔离用)
+    """
+
+    experiment_id: str                                # uuid4()[:8]
+    target_sample: str                                # "Inconel 718"
+    chemist_report: Any                               # ChemistReport(W31 patch 后取到)
+    critic_verdict: Any                               # CriticVerdict(含 L4 cross_robot)
+    cost_cny: float
+    duration_seconds: float
+    verdict: str                                      # pass / warn / fail
+    error: Optional[str] = None
+    blocked: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "experiment_id": self.experiment_id,
+            "target_sample": self.target_sample,
+            "verdict": self.verdict,
+            "cost_cny": round(self.cost_cny, 2),
+            "duration_seconds": round(self.duration_seconds, 2),
+            "error": self.error,
+            "blocked": self.blocked,
+            "has_chemist_report": self.chemist_report is not None,
+            "has_critic_verdict": self.critic_verdict is not None,
+        }
+
+
+@dataclass
+class BatchWorkflowResult:
+    """N 个 experiment 的 batch 结果(Stage 3 钢铁侠终极形态)
+
+    W31 设计:
+    - experiment_results 顺序与输入 experiments 一致
+    - overall_verdict:all-pass → pass;部分 pass/warn → warn;全 fail → fail
+    - parallel=True 时,total_duration_seconds 接近 max(单 experiment duration)
+    - failed_samples() / all_passed() 是常用查询 helper
+    """
+
+    workflow_name: str = "multi_experiment_characterization"
+    n_total: int = 0
+    n_passed: int = 0
+    n_warned: int = 0
+    n_failed: int = 0
+    n_blocked: int = 0
+    experiment_results: List[ExperimentResult] = field(default_factory=list)
+    total_cost_cny: float = 0.0
+    total_duration_seconds: float = 0.0
+    overall_verdict: str = "fail"                      # 默认 fail,空批次也是 fail
+    parallel: bool = True
+    max_workers: int = 4
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "workflow_name": self.workflow_name,
+            "n_total": self.n_total,
+            "n_passed": self.n_passed,
+            "n_warned": self.n_warned,
+            "n_failed": self.n_failed,
+            "n_blocked": self.n_blocked,
+            "overall_verdict": self.overall_verdict,
+            "total_cost_cny": round(self.total_cost_cny, 2),
+            "total_duration_seconds": round(self.total_duration_seconds, 2),
+            "parallel": self.parallel,
+            "max_workers": self.max_workers,
+            "experiment_results": [r.to_dict() for r in self.experiment_results],
+        }
+
+    def all_passed(self) -> bool:
+        """全部 N 个实验都 pass 才返回 True(空批次返回 False)"""
+        return self.n_passed == self.n_total and self.n_total > 0
+
+    def failed_samples(self) -> List[str]:
+        """返回所有 verdict=fail 的 experiment target_sample 列表"""
+        return [r.target_sample for r in self.experiment_results if r.verdict == "fail"]
+
+    def warn_samples(self) -> List[str]:
+        """返回所有 verdict=warn 的 experiment target_sample 列表"""
+        return [r.target_sample for r in self.experiment_results if r.verdict == "warn"]
+
+
+def multi_experiment_characterization_workflow() -> DAG:
+    """W31 — 多实验并行表征的 stub DAG(实际由 run_batch() 驱动)
+
+    设计意图:
+    - 保留 DAG 形态以便 goldens 路由(subclass 名=multi_experiment_characterization)
+    - 实际批执行由 MatOrchestrator.run_batch() 直接用 ParallelBatchRunner,
+      绕开 DAGExecutor(避免污染 W10 的 18 个老 case)
+    - 这 1 个 critic 节点是占位符,实际 verdict 由 run_batch 注入
+    """
+    return DAG(
+        name="multi_experiment_characterization",
+        nodes=[
+            DAGNode(
+                node_id="critic_overall",
+                agent_name="mat-critic-agent",
+                inputs={
+                    "message": "initial.user_intent",
+                    "candidate": "initial.target_sample",
+                },
+                output_key="critic_response",
+                description="mat-critic:批聚合 W31(per-experiment verdict 由 run_batch 注入)",
+            ),
+        ],
+    )
+
+
+# W31 — 第 6 个 workflow 模板注册
+WORKFLOW_BY_SUBCLASS["multi_experiment_characterization"] = multi_experiment_characterization_workflow
+
+
+def get_multi_experiment_default_batch() -> List[Any]:
+    """默认 3 实验批(Inconel 718 + PMMA + TiO2)— 覆盖 3 domain
+
+    Returns:
+        List[ChemistTask]
+    """
+    from agents.mat_chemist_agent.chemist_engine import (
+        ChemistTask,
+        RobotStep,
+        get_default_inconel_718_workflow,
+        get_default_pmma_workflow,
+    )
+
+    # Inconel 718 — 4 步 metal 全跑
+    task1 = get_default_inconel_718_workflow()
+    # PMMA — 2 步 polymer
+    task2 = get_default_pmma_workflow()
+    # TiO2 — W31 NEW — 3 步 ceramic quick scan
+    task3 = ChemistTask(
+        target_sample="TiO2",
+        domain="ceramic",
+        goal="TiO2 完整表征(合成 + 晶体 + 热学)",
+        robot_steps=[
+            RobotStep(
+                robot_type="synth",
+                description="制备 TiO2 标样(球磨 + 烧结)",
+                estimated_cost_cny=150.0,
+            ),
+            RobotStep(
+                robot_type="xrd",
+                description="XRD 测 TiO2 晶体相(参考 PDF #21-1272)",
+                estimated_cost_cny=120.0,
+            ),
+            RobotStep(
+                robot_type="dsc",
+                description="DSC 测 TiO2 相变",
+                estimated_cost_cny=80.0,
+            ),
+        ],
+        budget_cny=5000.0,
+        parallel_allowed=True,
+    )
+    return [task1, task2, task3]
+
+
 __all__ = [
     "DAGNode",
     "DAG",
@@ -436,6 +604,10 @@ __all__ = [
     "optimize_existing_workflow",
     "explain_failure_workflow",
     "literature_review_workflow",
+    "multi_experiment_characterization_workflow",   # W31 NEW
+    "get_multi_experiment_default_batch",           # W31 NEW
     "WORKFLOW_BY_SUBCLASS",
     "get_workflow_for_subclass",
+    "ExperimentResult",                             # W31 NEW
+    "BatchWorkflowResult",                          # W31 NEW
 ]

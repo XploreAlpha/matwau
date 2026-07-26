@@ -20,6 +20,12 @@ from .lineage_engine import (
     reset_global_store,
     summarize_artifacts,
 )
+from .lineage_recorder import (
+    LineageRecorder,
+    get_global_recorder,
+    get_recorder,
+    reset_global_recorder,
+)
 from .mat_data_lineage_agent import (
     LineageConfig,
     MatDataLineageAgent,
@@ -38,4 +44,9 @@ __all__ = [
     "hash_data",
     "reset_global_store",
     "summarize_artifacts",
+    # W32 NEW
+    "LineageRecorder",
+    "get_global_recorder",
+    "get_recorder",
+    "reset_global_recorder",
 ]

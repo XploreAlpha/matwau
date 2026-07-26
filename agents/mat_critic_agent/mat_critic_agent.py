@@ -1,13 +1,14 @@
 """mat-critic-agent — 材料科学 3 路交叉验证员(per dev plan §5.7 + §七 W12)
 
 Stage 1 / Phase 1:纯规则引擎(关键词 + 数值比较)
-Stage 2(WAU v1.0.0 GA 后):接 LLM 复核
+Stage 2(WAU v1.0.0 GA 后):接 LLM 复核 — **W33 已实现**
 
 业务流程(per act() 实现):
 1. 从 req.artifacts 抽 candidates(支持 GenCandidate / SimCandidate / HPCJobResult / ExpRecipe / dict)
-2. 跑 critic_engine.evaluate_candidates 3 路打分
+2. 跑 critic_engine.evaluate_candidates 3 路打分(W30 加 L4 跨机器人)
 3. 识别失败类型 + 生成 top 建议
-4. 返回 CriticVerdict
+4. W33 可选:接 LLMReviewer 做自然语言复核
+5. 返回 CriticVerdict + llm_review
 
 用法:
     from agents.mat_critic_agent import MatCriticAgent, evaluate_candidates
@@ -16,7 +17,11 @@ Stage 2(WAU v1.0.0 GA 后):接 LLM 复核
     # 准备 candidates(从 mat-sim 输出的 SimCandidate)
     simulated = [...]
 
+    # 默认(纯规则,W33 llm review 关)— 测试/CI 默认
     agent = MatCriticAgent()
+
+    # W33 — 显式开 LLM 复核(需要 MATWAU_LLM_API_KEY + MATWAU_LLM_ENABLED=1)
+    agent = MatCriticAgent(enable_llm_review=True)
     req = AgentRequest(
         run_id="critic-001",
         message="为什么 XRD 谱不对",
@@ -24,6 +29,7 @@ Stage 2(WAU v1.0.0 GA 后):接 LLM 复核
     )
     response = agent.run(req)
     print(response.artifacts["verdict"].verdict)  # pass / warn / fail
+    print(response.artifacts["llm_review"])       # W33 NEW - LLM 自然语言复核
     print(response.artifacts["failures"])         # List[FailureType]
 """
 
@@ -52,7 +58,13 @@ from .critic_engine import (  # noqa: E402
     CriticVerdict,
     FailureType,
     evaluate_candidates,
+    evaluate_chemist_report,  # W30
     explain_failure,
+)
+from .llm_reviewer import (  # noqa: E402 — W33
+    LLMReviewer,
+    LLMReviewResult,
+    get_default_reviewer as _get_default_reviewer,
 )
 
 
@@ -70,9 +82,21 @@ class CriticOutput:
     l1_score: float                              # 物理一致性
     l2_score: float                              # 实验可行性
     l3_score: float                              # 安全规则
-    failures: List[FailureType]
-    top_suggestions: List[str]
+    l4_cross_robot_score: float = 0.0            # W30 NEW - 跨机器人一致性
+    failures: List[FailureType] = None            # type: ignore
+    top_suggestions: List[str] = None             # type: ignore
     confidence: float = 0.85
+    # W33 NEW — LLM 二次复核
+    llm_review: str = ""                         # 自然语言复核文本(空串 = 未跑 / 失败)
+    llm_review_model: str = ""                   # 实际用的 model
+    llm_review_cost: float = 0.0                 # LLM 调用成本 ¥
+    llm_review_error: str = ""                   # 失败时的错误信息(成功时为空)
+
+    def __post_init__(self):
+        if self.failures is None:
+            self.failures = []
+        if self.top_suggestions is None:
+            self.top_suggestions = []
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -81,11 +105,17 @@ class CriticOutput:
             "l1_score": round(self.l1_score, 3),
             "l2_score": round(self.l2_score, 3),
             "l3_score": round(self.l3_score, 3),
+            "l4_cross_robot_score": round(self.l4_cross_robot_score, 3),  # W30
             "failures": [
                 {"code": f.code, "severity": f.severity, "confidence": f.confidence}
                 for f in self.failures
             ],
             "top_suggestions": self.top_suggestions,
+            # W33 NEW
+            "llm_review": self.llm_review,
+            "llm_review_model": self.llm_review_model,
+            "llm_review_cost": round(self.llm_review_cost, 6),
+            "llm_review_error": self.llm_review_error,
         }
 
 
@@ -97,6 +127,7 @@ def _verdict_to_output(verdict: CriticVerdict) -> CriticOutput:
         l1_score=verdict.l1.score,
         l2_score=verdict.l2.score,
         l3_score=verdict.l3.score,
+        l4_cross_robot_score=verdict.cross_robot.score,  # W30
         failures=verdict.failures,
         top_suggestions=verdict.top_suggestions,
     )
@@ -123,21 +154,36 @@ class MatCriticAgent(MatWAUAgentBase):
         self,
         *,
         cost_per_eval: float = 0.05,        # ¥/次(规则引擎几乎免费)
+        enable_llm_review: bool = False,    # W33 — 默认 False,保持测试确定性
+        llm_reviewer: Optional[LLMReviewer] = None,  # W33 — 显式注入(测试用)
         **kwargs,
     ) -> None:
         """构造
 
         Args:
             cost_per_eval: 单次评估估算成本 ¥(规则引擎几乎免费,Stage 2 接 LLM 后会涨)
+            enable_llm_review: W33 — 是否启用 LLM 二次复核(默认 False)
+                True → 跑完规则打分后,自动调 LLMReviewer 出自然语言复核
+                需 MATWAU_LLM_API_KEY + MATWAU_LLM_ENABLED=1 才会真跑
+                否则 fail-soft 跳过
+            llm_reviewer: W33 — 显式注入 LLMReviewer 实例(测试用 mock client)
         """
         super().__init__(**kwargs)
         self.cost_per_eval = cost_per_eval
+        self.enable_llm_review = enable_llm_review
+        self._llm_reviewer = llm_reviewer  # None → 懒加载 get_default_reviewer()
 
         # 默认注入 harness 部件
         if self.context_manager is None:
             self.context_manager = ContextManager(max_tokens=4000)
         if self.safety_guard is None:
             self.safety_guard = SafetyGuard(budget_limit=500.0)
+
+    def _get_llm_reviewer(self) -> Optional[LLMReviewer]:
+        """获取 LLMReviewer(懒加载)"""
+        if self._llm_reviewer is None:
+            self._llm_reviewer = _get_default_reviewer()
+        return self._llm_reviewer
 
     def system_prompt(self) -> str:
         return """你是材料科学 3 路交叉验证员 agent(mat-critic-agent),用 3 路打分验证候选是否可信。
@@ -166,39 +212,67 @@ verdict 阈值:
         """Inner Loop 第 3 步:执行 — mat-critic 特有业务逻辑
 
         1. 从 ctx 抽 user_message + candidates
-        2. 用 evaluate_candidates 或 explain_failure(per scenario)
+        2. W30 4-mode auto-detect:
+           - report / robot_results → evaluate_chemist_report(L1-L4 4 路)
+           - 普通 candidates → evaluate_candidates(L1-L3 3 路)
+           - explain_failure workflow → explain_failure
         3. 构造 CriticOutput + 自然语言 reply
         4. SafetyGuard 检查
         5. 返回 AgentResponse
         """
         user_message = ctx.get("user_message") or ""
         candidates = ctx.get("_input_candidates") or []
+        artifacts_ctx = ctx.get("_input_artifacts") or {}
 
         # fallback: 从 artifacts 抽
         if not candidates:
-            artifacts = ctx.get("_input_artifacts") or {}
-            candidates = artifacts.get("candidates") or artifacts.get("simulated") or artifacts.get("jobs") or artifacts.get("recipes") or []
+            candidates = (
+                artifacts_ctx.get("candidates")
+                or artifacts_ctx.get("simulated")
+                or artifacts_ctx.get("jobs")
+                or artifacts_ctx.get("recipes")
+                or []
+            )
 
         # fallback: 从 ctx 直接抽
         if not candidates:
             candidates = ctx.get("candidates") or []
 
         if not candidates:
-            return self._empty_response("上游未传 candidates")
+            return self._empty_response("上游未传 candidates / report")
 
-        # 1. 跑 3 路打分
+        # 1. 跑打分(W30 - 4 mode auto-detect)
         try:
-            # scenario 1: explain_failure workflow(用户问"为什么失败")
-            if self._is_failure_query(user_message):
+            # W30 - Mode 1: ChemistReport dataclass / dict
+            if candidates == ["__chemist_report__"]:
+                report = artifacts_ctx.get("report")
+                verdict = evaluate_chemist_report(report, user_intent=user_message)
+
+            # W30 - Mode 2: 4 robot results 列表(包装成 dict-form report)
+            elif candidates == ["__robot_results__"]:
+                robot_results = artifacts_ctx.get("robot_results", []) or []
+                fake_report = {
+                    "robot_results": robot_results,
+                    "target_sample": "",
+                }
+                verdict = evaluate_chemist_report(fake_report, user_intent=user_message)
+
+            # 原 3 路 - explain_failure workflow
+            elif self._is_failure_query(user_message):
                 verdict = explain_failure(user_message, candidates=candidates)
+
+            # 原 3 路 - 普通评估
             else:
-                # scenario 2: 普通评估
                 verdict = evaluate_candidates(candidates, user_intent=user_message)
         except Exception as e:
             return self._error_response(f"mat-critic 评估失败: {e}")
 
         # 2. 转 CriticOutput
         output = _verdict_to_output(verdict)
+
+        # 2.5 W33 — LLM 二次复核(可选,默认关)
+        if self.enable_llm_review:
+            self._run_llm_review(output, verdict, user_message=user_message, artifacts_ctx=artifacts_ctx)
 
         # 3. 自然语言 reply
         reply = self._format_reply(output, verdict)
@@ -207,7 +281,7 @@ verdict 阈值:
         confidence = 0.9 if verdict.verdict == "pass" else (0.7 if verdict.verdict == "warn" else 0.5)
 
         # 5. cost
-        cost = self.cost_per_eval
+        cost = self.cost_per_eval + output.llm_review_cost  # W33 — 加 LLM cost
 
         response = AgentResponse(
             reply=reply,
@@ -217,6 +291,11 @@ verdict 阈值:
                 "failures": [f for f in verdict.failures],
                 "suggestions": output.top_suggestions,
                 "input_count": len(candidates),
+                # W33 NEW
+                "llm_review": output.llm_review,
+                "llm_review_model": output.llm_review_model,
+                "llm_review_cost": output.llm_review_cost,
+                "llm_review_error": output.llm_review_error,
             },
             confidence=confidence,
             cost=cost,
@@ -247,10 +326,23 @@ verdict 阈值:
     # ========================================================================
 
     def _extract_candidates(self, req: AgentRequest) -> List:
-        """从 req.artifacts 抽 candidates(支持 5 种格式)"""
+        """从 req.artifacts 抽 candidates(支持 7 种格式 — W30 加 2 种 ChemistReport)
+
+        优先级(W30):
+        1. report - ChemistReport dataclass / dict(走 evaluate_chemist_report)
+        2. robot_results - 4 robot results 列表(走 evaluate_chemist_report 包装)
+        3. candidates / simulated / jobs / recipes(原 5 种 fallback)
+        """
         artifacts = req.artifacts or {}
 
-        # 优先 candidates
+        # W30 - 优先 ChemistReport 模式
+        if "report" in artifacts and artifacts["report"] is not None:
+            return ["__chemist_report__"]  # sentinel
+
+        if "robot_results" in artifacts and isinstance(artifacts["robot_results"], list):
+            return ["__robot_results__"]  # sentinel,act() 会包装成 report
+
+        # 兼容 5 种原 fallback
         if "candidates" in artifacts and isinstance(artifacts["candidates"], list):
             return artifacts["candidates"]
         # simulated(mat-sim)
@@ -273,6 +365,52 @@ verdict 阈值:
         ]
         return any(kw in user_message or kw in msg_lower for kw in failure_keywords)
 
+    def _run_llm_review(
+        self,
+        output: "CriticOutput",
+        verdict: "CriticVerdict",
+        *,
+        user_message: str,
+        artifacts_ctx: Dict[str, Any],
+    ) -> None:
+        """W33 — 跑 LLM 二次复核,结果写进 output(失败吞掉)
+
+        设计原则:
+        - LLM 失败 / 不可用 → output.llm_review 留空,不影响 verdict
+        - target_sample 从 artifacts_ctx["report"].target_sample 抽
+        - 不抛异常
+        """
+        reviewer = self._get_llm_reviewer()
+        if reviewer is None or not reviewer.is_available():
+            return
+
+        # 抽 target_sample
+        target_sample = ""
+        report = artifacts_ctx.get("report")
+        if report is not None and hasattr(report, "target_sample"):
+            target_sample = str(getattr(report, "target_sample", "") or "")
+
+        # 调 LLM(失败吞掉)
+        try:
+            result = reviewer.review(
+                critic_output=output,
+                target_sample=target_sample,
+                user_intent=user_message,
+            )
+        except Exception as e:
+            output.llm_review_error = f"{type(e).__name__}: {e}"
+            return
+
+        if result is None:
+            return
+
+        # 写回 output
+        output.llm_review = result.review or ""
+        output.llm_review_model = result.model or ""
+        output.llm_review_cost = float(result.cost_cny or 0.0)
+        if result.error:
+            output.llm_review_error = result.error
+
     def _format_reply(self, output: CriticOutput, verdict: CriticVerdict) -> str:
         """生成自然语言 reply"""
         lines = [
@@ -281,6 +419,15 @@ verdict 阈值:
             f"   L2 实验可行性: {output.l2_score:.2f}",
             f"   L3 安全规则:   {output.l3_score:.2f}",
         ]
+
+        # W30 - L4 跨机器人一致性(只在 cross_robot 有数据时显示)
+        if output.l4_cross_robot_score > 0 or getattr(verdict.cross_robot, "rules_passed", None):
+            lines.append(f"   L4 跨机器人一致性: {output.l4_cross_robot_score:.2f}")
+            cross = verdict.cross_robot
+            if cross.rules_passed:
+                lines.append(f"     ✅ 通过规则: {', '.join(cross.rules_passed)}")
+            if cross.rules_failed:
+                lines.append(f"     ❌ 失败规则: {', '.join(cross.rules_failed)}")
 
         if verdict.failures:
             lines.append(f"\n⚠️ 发现 {len(verdict.failures)} 个问题:")
@@ -293,6 +440,15 @@ verdict 阈值:
             lines.append(f"\n💡 修复建议:")
             for sug in output.top_suggestions[:3]:
                 lines.append(f"   - {sug}")
+
+        # W33 NEW — LLM 复核
+        if output.llm_review:
+            lines.append(f"\n🤖 LLM 复核({output.llm_review_model}):")
+            lines.append(f"   {output.llm_review}")
+            if output.llm_review_cost > 0:
+                lines.append(f"   (LLM cost: ¥{output.llm_review_cost:.4f})")
+        elif output.llm_review_error:
+            lines.append(f"\n🤖 LLM 复核跳过: {output.llm_review_error[:100]}")
 
         return "\n".join(lines)
 

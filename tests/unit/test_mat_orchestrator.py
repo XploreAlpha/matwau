@@ -292,10 +292,53 @@ class TestMatOrchestrator:
 # ============================================================================
 
 
-def _check_goldens_case(result: WorkflowResult, expected: dict) -> tuple[bool, list[str]]:
-    """检查 1 个 Goldens case"""
+def _check_goldens_case(result, expected: dict) -> tuple[bool, list[str]]:
+    """检查 1 个 Goldens case — 支持 WorkflowResult + BatchWorkflowResult(W31)"""
+    from agents.mat_orchestrator import BatchWorkflowResult
+
     reasons = []
 
+    # W31 — BatchWorkflowResult 分支(multi_experiment category)
+    if isinstance(result, BatchWorkflowResult):
+        if "workflow" in expected:
+            if result.workflow_name != expected["workflow"]:
+                reasons.append(f"workflow={result.workflow_name} (期望 {expected['workflow']})")
+
+        if "n_total_min" in expected:
+            if result.n_total < expected["n_total_min"]:
+                reasons.append(f"n_total={result.n_total} < {expected['n_total_min']}")
+
+        if "n_passed_min" in expected:
+            if result.n_passed < expected["n_passed_min"]:
+                reasons.append(f"n_passed={result.n_passed} < {expected['n_passed_min']}")
+
+        if "overall_verdict_in" in expected:
+            if result.overall_verdict not in expected["overall_verdict_in"]:
+                reasons.append(f"overall_verdict={result.overall_verdict} 不在 {expected['overall_verdict_in']}")
+
+        if "total_cost_max" in expected:
+            if result.total_cost_cny > expected["total_cost_max"]:
+                reasons.append(f"total_cost={result.total_cost_cny:.0f} > {expected['total_cost_max']}")
+
+        if "total_cost_min" in expected:
+            if result.total_cost_cny < expected["total_cost_min"]:
+                reasons.append(f"total_cost={result.total_cost_cny:.0f} < {expected['total_cost_min']}")
+
+        if "total_duration_max" in expected:
+            if result.total_duration_seconds > expected["total_duration_max"]:
+                reasons.append(f"total_duration={result.total_duration_seconds:.1f} > {expected['total_duration_max']}")
+
+        if "max_workers_min" in expected:
+            if result.max_workers < expected["max_workers_min"]:
+                reasons.append(f"max_workers={result.max_workers} < {expected['max_workers_min']}")
+
+        if "parallel" in expected:
+            if result.parallel != expected["parallel"]:
+                reasons.append(f"parallel={result.parallel} (期望 {expected['parallel']})")
+
+        return (len(reasons) == 0, reasons)
+
+    # 老 WorkflowResult 分支(W10)
     if "workflow" in expected:
         if result.workflow_name != expected["workflow"]:
             reasons.append(f"workflow={result.workflow_name} (期望 {expected['workflow']})")
@@ -324,31 +367,59 @@ class TestOrchestratorGoldens:
 
     @pytest.fixture(scope="class")
     def results(self, orchestrator):
+        from agents.mat_orchestrator import BatchWorkflowResult, get_multi_experiment_default_batch
+
         g = Goldens(GOLDENS_PATH)
         cases = g.load()
         results = []
         for case in cases:
             try:
-                r = orchestrator.run(user_intent=case.intent)
+                # W31 — multi_experiment 类别走 run_batch
+                if case.category == "multi_experiment":
+                    # 默认 3 实验批(M019 也用同样 batch)
+                    experiments = get_multi_experiment_default_batch()
+                    r = orchestrator.run_batch(experiments, parallel=True, max_workers=3)
+                else:
+                    r = orchestrator.run(user_intent=case.intent)
             except Exception as e:
-                r = WorkflowResult(
-                    workflow_name="error",
-                    subclass="unknown",
-                    success=False,
-                    error=str(e),
-                )
+                from agents.mat_orchestrator import BatchWorkflowResult as BWR
+                # 区分:multi_experiment 失败 → BatchWorkflowResult 兜底
+                if case.category == "multi_experiment":
+                    r = BWR(n_total=0, n_passed=0, n_failed=0, overall_verdict="fail", error=str(e))
+                else:
+                    r = WorkflowResult(
+                        workflow_name="error",
+                        subclass="unknown",
+                        success=False,
+                        error=str(e),
+                    )
             passed, reasons = _check_goldens_case(r, case.expected)
-            results.append(
-                {
-                    "case_id": case.id,
-                    "category": case.category,
-                    "passed": passed,
-                    "reasons": reasons,
-                    "workflow": r.workflow_name,
-                    "n_nodes": len(r.node_results),
-                    "n_success": sum(1 for nr in r.node_results if nr.success),
-                }
-            )
+            # 提取展示字段
+            if isinstance(r, BatchWorkflowResult):
+                results.append(
+                    {
+                        "case_id": case.id,
+                        "category": case.category,
+                        "passed": passed,
+                        "reasons": reasons,
+                        "workflow": r.workflow_name,
+                        "n_total": r.n_total,
+                        "n_passed": r.n_passed,
+                        "overall_verdict": r.overall_verdict,
+                    }
+                )
+            else:
+                results.append(
+                    {
+                        "case_id": case.id,
+                        "category": case.category,
+                        "passed": passed,
+                        "reasons": reasons,
+                        "workflow": r.workflow_name,
+                        "n_nodes": len(r.node_results),
+                        "n_success": sum(1 for nr in r.node_results if nr.success),
+                    }
+                )
         return results
 
     def test_goldens_20_cases_pass_rate(self, results):
@@ -376,6 +447,16 @@ class TestOrchestratorGoldens:
 
         print(f"\n📊 e2e 跑分: {n_pass}/{n_total} = {pass_rate:.0%}")
         assert pass_rate >= 0.5, f"e2e pass-rate {pass_rate:.0%} < 50%"
+
+    def test_goldens_multi_experiment_pass_rate(self, results):  # W31 NEW
+        """W31 — multi_experiment 类别 pass-rate ≥ 60%"""
+        sub = [r for r in results if r["category"] == "multi_experiment"]
+        n_pass = sum(1 for r in sub if r["passed"])
+        n_total = len(sub)
+        pass_rate = n_pass / n_total if n_total else 0
+
+        print(f"\n📊 multi_experiment 跑分: {n_pass}/{n_total} = {pass_rate:.0%}")
+        assert pass_rate >= 0.6, f"multi_experiment pass-rate {pass_rate:.0%} < 60%"
 
 
 # ============================================================================

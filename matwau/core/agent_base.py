@@ -64,7 +64,7 @@ class AgentResponse:
         artifacts: 输出文件 dict(mat-gen 给 CIF 列表,mat-exp 给 XRD peaks)
         confidence: 置信度 0-1(mat-critic 用)
         cost: 实际花费 ¥(per MatWAU-AgentBase 跑完后统计)
-        lineage_id: 回放 ID(wau-store 写入,2027+ 启用)
+        lineage_id: 回放 ID(W32 — LineageRecorder 自动回填)
         error: 错误信息(失败时填充)
     """
 

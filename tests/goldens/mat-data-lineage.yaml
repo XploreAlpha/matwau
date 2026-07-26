@@ -183,3 +183,124 @@
   expected:
     min_count: 4
     has_ancestors: true
+
+# ============================================================================
+# W32 新增:auto_record(orchestrator 自动打 lineage 端到端,15 case D013-D027)
+# ============================================================================
+# 字段约定(W32):
+#   category: auto_record
+#   expected:
+#     n_workflow_records_min: 期望至少多少 workflow 记录
+#     n_experiment_records_min: 期望至少多少 experiment 记录
+#     n_chemist_records_min: 期望至少多少 chemist 记录
+#     n_critic_records_min: 期望至少多少 critic 记录
+#     has_batch_record: 是否应有 batch_workflow 记录
+#     kinds_present: 期望出现的 kind 列表
+#     all_have_run_id: 记录都应有 run_id
+#     all_have_agent_name: 记录都应有 agent_name
+#     metadata_has_kind: 期望 metadata.kind 字段存在
+
+- id: D013
+  category: auto_record
+  intent: "MatOrchestrator.run() 打 1 条 workflow record"
+  expected:
+    n_workflow_records_min: 1
+    kinds_present: ["workflow"]
+    all_have_run_id: true
+    all_have_agent_name: true
+
+- id: D014
+  category: auto_record
+  intent: "MatOrchestrator.run() 3 个 workflow → 3 条 workflow record"
+  expected:
+    n_workflow_records_min: 3
+    kinds_present: ["workflow"]
+    all_have_agent_name: true
+
+- id: D015
+  category: auto_record
+  intent: "MatOrchestrator.run_batch() 3 实验 → 3 experiment + 1 batch record"
+  expected:
+    n_experiment_records_min: 3
+    has_batch_record: true
+    kinds_present: ["experiment", "batch_workflow"]
+
+- id: D016
+  category: auto_record
+  intent: "MatOrchestrator.run_batch() 单实验 → 1 experiment + 1 chemist + 1 critic + 1 batch"
+  expected:
+    n_experiment_records_min: 1
+    n_chemist_records_min: 1
+    n_critic_records_min: 1
+    has_batch_record: true
+    kinds_present: ["experiment", "chemist", "critic", "batch_workflow"]
+
+- id: D017
+  category: auto_record
+  intent: "critic record.parent_run_id 应指向 chemist run_id"
+  expected:
+    critic_parent_ends_with: "-chemist"
+
+- id: D018
+  category: auto_record
+  intent: "experiment record.metadata 应含 verdict + target_sample"
+  expected:
+    experiment_metadata_keys: ["verdict", "target_sample"]
+
+- id: D019
+  category: auto_record
+  intent: "batch_workflow record.metadata 应含 n_total + overall_verdict + max_workers"
+  expected:
+    batch_metadata_keys: ["n_total", "overall_verdict", "max_workers", "kind"]
+
+- id: D020
+  category: auto_record
+  intent: "enable_lineage=False → 不打任何 record"
+  artifacts:
+    enable_lineage: false
+  expected:
+    n_records_max: 0
+
+- id: D021
+  category: auto_record
+  intent: "LineageRecorder.record() 通用 API 落 1 条"
+  expected:
+    n_records_min: 1
+    kinds_present: []
+
+- id: D022
+  category: auto_record
+  intent: "LineageRecorder.record_critic_verdict() 落 1 条 critic 记录"
+  expected:
+    kinds_present: ["critic"]
+
+- id: D023
+  category: auto_record
+  intent: "LineageRecorder.record_chemist_report() 落 1 条 chemist 记录"
+  expected:
+    kinds_present: ["chemist"]
+
+- id: D024
+  category: auto_record
+  intent: "SQLite backend 持久化 → 重开 store 数据还在"
+  expected:
+    n_records_min: 2
+    persistence: true
+
+- id: D025
+  category: auto_record
+  intent: "PostgresBackend schema 用 JSONB(字段 metadata 不是 TEXT)"
+  expected:
+    schema_metadata_is_jsonb: true
+
+- id: D026
+  category: auto_record
+  intent: "PostgresBackend __enter__/__exit__ context manager 支持"
+  expected:
+    context_manager_supported: true
+
+- id: D027
+  category: auto_record
+  intent: "MATWAU_LINEAGE_DISABLED=1 → get_lineage_store() 返回 None"
+  expected:
+    store_is_none_when_disabled: true

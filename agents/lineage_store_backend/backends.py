@@ -404,7 +404,12 @@ class PostgresBackend(LineageBackend):
         return os.path.join(tempfile.gettempdir(), f"matwau_pgfallback_{h}.db")
 
     def _init_schema_pg(self, conn) -> None:
-        """初始化 PG 表结构(若用 real PG)"""
+        """初始化 PG 表结构(若用 real PG)
+
+        W32 — metadata / input_artifacts_summary / output_artifacts_summary
+        统一改 JSONB(对齐 deploy/postgres/init.sql + k8s configmap),
+        并加 GIN 索引,方便按 metadata 字段查
+        """
         with conn.cursor() as cur:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS lineage_records (
@@ -417,17 +422,22 @@ class PostgresBackend(LineageBackend):
                     timestamp TEXT,
                     duration_seconds REAL,
                     cost REAL,
-                    metadata TEXT,
-                    input_artifacts_summary TEXT,
-                    output_artifacts_summary TEXT
+                    metadata JSONB,
+                    input_artifacts_summary JSONB,
+                    output_artifacts_summary JSONB
                 )
             """)
             cur.execute("CREATE INDEX IF NOT EXISTS idx_run ON lineage_records(run_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_parent ON lineage_records(parent_run_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_agent_name ON lineage_records(agent_name)")
+            # GIN 索引让 metadata 字段查询可走索引(否则 JSONB 字段全表扫)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_metadata_gin ON lineage_records USING GIN (metadata)")
         conn.commit()
 
     def add(self, record: LineageRecordDTO) -> None:
         if self._real_pg:
+            # W32 — 改 psycopg.types.json.Json() 让 PG 收到 JSONB(不是 TEXT)
+            from psycopg.types.json import Json
             with self._conn.cursor() as cur:
                 cur.execute("""
                     INSERT INTO lineage_records
@@ -454,9 +464,9 @@ class PostgresBackend(LineageBackend):
                     record.timestamp,
                     record.duration_seconds,
                     record.cost,
-                    json.dumps(record.metadata, ensure_ascii=False),
-                    json.dumps(record.input_artifacts_summary, ensure_ascii=False),
-                    json.dumps(record.output_artifacts_summary, ensure_ascii=False),
+                    Json(record.metadata),
+                    Json(record.input_artifacts_summary),
+                    Json(record.output_artifacts_summary),
                 ))
             self._conn.commit()
         else:
@@ -576,6 +586,15 @@ class PostgresBackend(LineageBackend):
                 pass
         else:
             self._fallback.close()
+
+    # ----------------------------------------------------------------
+    # W32 — Context manager 支持:`with PostgresBackend(...) as backend:`
+    # ----------------------------------------------------------------
+    def __enter__(self) -> "PostgresBackend":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
 
     def __repr__(self) -> str:
         mode = "real PG" if self._real_pg else f"fallback → {type(self._fallback).__name__}"

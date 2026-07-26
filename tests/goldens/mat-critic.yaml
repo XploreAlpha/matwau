@@ -406,3 +406,813 @@
     min_l1: 0.8
     min_l2: 0.8
     min_l3: 0.9
+
+# ============================================================================
+# W30 - L4 跨机器人一致性(25 case, C026-C050)
+# 字段约定:
+#   category: cross_validation
+#   artifacts.report: ChemistReport 形式(dict 含 robot_results)
+#   expected: min_l4 / l4_consistent / l4_rules_failed_any / failure_codes_any / failure_codes_none
+# ============================================================================
+
+- id: C026
+  category: cross_validation
+  intent: "Inconel 718 完整表征"
+  artifacts:
+    report:
+      target_sample: "Inconel 718"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Inconel 718"
+            yield_grams: 5.0
+            cost: 500.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 43.0}, {two_theta: 50.0}, {two_theta: 74.0}, {two_theta: 90.0}, {two_theta: 95.0}]
+            matched_phase: "Inconel 718"
+        - robot_type: "em"
+          success: true
+          blocked: false
+          artifacts:
+            elements_detected: [{element: "Ni", wt_pct: 53.0}, {element: "Cr", wt_pct: 19.0}, {element: "Fe", wt_pct: 18.0}]
+        - robot_type: "dsc"
+          success: true
+          blocked: false
+          artifacts:
+            procedure: {sample_formula: "Inconel 718"}
+            glass_transition_temp_c: null
+            melting_temp_c: 1300.0
+            crystallization_temp_c: null
+  expected:
+    verdict: "pass"
+    min_overall_score: 0.6
+    min_l4: 0.8
+    l4_consistent: true
+    failure_codes_none: [xrd_phase_mismatch, eds_extra_elements, dsc_class_mismatch]
+
+- id: C027
+  category: cross_validation
+  intent: "合成 TiO2 但 XRD 报告 Al2O3 - phase mismatch"
+  artifacts:
+    report:
+      target_sample: "TiO2"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "TiO2"
+            yield_grams: 3.0
+            cost: 200.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 25.0}, {two_theta: 37.0}, {two_theta: 48.0}]
+            matched_phase: "Al2O3"
+  expected:
+    verdict: "fail"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R1_xrd_phase_in_synth_product"]
+    failure_codes_any: ["xrd_phase_mismatch"]
+
+- id: C028
+  category: cross_validation
+  intent: "PMMA 玻璃化温度测试"
+  artifacts:
+    report:
+      target_sample: "PMMA"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "PMMA"
+            yield_grams: 10.0
+            cost: 100.0
+        - robot_type: "dsc"
+          success: true
+          blocked: false
+          artifacts:
+            procedure: {sample_formula: "PMMA"}
+            glass_transition_temp_c: 105.0
+            melting_temp_c: null
+            crystallization_temp_c: null
+  expected:
+    verdict: "pass"
+    min_l4: 0.8
+    l4_consistent: true
+    failure_codes_none: [dsc_class_mismatch]
+
+- id: C029
+  category: cross_validation
+  intent: "PMMA 但 DSC 报 Tm=160 - class mismatch"
+  artifacts:
+    report:
+      target_sample: "PMMA"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "PMMA"
+            yield_grams: 10.0
+            cost: 100.0
+        - robot_type: "dsc"
+          success: true
+          blocked: false
+          artifacts:
+            procedure: {sample_formula: "PMMA"}
+            glass_transition_temp_c: null
+            melting_temp_c: 160.0
+            crystallization_temp_c: null
+  expected:
+    verdict: "warn"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R3_dsc_class_matches_synth"]
+    failure_codes_any: ["dsc_class_mismatch"]
+
+- id: C030
+  category: cross_validation
+  intent: "Inconel 718 但 EDS 检出 Au 杂质"
+  artifacts:
+    report:
+      target_sample: "Inconel 718"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Inconel 718"
+            yield_grams: 5.0
+            cost: 500.0
+        - robot_type: "em"
+          success: true
+          blocked: false
+          artifacts:
+            elements_detected: [{element: "Ni", wt_pct: 50.0}, {element: "Cr", wt_pct: 20.0}, {element: "Au", wt_pct: 0.5}]
+  expected:
+    verdict: "warn"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R2_eds_elements_subset_of_synth"]
+    failure_codes_any: ["eds_extra_elements"]
+
+- id: C031
+  category: cross_validation
+  intent: "cost-per-gram sanity - 太低"
+  artifacts:
+    report:
+      target_sample: "Inconel 718"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Inconel 718"
+            yield_grams: 1000.0
+            cost: 1.0
+  expected:
+    verdict: "warn"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R4_synth_cost_per_gram"]
+    failure_codes_any: ["data_consistency_low"]
+
+- id: C032
+  category: cross_validation
+  intent: "cost-per-gram sanity - 太高"
+  artifacts:
+    report:
+      target_sample: "Inconel 718"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Inconel 718"
+            yield_grams: 0.1
+            cost: 5000.0
+  expected:
+    verdict: "warn"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R4_synth_cost_per_gram"]
+    failure_codes_any: ["data_consistency_low"]
+
+- id: C033
+  category: cross_validation
+  intent: "XRD peak count 太低 - TiO2 只有 1 峰"
+  artifacts:
+    report:
+      target_sample: "TiO2"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "TiO2"
+            yield_grams: 3.0
+            cost: 200.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 25.0}]
+            matched_phase: "TiO2"
+  expected:
+    verdict: "warn"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R5_xrd_peak_count_for_crystallinity"]
+    failure_codes_any: ["data_consistency_low"]
+
+- id: C034
+  category: cross_validation
+  intent: "完整 4 机器人成功 - PMMA 默认 workflow"
+  artifacts:
+    report:
+      target_sample: "PMMA"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "PMMA"
+            yield_grams: 10.0
+            cost: 100.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 14.0}]
+            matched_phase: "PMMA"
+        - robot_type: "em"
+          success: true
+          blocked: false
+          artifacts:
+            elements_detected: [{element: "C"}, {element: "O"}]
+        - robot_type: "dsc"
+          success: true
+          blocked: false
+          artifacts:
+            procedure: {sample_formula: "PMMA"}
+            glass_transition_temp_c: 105.0
+  expected:
+    verdict: "pass"
+    min_l4: 0.7
+    l4_consistent: true
+    failure_codes_none: [xrd_phase_mismatch, eds_extra_elements, dsc_class_mismatch]
+
+- id: C035
+  category: cross_validation
+  intent: "空 ChemistReport - graceful"
+  artifacts:
+    report:
+      target_sample: ""
+      robot_results: []
+  expected:
+    verdict: "warn"
+    min_l4: 0.5
+
+- id: C036
+  category: cross_validation
+  intent: "只跑 synth 成功 - 其他 robot 没跑"
+  artifacts:
+    report:
+      target_sample: "TiO2"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "TiO2"
+            yield_grams: 3.0
+            cost: 200.0
+  expected:
+    verdict: "warn"
+    min_l4: 0.5
+
+- id: C037
+  category: cross_validation
+  intent: "synth 失败 - 其他未跑"
+  artifacts:
+    report:
+      target_sample: "Inconel 718"
+      robot_results:
+        - robot_type: "synth"
+          success: false
+          blocked: true
+          artifacts:
+            product_formula: ""
+            yield_grams: 0.0
+            cost: 0.0
+  expected:
+    verdict: "warn"
+    min_l4: 0.5
+
+- id: C038
+  category: cross_validation
+  intent: "multi-failure - phase mismatch + EDS extra"
+  artifacts:
+    report:
+      target_sample: "Inconel 718"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Inconel 718"
+            yield_grams: 5.0
+            cost: 500.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 43.0}, {two_theta: 50.0}, {two_theta: 74.0}]
+            matched_phase: "ZnO"
+        - robot_type: "em"
+          success: true
+          blocked: false
+          artifacts:
+            elements_detected: [{element: "Ni"}, {element: "Zn"}]
+  expected:
+    verdict: "fail"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R1_xrd_phase_in_synth_product", "R2_eds_elements_subset_of_synth"]
+    failure_codes_any: ["xrd_phase_mismatch"]
+
+- id: C039
+  category: cross_validation
+  intent: "all-pass Inconel 718 - ideal case"
+  artifacts:
+    report:
+      target_sample: "Inconel 718"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Inconel 718"
+            yield_grams: 5.0
+            cost: 1000.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 43.0}, {two_theta: 50.0}, {two_theta: 74.0}, {two_theta: 90.0}]
+            matched_phase: "Inconel"
+        - robot_type: "em"
+          success: true
+          blocked: false
+          artifacts:
+            elements_detected: [{element: "Ni"}, {element: "Cr"}, {element: "Fe"}, {element: "Nb"}, {element: "Mo"}, {element: "Ti"}, {element: "Al"}]
+        - robot_type: "dsc"
+          success: true
+          blocked: false
+          artifacts:
+            procedure: {sample_formula: "Inconel 718"}
+            glass_transition_temp_c: null
+            melting_temp_c: 1260.0
+            crystallization_temp_c: null
+  expected:
+    verdict: "pass"
+    min_l4: 0.99
+    l4_consistent: true
+    failure_codes_none: [xrd_phase_mismatch, eds_extra_elements, dsc_class_mismatch]
+
+- id: C040
+  category: cross_validation
+  intent: "edge case - yield=0 cost=0 数据缺失"
+  artifacts:
+    report:
+      target_sample: "TiO2"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "TiO2"
+            yield_grams: 0.0
+            cost: 0.0
+  expected:
+    verdict: "warn"
+    min_l4: 0.5
+
+- id: C041
+  category: cross_validation
+  intent: "LiCoO2 - ceramic 应该没有 Tg/Tm"
+  artifacts:
+    report:
+      target_sample: "LiCoO2"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "LiCoO2"
+            yield_grams: 2.0
+            cost: 300.0
+        - robot_type: "dsc"
+          success: true
+          blocked: false
+          artifacts:
+            procedure: {sample_formula: "LiCoO2"}
+            glass_transition_temp_c: null
+            melting_temp_c: null
+            crystallization_temp_c: null
+  expected:
+    verdict: "pass"
+    min_l4: 0.8
+    l4_consistent: true
+
+- id: C042
+  category: cross_validation
+  intent: "SS304 XRD match pass"
+  artifacts:
+    report:
+      target_sample: "SS304"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "SS304"
+            yield_grams: 5.0
+            cost: 200.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 44.0}, {two_theta: 51.0}, {two_theta: 75.0}]
+            matched_phase: "Stainless Steel 304"
+  expected:
+    verdict: "pass"
+    min_l4: 0.8
+    l4_consistent: true
+    failure_codes_none: [xrd_phase_mismatch]
+
+- id: C043
+  category: cross_validation
+  intent: "PE(HDPE)polymer 但 XRD 报 TiO2 - phase mismatch"
+  artifacts:
+    report:
+      target_sample: "PE"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "PE"
+            yield_grams: 5.0
+            cost: 100.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 25.0}, {two_theta: 37.0}, {two_theta: 48.0}]
+            matched_phase: "TiO2"
+  expected:
+    verdict: "fail"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R1_xrd_phase_in_synth_product"]
+    failure_codes_any: ["xrd_phase_mismatch"]
+
+- id: C044
+  category: cross_validation
+  intent: "Ti-6Al-4V - 全 pass"
+  artifacts:
+    report:
+      target_sample: "Ti-6Al-4V"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Ti-6Al-4V"
+            yield_grams: 3.0
+            cost: 400.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 35.0}, {two_theta: 38.0}, {two_theta: 53.0}, {two_theta: 63.0}]
+            matched_phase: "Ti-6Al-4V"
+        - robot_type: "em"
+          success: true
+          blocked: false
+          artifacts:
+            elements_detected: [{element: "Ti"}, {element: "Al"}, {element: "V"}]
+        - robot_type: "dsc"
+          success: true
+          blocked: false
+          artifacts:
+            procedure: {sample_formula: "Ti-6Al-4V"}
+            glass_transition_temp_c: null
+            melting_temp_c: 1660.0
+            crystallization_temp_c: null
+  expected:
+    verdict: "pass"
+    min_l4: 0.99
+    l4_consistent: true
+
+- id: C045
+  category: cross_validation
+  intent: "blocked synth - 不计入证据"
+  artifacts:
+    report:
+      target_sample: "TiO2"
+      robot_results:
+        - robot_type: "synth"
+          success: false
+          blocked: true
+          artifacts:
+            product_formula: ""
+            yield_grams: 0.0
+            cost: 0.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 25.0}, {two_theta: 37.0}, {two_theta: 48.0}]
+            matched_phase: "TiO2"
+  expected:
+    verdict: "warn"
+    min_l4: 0.5
+
+- id: C046
+  category: cross_validation
+  intent: "Al2O3 ceramic + Tg=300 - class mismatch"
+  artifacts:
+    report:
+      target_sample: "Al2O3"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Al2O3"
+            yield_grams: 2.0
+            cost: 200.0
+        - robot_type: "dsc"
+          success: true
+          blocked: false
+          artifacts:
+            procedure: {sample_formula: "Al2O3"}
+            glass_transition_temp_c: 300.0
+            melting_temp_c: null
+            crystallization_temp_c: null
+  expected:
+    verdict: "warn"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R3_dsc_class_matches_synth"]
+    failure_codes_any: ["dsc_class_mismatch"]
+
+- id: C047
+  category: cross_validation
+  intent: "Zno NaCl 完全不重叠元素"
+  artifacts:
+    report:
+      target_sample: "NaCl"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "NaCl"
+            yield_grams: 3.0
+            cost: 100.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 32.0}, {two_theta: 46.0}, {two_theta: 58.0}]
+            matched_phase: "ZnO"
+  expected:
+    verdict: "fail"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R1_xrd_phase_in_synth_product"]
+    failure_codes_any: ["xrd_phase_mismatch"]
+
+- id: C048
+  category: cross_validation
+  intent: "Al2O3 + EDS 检出 Cu 杂质"
+  artifacts:
+    report:
+      target_sample: "Al2O3"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "Al2O3"
+            yield_grams: 2.0
+            cost: 200.0
+        - robot_type: "em"
+          success: true
+          blocked: false
+          artifacts:
+            elements_detected: [{element: "Al", wt_pct: 47.0}, {element: "O", wt_pct: 50.0}, {element: "Cu", wt_pct: 3.0}]
+  expected:
+    verdict: "warn"
+    min_l4: 0.0
+    l4_consistent: false
+    l4_rules_failed_any: ["R2_eds_elements_subset_of_synth"]
+    failure_codes_any: ["eds_extra_elements"]
+
+- id: C049
+  category: cross_validation
+  intent: "NaCl all-pass - 简单 ceramic"
+  artifacts:
+    report:
+      target_sample: "NaCl"
+      robot_results:
+        - robot_type: "synth"
+          success: true
+          blocked: false
+          artifacts:
+            product_formula: "NaCl"
+            yield_grams: 5.0
+            cost: 50.0
+        - robot_type: "xrd"
+          success: true
+          blocked: false
+          artifacts:
+            peaks: [{two_theta: 28.0}, {two_theta: 47.0}, {two_theta: 56.0}]
+            matched_phase: "NaCl"
+        - robot_type: "em"
+          success: true
+          blocked: false
+          artifacts:
+            elements_detected: [{element: "Na"}, {element: "Cl"}]
+  expected:
+    verdict: "pass"
+    min_l4: 0.99
+    l4_consistent: true
+
+- id: C050
+  category: cross_validation
+  intent: "全部 blocked - 极端空数据"
+  artifacts:
+    report:
+      target_sample: "Inconel 718"
+      robot_results:
+        - robot_type: "synth"
+          success: false
+          blocked: true
+          artifacts:
+            product_formula: ""
+            yield_grams: 0.0
+            cost: 0.0
+        - robot_type: "xrd"
+          success: false
+          blocked: true
+          artifacts:
+            peaks: []
+            matched_phase: ""
+        - robot_type: "em"
+          success: false
+          blocked: true
+          artifacts:
+            elements_detected: []
+        - robot_type: "dsc"
+          success: false
+          blocked: true
+          artifacts:
+            procedure: {sample_formula: ""}
+  expected:
+    verdict: "warn"
+    min_l4: 0.5
+
+# ============================================================================
+# W33 - LLM 二次复核(10 case, L001-L010)
+# 字段约定:
+#   category: llm_review
+#   artifacts: { llm_response, llm_should_raise, enable_llm_review }
+#   expected: llm_review_filled / llm_review_empty / llm_review_error_contains / llm_review_model / verdict_still_pass / verdict_still_warn
+# ============================================================================
+
+- id: L001
+  category: llm_review
+  intent: "默认 enable_llm_review=False → 不调 LLM"
+  artifacts:
+    enable_llm_review: false
+    candidate: "LiCoO2"
+  expected:
+    llm_review_empty: true
+    verdict_still_pass: true
+
+- id: L002
+  category: llm_review
+  intent: "显式 enable_llm_review=True + mock client 同意 → llm_review 填"
+  artifacts:
+    enable_llm_review: true
+    llm_response: "同意 verdict,综合分合理"
+    candidate: "LiCoO2"
+  expected:
+    llm_review_filled: "同意 verdict,综合分合理"
+    llm_review_model: "deepseek-v4-flash"
+    verdict_still_pass: true
+
+- id: L003
+  category: llm_review
+  intent: "LLM 建议改 warn,但规则 verdict 仍是 pass"
+  artifacts:
+    enable_llm_review: true
+    llm_response: "建议改为 warn,理由:L4 一致性偏低"
+    candidate: "LiCoO2"
+  expected:
+    llm_review_filled: "建议改为 warn,理由:L4 一致性偏低"
+    verdict_still_pass: true  # LLM 不修改规则 verdict
+
+- id: L004
+  category: llm_review
+  intent: "LLM API 失败 → fail-soft,verdict 仍正常,error 字段填"
+  artifacts:
+    enable_llm_review: true
+    llm_should_raise: true
+    candidate: "LiCoO2"
+  expected:
+    llm_review_empty: true
+    llm_review_error_contains: "API down"
+    verdict_still_pass: true
+
+- id: L005
+  category: llm_review
+  intent: "LLM empty response → fail-soft"
+  artifacts:
+    enable_llm_review: true
+    llm_empty_response: true
+    candidate: "LiCoO2"
+  expected:
+    llm_review_empty: true
+    verdict_still_pass: true
+
+- id: L006
+  category: llm_review
+  intent: "ChemistReport 路径 + LLM review"
+  artifacts:
+    enable_llm_review: true
+    llm_response: "同意 L4 一致性"
+    use_chemist_report: true
+    candidate: "Inconel 718"
+  expected:
+    llm_review_filled: "同意 L4 一致性"
+    has_l4_score: true
+
+- id: L007
+  category: llm_review
+  intent: "Explain failure 路径 + LLM review"
+  artifacts:
+    enable_llm_review: true
+    llm_response: "XRD 谱不对是 phase 不匹配"
+    explain_failure: "为什么 XRD 谱不对"
+  expected:
+    llm_review_filled: "XRD 谱不对是 phase 不匹配"
+
+- id: L008
+  category: llm_review
+  intent: "LLM cost 加到 response.cost"
+  artifacts:
+    enable_llm_review: true
+    llm_response: "OK"
+    llm_prompt_tokens: 1000
+    llm_completion_tokens: 500
+    candidate: "LiCoO2"
+  expected:
+    cost_includes_llm: true
+    llm_review_filled: "OK"
+
+- id: L009
+  category: llm_review
+  intent: "mock client + target_sample 透传到 prompt"
+  artifacts:
+    enable_llm_review: true
+    llm_response: "OK"
+    target_sample: "Inconel 718"
+    use_chemist_report: true
+    candidate: "Inconel 718"
+  expected:
+    llm_review_filled: "OK"
+    prompt_includes_sample: "Inconel 718"
+
+- id: L010
+  category: llm_review
+  intent: "deepseek-v4-flash 是默认 model"
+  artifacts:
+    enable_llm_review: true
+    llm_response: "OK"
+    candidate: "LiCoO2"
+  expected:
+    llm_review_model: "deepseek-v4-flash"

@@ -105,6 +105,31 @@ def main() -> None:
         for w in cv["warnings"]:
             print(f"  - {w}")
 
+    # W31 NEW — Section 1.5:接 mat-critic-agent 跑 L4 跨机器人一致性
+    print_section("mat-critic L4 跨机器人一致性(W30 + W31)")
+    try:
+        from agents.mat_critic_agent import MatCriticAgent
+        critic = MatCriticAgent()
+        critic_req = AgentRequest(
+            run_id="demo-inconel-critic",
+            message="Inconel 718 表征复核",
+            artifacts={"report": resp.artifacts.get("report")},
+        )
+        critic_resp = critic.run(critic_req)
+        critic_verdict = critic_resp.artifacts.get("critic_verdict")
+        if critic_verdict:
+            cross = critic_verdict.cross_robot
+            print(f"  critic verdict: {critic_verdict.verdict.upper()}")
+            print(f"  L4 score: {cross.score:.2f} (consistent: {cross.consistent})")
+            if cross.rules_passed:
+                print(f"  L4 rules passed: {cross.rules_passed}")
+            if cross.rules_failed:
+                print(f"  L4 rules failed: {cross.rules_failed}")
+        else:
+            print(f"  critic verdict unavailable")
+    except Exception as e:
+        print(f"  critic 跳过:{e}")
+
     # 3. 示例 2:自然语言拆解
     print_header("示例 2:自然语言目标自动拆解")
     print('输入:"测 PMMA 玻璃化温度 Tg"')

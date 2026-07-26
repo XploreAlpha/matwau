@@ -281,6 +281,10 @@ class MatChemistAgent(MatWAUAgentBase):
                 "cross_validation": cross_val,
                 "summary": report.summary,
                 "warnings": report.warnings[:5],
+                # W31 NEW — 完整 ChemistReport 对象给 critic mode 1
+                "report": report,
+                # W31 NEW — 完整 RobotStepResult 列表(含 per-robot artifacts)给 critic mode 2 fallback
+                "robot_results_full": robot_results,
             },
             confidence=0.95 if all_success else 0.5,
             cost=total_cost,
