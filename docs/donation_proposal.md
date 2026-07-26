@@ -62,9 +62,18 @@
 ```
 v1.0-Academic   (2026-07-26) ✅ 学院版首发 — 教学 + 演示(17 agent / 1297 PASSED)
 v1.1-Academic   (2026-07-26) ✅ 教学 + 部署 + 宣传配套 — 8 周教学手册 + 课堂 PPT + Docker + 招生样板
-v1.2-Academic   (2027 Q1)    真仪器接入样板(W34 路线,等学院决定)
-v2.0-Academic   (2027 Q3)    产学研合作入口(论文 / 项目对接)
+v1.2-Academic   (2027 Q1)    真仪器接入样板 + i18n 英文版 + Q&A 反馈(等学院反馈 + 真硬件)
+v2.0-Academic   (2027 Q3+)   WAU 网络 OS + App 生态 + Siri 入口 — 学院版接入生态(见 docs/v2.0-vision.md)
 ```
+
+**v2.0 愿景(高 level)**:
+- **云端** = wau-core-kernel 部署为**网络版 iOS**(只调度,不存数据)
+- **各本机** = MatWAU / 企业 agent / 其他学院 agent 作为**各类 App**(数据归属各本机)
+- **HomeRail** = **Siri 入口**(任何设备 — iOS / Android / Web / Desktop)
+- **核心原则**:云端不存数据,各本机数据不出本机,跨域协作通过协议
+- **触发条件**:v1.2 跑通 + ≥ 2 所学院 + ≥ 1 企业 + 协议标准化 + 商业模式决策(5 件齐全才启动)
+
+详细:见 [`docs/v2.0-vision.md`](./v2.0-vision.md)
 
 - XploreAlpha 团队承诺**至少 18 个月**长期维护(LTS)
 - 学院如有真仪器 / 真实需求,XploreAlpha 可定制适配(学院版范围内)

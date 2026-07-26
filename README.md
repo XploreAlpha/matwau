@@ -143,6 +143,16 @@ matwau/                              ← 项目根(无头后端)
 - ✅ W37.6 — 8 周课堂 PPT(1154 行 + 51 PPT 页 + 13 Mermaid 图)
 - ✅ W37.8 — 学院版 Release v1.1-Academic(本次)
 
+### 5.1 未来演进(高 level)
+
+| 版本 | 时间 | 定位 | 详细 |
+|---|---|---|---|
+| **v1.1-Academic** | 2026-07 | ✅ 教学 + 部署 + 宣传配套 | [RELEASE_NOTES_v1.1-Academic.md](./RELEASE_NOTES_v1.1-Academic.md) |
+| **v1.2-Academic** | 2027 Q1 | 真仪器接入 + i18n 英文版 + Q&A 反馈 | [docs/v1.2-roadmap.md](./docs/v1.2-roadmap.md) |
+| **v2.0-Academic** | 2027 Q3+ | **WAU 网络 OS + App 生态 + Siri 入口**(学院版接入生态)| [docs/v2.0-vision.md](./docs/v2.0-vision.md) |
+
+> v2.0 愿景:把 wau-core-kernel 部署到云端作为**网络版 iOS**,MatWAU / 企业 agent / 其他学院 agent 作为**各类 App** 部署到各本机(数据归属各本机),HomeRail 作为**Siri 入口**。云端不存数据,各本机数据不出本机。
+
 ---
 
 ## 六、快速开始(学院版)
