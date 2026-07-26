@@ -141,13 +141,15 @@ matwau/                              ← 项目根(无头后端)
 - ✅ W37.4 — Docker Compose 单机包(833 行 + 8 端点 HTTP API)
 - ✅ W37.5 — 招生宣传样板(11 维对比表 + 1 分钟脚本)
 - ✅ W37.6 — 8 周课堂 PPT(1154 行 + 51 PPT 页 + 13 Mermaid 图)
-- ✅ W37.8 — 学院版 Release v1.1-Academic(本次)
+- ✅ W37.8 — 学院版 Release v1.1-Academic
+- ✅ W37.9 — 学院版 Patch v1.1.1-Academic(W1 demo import + SQLiteBackend expanduser,2 files / +18 -2)
 
 ### 5.1 未来演进(高 level)
 
 | 版本 | 时间 | 定位 | 详细 |
 |---|---|---|---|
 | **v1.1-Academic** | 2026-07 | ✅ 教学 + 部署 + 宣传配套 | [RELEASE_NOTES_v1.1-Academic.md](./RELEASE_NOTES_v1.1-Academic.md) |
+| **v1.1.1-Academic** | 2026-07 | ✅ patch: W1 demo import + SQLiteBackend expanduser | [PATCH_NOTES_v1.1.1-Academic.md](./PATCH_NOTES_v1.1.1-Academic.md) |
 | **v1.2-Academic** | 2027 Q1 | 真仪器接入 + i18n 英文版 + Q&A 反馈 | [docs/v1.2-roadmap.md](./docs/v1.2-roadmap.md) |
 | **v2.0-Academic** | 2027 Q3+ | **WAU 网络 OS + App 生态 + Siri 入口**(学院版接入生态)| [docs/v2.0-vision.md](./docs/v2.0-vision.md) |
 

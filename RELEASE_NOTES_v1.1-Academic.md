@@ -7,6 +7,8 @@
 > **部署目标**: 学院自有 / 学院指定服务器
 > **数据归属**: 学院(详见 LICENSE)
 > **配套基线**: v1.0-Academic(已含 17 agent + 1297 PASSED)
+> **后续 patch**: v1.1.1-Academic(同日,fix 2 bug: W1 demo import + SQLiteBackend expanduser)
+> **配套工具**: `~/WAU-develop/develop-log/MatWAU/test/run-acceptance.sh`(学院方一键验收 + 发现 2 个 bug)
 
 ---
 

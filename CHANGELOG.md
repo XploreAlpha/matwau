@@ -5,6 +5,24 @@
 
 ---
 
+## [v1.1.1-Academic] - 2026-07-26 — 学院版 patch (W1 demo import + SQLiteBackend expanduser)
+
+### Fixed(修复)
+- **HIGH: `agents/mat_intent_agent/__init__.py`** — 加 `from .mat_intent_agent import MatIntentAgent, create_default_agent`,让 W1 demo `from agents.mat_intent_agent import MatIntentAgent` 在学院方第 1 节课能 import。修复前 W1 demo 3 个测试全 ImportError(22 行 → 53 行)。
+- **MEDIUM: `agents/lineage_store_backend/backends.py:205-230`** — `SQLiteBackend.__init__` 显式 db_path 分支加 `os.path.expanduser(db_path)`,让 `MATWAU_LINEAGE_SQLITE_PATH='~/...'` env var 场景下 SQLite 能真打开文件。
+
+### Changed(变更)
+- **零行为变化**:纯 bug fix,baseline 1297 passed / 2 skipped 不变。
+
+### Stats
+- **2 files / +18 / -2**
+- **Commit**:`8c1e005`
+- **Tag**:`v1.1.1-Academic`(annotated)
+- **Patch notes**:[`PATCH_NOTES_v1.1.1-Academic.md`](./PATCH_NOTES_v1.1.1-Academic.md)
+- **学院方验收脚本**:`~/WAU-develop/develop-log/MatWAU/test/run-acceptance.sh`(发现这 2 个 bug 的工具)
+
+---
+
 ## [v1.1-Academic] - 2026-07-26 — 教学 + 部署 + 宣传配套合集
 
 ### Added(新增)
