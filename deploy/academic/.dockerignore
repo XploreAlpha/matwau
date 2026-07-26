@@ -1,0 +1,62 @@
+# MatWAU 学院版 Docker 镜像构建 — 排除文件
+# 减少镜像体积 + 避免敏感信息泄露
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+.coverage
+htmlcov/
+.tox/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Environment / secrets(API key / 密码不进镜像)
+.env
+.env.local
+*.pem
+*.key
+
+# Build / dist
+build/
+dist/
+
+# MatWAU 仓根目录不希望进镜像的
+docs/                # 文档不进镜像(README/LICENSE 在代码里)
+*.md                 # Markdown 不进镜像
+.github/             # GitHub Actions 配置
+.git/                # git 历史
+.gitignore
+LICENSE
+NOTICE
+MAINTENANCE.md
+CHANGELOG.md
+README.md
+RELEASE_NOTES_v1.0-Academic.md
+.vscode/
+
+# W37.4 自己的部署文件(已在构建上下文根)
+deploy/
+
+# 示例 + 测试(学院版镜像只需要运行时所需代码)
+examples/
+tests/
+
+# Postgres runtime
+pgdata/
+
+# MatWAU 用户级 lineage
+.matwau/

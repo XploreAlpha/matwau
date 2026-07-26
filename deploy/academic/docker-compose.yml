@@ -1,0 +1,85 @@
+# MatWAU 学院版 — Docker Compose 单机包(per W37.4)
+#
+# 学院 IT 一键部署:
+#   1. cd deploy/academic
+#   2. cp .env.example .env
+#   3. (可选)编辑 .env 配 LLM API key / Postgres 密码
+#   4. docker compose up -d
+#   5. curl http://localhost:8080/health  # 看到 ok = 成功
+#
+# 架构(3 service + 2 volume):
+#   - matwau-app:   MatWAU 学院版 API(http://localhost:8080)
+#   - lineage-db:   PostgreSQL 16(血缘持久化,可降级到 SQLite)
+#   - (可选) prometheus: 学院 IT 自建监控时启用
+
+services:
+  # 1. MatWAU 学院版主应用
+  matwau-app:
+    build:
+      context: ../..
+      dockerfile: deploy/academic/Dockerfile
+    image: matwau/academic:v1.1-Academic
+    container_name: matwau-academic-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"  # 学院 IT 防火墙可改
+    environment:
+      # 数据归属:全部写入学院指定的 volume(/srv/matwau/data)
+      - MATWAU_DATA_DIR=/srv/matwau/data
+      - MATWAU_LINEAGE_BACKEND=${MATWAU_LINEAGE_BACKEND:-postgres}
+      - MATWAU_PG_DSN=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@lineage-db:5432/${POSTGRES_DB}
+      - MATWAU_LLM_ENABLED=${MATWAU_LLM_ENABLED:-0}
+      - MATWAU_LLM_API_KEY=${MATWAU_LLM_API_KEY:-}
+      - MATWAU_LLM_BASE_URL=${MATWAU_LLM_BASE_URL:-https://api.deepseek.com}
+      - MATWAU_LLM_MODEL=${MATWAU_LLM_MODEL:-deepseek-v4-flash}
+    volumes:
+      - matwau-data:/srv/matwau/data  # 学院 IT 备份这一份
+    depends_on:
+      lineage-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 2. PostgreSQL 16(血缘持久化)
+  lineage-db:
+    image: postgres:16-alpine
+    container_name: matwau-academic-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-matwau}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme_in_env_file}
+      - POSTGRES_DB=${POSTGRES_DB:-matwau_lineage}
+    volumes:
+      - matwau-db:/var/lib/postgresql/data  # 学院 IT 备份这一份
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-matwau} -d ${POSTGRES_DB:-matwau_lineage}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 3. (可选) Prometheus 监控 — 学院 IT 自建 Grafana 时启用
+  # 取消下面注释启用 + 配 prometheus.yml
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: matwau-academic-prometheus
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus-data:/prometheus
+
+# 数据卷(学院 IT 备份这两个目录即可)
+volumes:
+  matwau-data:    # Lineage + 实验结果 + 用户数据
+  matwau-db:      # Postgres 数据
+  # prometheus-data:  # 取消注释启用
+
+# 网络(学院内网可改成 bridge: host)
+networks:
+  default:
+    name: matwau-academic-net
