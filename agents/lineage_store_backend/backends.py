@@ -208,12 +208,21 @@ class SQLiteBackend(LineageBackend):
         Args:
             db_path: SQLite 文件路径(None → 默认 ~/.matwau/lineage.db)
         """
+        import os
+
         if db_path is None:
-            import os
             home = os.path.expanduser("~")
             db_dir = os.path.join(home, ".matwau")
             os.makedirs(db_dir, exist_ok=True)
             db_path = os.path.join(db_dir, "lineage.db")
+        else:
+            # W37.9 v1.1.1-Academic patch: caller may pass "~/..." literal
+            # (e.g. MATWAU_LINEAGE_SQLITE_PATH env var),expand it so
+            # sqlite3.connect doesn't choke on raw "~/" prefix.
+            db_path = os.path.expanduser(db_path)
+            db_dir = os.path.dirname(db_path)
+            if db_dir:
+                os.makedirs(db_dir, exist_ok=True)
 
         self.db_path = db_path
         self._conn = sqlite3.connect(db_path, check_same_thread=False)

@@ -17,4 +17,11 @@
 - constraints(元素/禁止/数量/...)
 
 Stage 1 mock 用关键词 + 规则,Stage 2 接真 LLM
+
+W37.9 v1.1.1-Academic: re-export MatIntentAgent + create_default_agent for
+`from agents.mat_intent_agent import MatIntentAgent` style imports
+(W1 demo + 学院方教学演示 import 路径).
 """
+from .mat_intent_agent import MatIntentAgent, create_default_agent
+
+__all__ = ["MatIntentAgent", "create_default_agent"]
