@@ -16,5 +16,11 @@ psycopg[binary]>=3.1
 # W33 — LLMReviewer(可选;无 openai 包 → 自动跳过 LLM 复核)
 openai>=1.0
 
+# W37.12 — wau_protocol_adapter 注册到 wau-registry + JWT 签发
+# requests 走 wau-registry HTTP API, PyJWT 签 HS256 跟 wau-edge 验签
+# (实际运行环境已装 requests 2.32.5 + PyJWT 2.10.1;写明便于学院方 pip install)
+requests>=2.31.0
+PyJWT>=2.8.0,<3.0
+
 # Lint(可选,CI 用)
 ruff>=0.1.0
