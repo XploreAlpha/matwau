@@ -17,6 +17,12 @@ LABEL org.opencontainers.image.source="https://github.com/XploreAlpha/matwau"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.vendor="XploreAlpha"
 
+# 配国内 apt 源(清华 + 阿里)+ pip 源(清华)— 国内服务器 build 提速 5-10×
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g; s|security.debian.org|mirrors.tuna.tsinghua.edu.cn|g' \
+        /etc/apt/sources.list.d/debian.sources 2>/dev/null \
+    || sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
 # 系统依赖(学院版默认 mock 模式,无需 GPU / 真仪器 SDK)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
