@@ -32,6 +32,8 @@ services:
       - MATWAU_LLM_API_KEY=${MATWAU_LLM_API_KEY:-}
       - MATWAU_LLM_BASE_URL=${MATWAU_LLM_BASE_URL:-https://api.deepseek.com}
       - MATWAU_LLM_MODEL=${MATWAU_LLM_MODEL:-deepseek-v4-flash}
+      # MatWAU 实例的公网回调 URL(W37.12+2026-07-28)— 默认 localhost
+      - MATWAU_HOST=${MATWAU_HOST:-localhost}
       # V1 接公网 wau(W37.12 新增)— 学院版默认空 → 跳过 wau heartbeat
       - WAU_JWT_SHARED_SECRET=${WAU_JWT_SHARED_SECRET:-}
       - WAU_TENANT_ID=${WAU_TENANT_ID:-codex-appserver}
