@@ -17,7 +17,7 @@ env vars(从 ~/.matwau/wau_secrets.env 读,chmod 600):
   - WAU_JWT_SHARED_SECRET  (必填)
   - WAU_TENANT_ID          (默认 "codex-appserver")
   - WAU_REGISTRY_URL       (默认 http://43.134.126.126:18401)
-  - MATWAU_HOST            (本机 IP, 默认 localhost)
+  - MATWAU_PUBLIC_HOST     (公网 IP / 域名, 默认 localhost → 仅作名片,wau 无法回调)
 
 设计原则(per MatWAU-Harness-Loop 心法):
   - 失败吞掉:register/heartbeat 失败只 log,不抛
@@ -104,7 +104,7 @@ class WauConfig:
 
         # 2. env 覆盖(file < env)
         for k in ("WAU_JWT_SHARED_SECRET", "WAU_TENANT_ID", "WAU_REGISTRY_URL",
-                  "MATWAU_HOST", "MATWAU_AGENT_NAME", "WAU_HEARTBEAT_INTERVAL_MS"):
+                  "MATWAU_PUBLIC_HOST", "MATWAU_AGENT_NAME", "WAU_HEARTBEAT_INTERVAL_MS"):
             if os.environ.get(k):
                 env[k] = os.environ[k]
 
@@ -112,7 +112,7 @@ class WauConfig:
         registry_url = env.get("WAU_REGISTRY_URL", DEFAULT_REGISTRY_URL).rstrip("/")
         jwt_secret = env.get("WAU_JWT_SHARED_SECRET", "")
         tenant_id = env.get("WAU_TENANT_ID", DEFAULT_TENANT_ID)
-        host = env.get("MATWAU_HOST", "localhost")
+        host = env.get("MATWAU_PUBLIC_HOST", "localhost")
         agent_name = env.get("MATWAU_AGENT_NAME", "matwau")
 
         heartbeat_ms = int(env.get("WAU_HEARTBEAT_INTERVAL_MS", str(DEFAULT_HEARTBEAT_INTERVAL * 1000)))

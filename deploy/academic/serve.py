@@ -266,7 +266,7 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    host = os.environ.get("MATWAU_HOST", "0.0.0.0")
+    host = os.environ.get("MATWAU_BIND_HOST", "0.0.0.0")
     port = int(os.environ.get("MATWAU_PORT", "8080"))
     server = HTTPServer((host, port), MatWAUAcademicHandler)
     sys.stderr.write(

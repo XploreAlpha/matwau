@@ -12,7 +12,7 @@ env vars(从 ~/.matwau/wau_secrets.env 读,chmod 600):
 - WAU_JWT_SHARED_SECRET  (必填, HS256 shared secret)
 - WAU_TENANT_ID          (默认 "codex-appserver")
 - WAU_REGISTRY_URL       (默认 http://43.134.126.126:18401)
-- MATWAU_HOST            (默认 localhost)
+- MATWAU_PUBLIC_HOST     (默认 localhost — agent card url 字段,wau-edge 想回调时填公网 IP)
 
 W37.12 lessons learned:
 - ⚠️ BaseHTTPRequestHandler 风格(跟 serve.py 一致,不引入 Flask)
