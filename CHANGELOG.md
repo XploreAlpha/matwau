@@ -5,6 +5,43 @@
 
 ---
 
+## [Unreleased] — 7 个服务器部署 bug 修复(2026-07-28)
+
+> 等待下次 v1.1.2-Academic tag 一起发布
+> 完整 closure doc:[~/WAU-develop/develop-log/MatWAU/20260728/MatWAU-20260728-server-deployment-closure.md](~/WAU-develop/develop-log/MatWAU/20260728/MatWAU-20260728-server-deployment-closure.md)
+
+### Fixed(修复 7 个真实 bug)
+
+- **HIGH: `deploy/academic/VERSION`** — 创建 VERSION 文件,内容 `v1.1.1-Academic`。修复前 `/health` 永远 fallback 到 `v1.0-Academic`,跟 image tag 错位。
+- **HIGH: `deploy/academic/docker-compose.yml`** — image tag `v1.1-Academic` → `v1.1.1-Academic`,跟 VERSION 对齐。
+- **HIGH: `deploy/academic/docker-compose.yml`** — environment 加 `WAU_JWT_SHARED_SECRET` / `WAU_TENANT_ID` / `WAU_REGISTRY_URL` 3 个 env vars(W37.12 V1 接公网必须)。
+- **CRITICAL: `deploy/academic/serve.py` + `agents/wau_protocol_adapter/wau_client.py` + `agents/wau_protocol_adapter/__init__.py`** — **拆分 `MATWAU_HOST` 为 `MATWAU_BIND_HOST` + `MATWAU_PUBLIC_HOST`**。`MATWAU_HOST` 语义冲突(serve.py 当 bind 地址 / wau_client 当 agent card url),学院 IT 填公网 IP → `OSError: Cannot assign requested address` → 容器 restart loop。修复后 `MATWAU_BIND_HOST` 默认 `0.0.0.0`(socket bind 用),`MATWAU_PUBLIC_HOST` 默认 `localhost`(agent card url 字段用,学院 IT 填公网 IP)。
+- **MEDIUM: `deploy/academic/Dockerfile`** — 加清华 apt + pip 源(国内服务器 build 提速 5-10 倍,5-15 分钟 → 1-3 分钟)。
+- **LOW: `deploy/academic/.env.example`** — 加 V1 3 env vars + MATWAU_BIND/PUBLIC 注释。
+
+### Changed(变更)
+
+- `agents/wau_protocol_adapter/wau_client.py` 默认 agent card url 从 `localhost` → `localhost`(向后兼容,行为不变)
+- `deploy/academic/.env.example` 末尾追加 17 行注释段
+
+### Deprecated(弃用)
+
+- **`MATWAU_HOST` 已废用** — 不再读(向后兼容保留 .env.example 中的注释行,serve.py 默认 `0.0.0.0`)。学院 IT 升级时请改名 `MATWAU_PUBLIC_HOST`(填公网 IP)。
+
+### Stats
+
+- **6 files / +33 / -9**(本次会话累计)
+- **7 commit**:`bd8dfab` / `36d988d` / `baca802` / `4359cc9` / `2eb4b5b` / `a011bff` / `7fe60a0`
+- **完整报告**:`~/WAU-develop/develop-log/MatWAU/20260728/MatWAU-20260728-server-deployment-closure.md`
+- **Memory**:`~/.claude/projects/.../memory/project-matwau-server-deployment-v1-2026-07-28.md`
+
+### 已知非阻塞问题
+
+- **`a011bff` commit 已废但保留在 git 历史**(避免 force push)— 7fe60a0 已彻底修复其 bug。下次 rebase 可 squash。
+- **学院 IT 部署必须 `docker compose down + up -d`,不能用 `restart`**(restart 不读 .env)— 已在 doc 中标注。
+
+---
+
 ## [v1.1.1-Academic] - 2026-07-26 — 学院版 patch (W1 demo import + SQLiteBackend expanduser)
 
 ### Fixed(修复)
