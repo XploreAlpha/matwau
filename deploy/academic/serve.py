@@ -182,14 +182,17 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
             orch = MatOrchestrator()
             wf_result = orch.run(user_intent=intent)
             _ok(self, 200, {
-                "status": "ok",
+                "status": "ok" if wf_result.success else "fail",
                 "workflow_id": payload.get("workflow_id"),
-                "subclass": payload.get("subclass"),
-                "reply": wf_result.reply,
-                "artifacts_summary": {
-                    k: str(v)[:200] for k, v in (wf_result.artifacts or {}).items()
+                "subclass": payload.get("subclass") or wf_result.subclass,
+                "workflow_name": wf_result.workflow_name,
+                "success": wf_result.success,
+                "error": wf_result.error,
+                "total_duration_seconds": wf_result.total_duration_seconds,
+                "final_outputs": {
+                    k: str(v)[:200] for k, v in (wf_result.final_outputs or {}).items()
                 },
-                "cost": wf_result.cost,
+                "node_results_count": len(wf_result.node_results),
             })
         except Exception as e:
             sys.stderr.write(f"[matwau] orchestrator run fail: {e}\n")
