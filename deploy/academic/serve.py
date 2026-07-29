@@ -178,25 +178,18 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
 
         try:
             from agents.mat_orchestrator import MatOrchestrator
-            from matwau.core.agent_base import AgentRequest
 
             orch = MatOrchestrator()
-            req = AgentRequest(
-                run_id=payload.get("workflow_id", f"wau-dispatch-{os.getpid()}"),
-                message=intent,
-                artifacts=payload.get("artifacts", {}),
-                context={"source": "wau-dispatch", "subclass": payload.get("subclass", "")},
-            )
-            resp = orch.run(req)
+            wf_result = orch.run(user_intent=intent)
             _ok(self, 200, {
                 "status": "ok",
                 "workflow_id": payload.get("workflow_id"),
                 "subclass": payload.get("subclass"),
-                "reply": resp.reply,
+                "reply": wf_result.reply,
                 "artifacts_summary": {
-                    k: str(v)[:200] for k, v in (resp.artifacts or {}).items()
+                    k: str(v)[:200] for k, v in (wf_result.artifacts or {}).items()
                 },
-                "cost": resp.cost,
+                "cost": wf_result.cost,
             })
         except Exception as e:
             sys.stderr.write(f"[matwau] orchestrator run fail: {e}\n")
