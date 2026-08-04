@@ -5,7 +5,7 @@ W37.4 + W37.12 — Docker 容器内启动的 HTTP API 服务
 - 端点:
   - GET  /             — 服务信息
   - GET  /health       — 健康检查(学院 IT 用于监控)
-  - GET  /version      — 版本信息(v1.1.1-Academic)
+  - GET  /version      — 版本信息(v1.3-Academic)
   - POST /intent       — 解析 1 句话材料意图
   - POST /multi-exp    — 跑多实验并行(Stage 3 JARVIS 雏形)
   - GET  /lineage      — 查 lineage 记录
@@ -36,7 +36,7 @@ def _version_string() -> str:
     version_file = _PROJECT_ROOT / "VERSION"
     if version_file.exists():
         return version_file.read_text().strip()
-    return "v1.0-Academic"
+    return "v1.3-Academic"
 
 
 def _ok(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
