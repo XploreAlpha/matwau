@@ -16,10 +16,8 @@ Stage 2(WAU v1.0.0 GA 后):接 LLM 复核
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any
 
 # ============================================================================
 # 常量
@@ -133,8 +131,8 @@ class CriticScore:
     name: str                           # L1 / L2 / L3 / L4
     score: float                        # 0-1,越高越可信
     weight: float                       # 该路权重
-    issues: List[str] = field(default_factory=list)   # 问题列表
-    suggestions: List[str] = field(default_factory=list)  # 修复建议
+    issues: list[str] = field(default_factory=list)   # 问题列表
+    suggestions: list[str] = field(default_factory=list)  # 修复建议
 
 
 # W30 - L4 跨机器人一致性打分
@@ -156,11 +154,11 @@ class CrossRobotScore:
     name: str = "L4_cross_robot"
     score: float = 0.0
     weight: float = 0.2
-    issues: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
     consistent: bool = True             # 4 robot 结果是否一致
-    rules_passed: List[str] = field(default_factory=list)
-    rules_failed: List[str] = field(default_factory=list)
+    rules_passed: list[str] = field(default_factory=list)
+    rules_failed: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -170,8 +168,8 @@ class FailureType:
     code: str                           # energy_too_high / synthesis_impossible / safety_violation / data_inconsistent
     severity: str                       # critical / warning / info
     confidence: float                   # 0-1
-    evidence: List[str] = field(default_factory=list)
-    fix_suggestions: List[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
+    fix_suggestions: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -184,11 +182,11 @@ class CriticVerdict:
     l2: CriticScore                     # 实验可行性
     l3: CriticScore                     # 安全规则
     cross_robot: CrossRobotScore = field(default_factory=CrossRobotScore)  # W30 NEW
-    cross_source: Optional["CrossSourceScore"] = None  # M3 NEW (L5 optional)
-    failures: List[FailureType] = field(default_factory=list)
-    top_suggestions: List[str] = field(default_factory=list)
+    cross_source: CrossSourceScore | None = None  # M3 NEW (L5 optional)
+    failures: list[FailureType] = field(default_factory=list)
+    top_suggestions: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "overall_score": round(self.overall_score, 3),
             "verdict": self.verdict,
@@ -237,7 +235,7 @@ class CriticVerdict:
 # ============================================================================
 
 
-def _extract_energies(req_or_candidate: Any) -> List[Tuple[float, str]]:
+def _extract_energies(req_or_candidate: Any) -> list[tuple[float, str]]:
     """从 candidate / job / recipe 抽取能量"""
     energies = []
 
@@ -269,7 +267,7 @@ def _extract_energies(req_or_candidate: Any) -> List[Tuple[float, str]]:
     return energies
 
 
-def _extract_forces(item: Any) -> Optional[float]:
+def _extract_forces(item: Any) -> float | None:
     """抽取最大原子受力"""
     if hasattr(item, "forces_max"):
         return float(item.forces_max) if item.forces_max is not None else None
@@ -278,7 +276,7 @@ def _extract_forces(item: Any) -> Optional[float]:
     return None
 
 
-def score_l1_physical(candidates: List[Any], req_message: str = "") -> CriticScore:
+def score_l1_physical(candidates: list[Any], req_message: str = "") -> CriticScore:
     """L1 物理一致性打分
 
     评分规则:
@@ -369,7 +367,7 @@ def score_l1_physical(candidates: List[Any], req_message: str = "") -> CriticSco
 # ============================================================================
 
 
-def _extract_elements(item: Any) -> List[str]:
+def _extract_elements(item: Any) -> list[str]:
     """从 candidate / recipe 抽元素"""
     if hasattr(item, "formula"):
         return _parse_formula_elements(item.formula)
@@ -382,7 +380,7 @@ def _extract_elements(item: Any) -> List[str]:
     return []
 
 
-def _parse_formula_elements(formula: str) -> List[str]:
+def _parse_formula_elements(formula: str) -> list[str]:
     """从化学式抽元素(per W8 修复:2 字符元素优先)
 
     从全部 ELEMENT_AVAILABILITY 池子(abundant / common / rare_radioactive / toxic)匹配,
@@ -403,7 +401,7 @@ def _parse_formula_elements(formula: str) -> List[str]:
     return elements
 
 
-def _extract_sintering_temp(item: Any) -> Optional[float]:
+def _extract_sintering_temp(item: Any) -> float | None:
     """抽烧结温度(per ExpRecipe / SinteringRecipe / dict)"""
     # 1. ExpRecipe 有 sintering 子对象
     if hasattr(item, "sintering"):
@@ -427,7 +425,7 @@ def _extract_sintering_temp(item: Any) -> Optional[float]:
     return None
 
 
-def score_l2_synthesis(candidates: List[Any], req_message: str = "") -> CriticScore:
+def score_l2_synthesis(candidates: list[Any], req_message: str = "") -> CriticScore:
     """L2 实验可行性打分
 
     检查:
@@ -500,7 +498,7 @@ def score_l2_synthesis(candidates: List[Any], req_message: str = "") -> CriticSc
 # ============================================================================
 
 
-def _extract_user_forbidden(req_message: str) -> List[str]:
+def _extract_user_forbidden(req_message: str) -> list[str]:
     """从 user_intent 抽禁止元素"""
     msg_lower = req_message.lower()
     forbidden = []
@@ -519,7 +517,7 @@ def _extract_user_forbidden(req_message: str) -> List[str]:
     return forbidden
 
 
-def score_l3_safety(candidates: List[Any], req_message: str = "") -> CriticScore:
+def score_l3_safety(candidates: list[Any], req_message: str = "") -> CriticScore:
     """L3 安全规则打分
 
     检查:
@@ -543,7 +541,7 @@ def score_l3_safety(candidates: List[Any], req_message: str = "") -> CriticScore
     n_user_violation = 0
     n_toxic = 0
     n_radioactive = 0
-    n_total = len(candidates)
+    len(candidates)
 
     for cand in candidates:
         elements = _extract_elements(cand)
@@ -609,7 +607,7 @@ def identify_failures(
     l1: CriticScore,
     l2: CriticScore,
     l3: CriticScore,
-) -> List[FailureType]:
+) -> list[FailureType]:
     """从 3 路打分识别失败类型
 
     严重等级:
@@ -725,8 +723,8 @@ def aggregate_verdict(
     l1: CriticScore,
     l2: CriticScore,
     l3: CriticScore,
-    failures: List[FailureType],
-    cross_robot: Optional[CrossRobotScore] = None,
+    failures: list[FailureType],
+    cross_robot: CrossRobotScore | None = None,
 ) -> str:
     """综合判定 pass / warn / fail
 
@@ -775,10 +773,10 @@ def aggregate_verdict(
 
 
 def evaluate_candidates(
-    candidates: List[Any],
+    candidates: list[Any],
     *,
     user_intent: str = "",
-    prior_failures: List[FailureType] = None,
+    prior_failures: list[FailureType] | None = None,
 ) -> CriticVerdict:
     """3 路交叉验证主入口(W30 保持向后兼容 — 默认走 3 路,不打 L4)
 
@@ -937,7 +935,7 @@ def evaluate_chemist_report(
 
 
 # W30 helpers - 把 RobotEvidence 转成 L1/L2/L3 兼容的 candidates 格式
-def _evidence_to_l1_candidates(evidence_list: List[Any]) -> List[Dict[str, Any]]:
+def _evidence_to_l1_candidates(evidence_list: list[Any]) -> list[dict[str, Any]]:
     """从 RobotEvidence 转 L1 物理一致性 candidates(只有 synth 能给能量)
 
     L1 看 energy/forces_max,robot 没有 DFT 输出 → 默认给空 list 让 L1 走默认分
@@ -951,7 +949,7 @@ def _evidence_to_l1_candidates(evidence_list: List[Any]) -> List[Dict[str, Any]]
     return cands
 
 
-def _evidence_to_l2_candidates(evidence_list: List[Any], target_sample: str) -> List[Dict[str, Any]]:
+def _evidence_to_l2_candidates(evidence_list: list[Any], target_sample: str) -> list[dict[str, Any]]:
     """从 RobotEvidence 转 L2 实验可行性 candidates(用 synth.product + EM EDS 元素)"""
     cands = []
     for ev in evidence_list:
@@ -963,7 +961,7 @@ def _evidence_to_l2_candidates(evidence_list: List[Any], target_sample: str) -> 
     return cands
 
 
-def _evidence_to_l3_candidates(evidence_list: List[Any], target_sample: str) -> List[Dict[str, Any]]:
+def _evidence_to_l3_candidates(evidence_list: list[Any], target_sample: str) -> list[dict[str, Any]]:
     """从 RobotEvidence 转 L3 安全 candidates(所有 robot 都给一个 formula 候选)"""
     cands = []
     for ev in evidence_list:
@@ -989,7 +987,7 @@ def _cross_result_to_score(cross_result: Any) -> CrossRobotScore:
     )
 
 
-def _cross_result_to_failures(cross_result: Any) -> List[FailureType]:
+def _cross_result_to_failures(cross_result: Any) -> list[FailureType]:
     """CrossRobotResult → FailureType 列表(W30 新增 5 个 code)"""
     failures = []
 
@@ -1076,7 +1074,7 @@ def _cross_result_to_failures(cross_result: Any) -> List[FailureType]:
     return failures
 
 
-def _keyword_based_failures(user_intent: str) -> List[FailureType]:
+def _keyword_based_failures(user_intent: str) -> list[FailureType]:
     """从 user_intent 关键词推断额外失败类型
 
     用于 explain_failure workflow(用户问"为什么 ... 失败")。
@@ -1136,8 +1134,8 @@ def _keyword_based_failures(user_intent: str) -> List[FailureType]:
 def explain_failure(
     user_intent: str,
     *,
-    candidates: List[Any] = None,
-    prior_outputs: Dict[str, Any] = None,
+    candidates: list[Any] | None = None,
+    prior_outputs: dict[str, Any] | None = None,
 ) -> CriticVerdict:
     """解释为什么实验/合成失败
 
@@ -1235,16 +1233,16 @@ class CrossSourceScore:
     name: str = "L5_cross_source"
     score: float = 0.0
     weight: float = WEIGHT_L5_CROSS_SOURCE
-    issues: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
     consensus_rate: float = 0.0
     n_clusters: int = 0
     n_consensus_clusters: int = 0
     n_conflicts: int = 0
-    rules_passed: List[str] = field(default_factory=list)
-    rules_failed: List[str] = field(default_factory=list)
+    rules_passed: list[str] = field(default_factory=list)
+    rules_failed: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score": round(self.score, 3),
             "weight": self.weight,
@@ -1259,7 +1257,7 @@ class CrossSourceScore:
 
 
 def evaluate_cross_source_consistency(
-    records_by_platform: Dict[str, List[Any]],
+    records_by_platform: dict[str, list[Any]],
     *,
     consensus_rate_threshold: float = 0.5,
 ) -> CrossSourceScore:
@@ -1278,10 +1276,10 @@ def evaluate_cross_source_consistency(
     report = resolve_cross_source(records_by_platform)
 
     # 2. 跑 3 条规则
-    rules_passed: List[str] = []
-    rules_failed: List[str] = []
-    issues: List[str] = []
-    suggestions: List[str] = []
+    rules_passed: list[str] = []
+    rules_failed: list[str] = []
+    issues: list[str] = []
+    suggestions: list[str] = []
 
     # R6 — consensus_rate
     if report.consensus_rate >= consensus_rate_threshold:
@@ -1341,9 +1339,9 @@ def evaluate_cross_source_consistency(
     )
 
 
-def _cross_source_to_failures(cs_score: CrossSourceScore) -> List[FailureType]:
+def _cross_source_to_failures(cs_score: CrossSourceScore) -> list[FailureType]:
     """CrossSourceScore → FailureType 列表(M3 新增 3 个 code)"""
-    failures: List[FailureType] = []
+    failures: list[FailureType] = []
 
     if RULE_R6_CROSS_SOURCE_CONSENSUS in cs_score.rules_failed:
         failures.append(FailureType(
@@ -1382,12 +1380,12 @@ def _cross_source_to_failures(cs_score: CrossSourceScore) -> List[FailureType]:
 
 
 def evaluate_with_cross_source(
-    candidates: List[Any],
-    records_by_platform: Dict[str, List[Any]],
+    candidates: list[Any],
+    records_by_platform: dict[str, list[Any]],
     *,
     user_intent: str = "",
     consensus_rate_threshold: float = 0.5,
-    prior_failures: List[FailureType] = None,
+    prior_failures: list[FailureType] | None = None,
 ) -> CriticVerdict:
     """M3 NEW - L1-L4 + L5 (5 路)打分入口
 
@@ -1457,44 +1455,44 @@ def evaluate_with_cross_source(
 
 
 __all__ = [
-    "CriticScore",
-    "CrossRobotScore",
-    "CriticVerdict",
-    "FailureType",
-    "evaluate_candidates",
-    "evaluate_chemist_report",  # W30 NEW
-    "explain_failure",
-    "score_l1_physical",
-    "score_l2_synthesis",
-    "score_l3_safety",
-    # W30 NEW 常量
-    "WEIGHT_L1_PHYSICAL",
-    "WEIGHT_L2_SYNTHESIS",
-    "WEIGHT_L3_SAFETY",
-    "WEIGHT_L4_CROSS_ROBOT",
-    "FAIL_XRD_PHASE_MISMATCH",
-    "FAIL_EDS_EXTRA_ELEMENTS",
-    "FAIL_DSC_CLASS_MISMATCH",
     "FAIL_CROSS_ROBOT_INCONSISTENCY",
+    "FAIL_CROSS_SOURCE_BAND_GAP_MISMATCH",
+    "FAIL_CROSS_SOURCE_ENERGY_MISMATCH",
+    "FAIL_CROSS_SOURCE_LOW_CONSENSUS",
     "FAIL_DATA_CONSISTENCY_LOW",
+    "FAIL_DSC_CLASS_MISMATCH",
+    "FAIL_EDS_EXTRA_ELEMENTS",
+    "FAIL_XRD_PHASE_MISMATCH",
     "RULE_R1_XRD_PHASE",
     "RULE_R2_EDS_ELEMENTS",
     "RULE_R3_DSC_CLASS",
     "RULE_R4_COST_SANITY",
     "RULE_R5_XRD_PEAK_COUNT",
-    # M3 NEW - L5 cross_source
-    "CrossSourceScore",
-    "evaluate_cross_source_consistency",
-    "evaluate_with_cross_source",
-    "WEIGHT_L5_CROSS_SOURCE",
-    "WEIGHT_L1_PHYSICAL_5WAY",
-    "WEIGHT_L2_SYNTHESIS_5WAY",
-    "WEIGHT_L3_SAFETY_5WAY",
-    "WEIGHT_L4_CROSS_ROBOT_5WAY",
-    "FAIL_CROSS_SOURCE_LOW_CONSENSUS",
-    "FAIL_CROSS_SOURCE_ENERGY_MISMATCH",
-    "FAIL_CROSS_SOURCE_BAND_GAP_MISMATCH",
     "RULE_R6_CROSS_SOURCE_CONSENSUS",
     "RULE_R7_CROSS_SOURCE_ENERGY",
     "RULE_R8_CROSS_SOURCE_BAND_GAP",
+    # W30 NEW 常量
+    "WEIGHT_L1_PHYSICAL",
+    "WEIGHT_L1_PHYSICAL_5WAY",
+    "WEIGHT_L2_SYNTHESIS",
+    "WEIGHT_L2_SYNTHESIS_5WAY",
+    "WEIGHT_L3_SAFETY",
+    "WEIGHT_L3_SAFETY_5WAY",
+    "WEIGHT_L4_CROSS_ROBOT",
+    "WEIGHT_L4_CROSS_ROBOT_5WAY",
+    "WEIGHT_L5_CROSS_SOURCE",
+    "CriticScore",
+    "CriticVerdict",
+    "CrossRobotScore",
+    # M3 NEW - L5 cross_source
+    "CrossSourceScore",
+    "FailureType",
+    "evaluate_candidates",
+    "evaluate_chemist_report",  # W30 NEW
+    "evaluate_cross_source_consistency",
+    "evaluate_with_cross_source",
+    "explain_failure",
+    "score_l1_physical",
+    "score_l2_synthesis",
+    "score_l3_safety",
 ]

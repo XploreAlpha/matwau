@@ -22,8 +22,8 @@ from __future__ import annotations
 import logging
 import os
 import threading
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +83,10 @@ class LLMReviewResult:
     output_tokens: int = 0
     cost_cny: float = 0.0
     duration_seconds: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
     available: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "review": self.review,
             "model": self.model,
@@ -194,10 +194,10 @@ class LLMReviewer:
     def __init__(
         self,
         *,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model: Optional[str] = None,
-        enabled: Optional[bool] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        enabled: bool | None = None,
         client: Any = None,  # 显式注入(测试用 mock OpenAI client)
     ) -> None:
         """构造
@@ -383,7 +383,7 @@ class LLMReviewer:
 # ============================================================================
 
 
-_global_reviewer: Optional[LLMReviewer] = None
+_global_reviewer: LLMReviewer | None = None
 _global_reviewer_lock = threading.Lock()
 
 
@@ -405,11 +405,11 @@ def reset_global_reviewer() -> None:
 
 
 __all__ = [
-    "LLMReviewer",
-    "LLMReviewResult",
     "DEFAULT_BASE_URL",
     "DEFAULT_MODEL",
+    "LLMReviewResult",
+    "LLMReviewer",
+    "_summarize_critic_for_llm",
     "get_default_reviewer",
     "reset_global_reviewer",
-    "_summarize_critic_for_llm",
 ]

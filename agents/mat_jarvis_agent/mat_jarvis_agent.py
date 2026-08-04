@@ -14,28 +14,24 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from agents.jarvis_client import (
+    JarvClient,
+    JarvReference,
+    is_jarvis_tools_available,
+)
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
-
-from agents.jarvis_client import (  # noqa: E402
-    JarvClient,
-    JarvReference,
-    is_jarvis_available,
-    is_jarvis_tools_available,
-    search_jarvis,
-)
-
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
 # ============================================================================
 # 配置
@@ -51,7 +47,7 @@ class JarvConfig:
     include_2d_only: bool = False  # True = 只返回 2D 材料
 
     @classmethod
-    def from_dict(cls, d: Optional[Dict[str, Any]]) -> "JarvConfig":
+    def from_dict(cls, d: dict[str, Any] | None) -> JarvConfig:
         if not d:
             return cls()
         return cls(
@@ -67,7 +63,7 @@ class JarvConfig:
 
 
 def _results_to_response(
-    refs: List[JarvReference],
+    refs: list[JarvReference],
     is_real: bool,
     config: JarvConfig,
     user_intent: str,
@@ -81,7 +77,7 @@ def _results_to_response(
         refs = [r for r in refs if r.is_2d]
 
     # 2. 转 canonical_key
-    canonical_keys: List[CanonicalKey] = []
+    canonical_keys: list[CanonicalKey] = []
     if config.include_canonical and refs:
         for r in refs:
             try:
@@ -110,7 +106,7 @@ def _results_to_response(
                 f"{gap_str} {xc}"
             )
     if canonical_keys:
-        unique_canonical = set(str(k) for k in canonical_keys if k.reduced_formula)
+        unique_canonical = {str(k) for k in canonical_keys if k.reduced_formula}
         lines.append(f"\n🔑 Canonical key 归一化: {len(unique_canonical)} 个唯一物相")
 
     # jarvis-tools 包状态
@@ -172,7 +168,7 @@ class MatJarvAgent(MatWAUAgentBase):
         default_n_results: int = 5,
         cost_per_query: float = 0.05,
         use_real_jarvis: bool = True,
-        client: Optional[JarvClient] = None,
+        client: JarvClient | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -214,7 +210,7 @@ Materials Database)综合性质查询助手(mat-jarvis-agent)。
 - 0 行 UI 代码
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         user_message = ctx.get("user_message") or ctx.get("message") or ""
         config: JarvConfig = ctx.get("_input_config") or JarvConfig()
 
@@ -244,7 +240,7 @@ Materials Database)综合性质查询助手(mat-jarvis-agent)。
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         ctx = super().perceive(req)
         ctx["user_message"] = req.message
         ctx["_input_config"] = JarvConfig.from_dict(req.context)
@@ -274,7 +270,7 @@ Materials Database)综合性质查询助手(mat-jarvis-agent)。
 
 def _mock_search_safe(user_intent: str, n: int) -> tuple:
     """mock 模式快捷调用"""
-    from agents.jarvis_client.client import _mock_jarvis_response, _build_jarvis_query
+    from agents.jarvis_client.client import _build_jarvis_query, _mock_jarvis_response
     formula = _build_jarvis_query(user_intent)
     refs = _mock_jarvis_response(formula, n=n)
     return refs, False
@@ -324,7 +320,7 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "MatJarvAgent",
     "JarvConfig",
+    "MatJarvAgent",
     "create_default_agent",
 ]

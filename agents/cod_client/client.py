@@ -29,8 +29,8 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class CodReference:
     cod_cif_url: str = ""
     citation: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cod_id": self.cod_id,
             "formula": self.formula,
@@ -160,7 +160,7 @@ def _build_cod_query(user_intent: str) -> str:
 # ============================================================================
 
 
-def _parse_cif_text(cif_text: str, cod_id: str) -> Optional[CodReference]:
+def _parse_cif_text(cif_text: str, cod_id: str) -> CodReference | None:
     """从 CIF 文本提取字段 → CodReference
 
     不依赖 pymatgen(学院版环境精简);纯 regex 提取关键字段
@@ -237,7 +237,7 @@ def _parse_cif_text(cif_text: str, cod_id: str) -> Optional[CodReference]:
 # ============================================================================
 
 
-def _mock_cod_response(query: str, *, n: int = 5) -> List[CodReference]:
+def _mock_cod_response(query: str, *, n: int = 5) -> list[CodReference]:
     """COD mock 数据(Stage 1 fallback)
 
     给已知化学式伪造 1 组实验结构(空间群 + 晶格常数)
@@ -345,8 +345,8 @@ class CodClient:
         self,
         user_intent: str,
         *,
-        max_results: Optional[int] = None,
-    ) -> Tuple[List[CodReference], bool]:
+        max_results: int | None = None,
+    ) -> tuple[list[CodReference], bool]:
         """查 COD,返回 (refs, is_real)
 
         M1 阶段简化:不解析搜索页 HTML(脆弱),仅依赖
@@ -372,7 +372,7 @@ class CodClient:
         # 若 COD 在线 + 该 cod-id 存在 → is_real=True
         # 否则 fallback
         mock_list = _mock_cod_response(formula, n=n)
-        refs: List[CodReference] = []
+        refs: list[CodReference] = []
         for mock_ref in mock_list:
             try:
                 url = COD_CIF_URL_TEMPLATE.format(cod_id=mock_ref.cod_id)
@@ -405,7 +405,7 @@ class CodClient:
             return (refs, False)
         return (refs, True)
 
-    def fetch_cif(self, cod_id: str) -> Optional[str]:
+    def fetch_cif(self, cod_id: str) -> str | None:
         """直接拉 1 个 cod-id 的 CIF 文本
 
         Args:
@@ -439,7 +439,7 @@ class CodClient:
         return CanonicalKey(reduced_formula=rf, pearson_symbol=ps, spacegroup_number=sgn)
 
     @staticmethod
-    def _canonical_fields(ref: CodReference) -> Tuple[str, str, int]:
+    def _canonical_fields(ref: CodReference) -> tuple[str, str, int]:
         """内部 helper:从 CodReference 提取 canonical 三元组"""
         from agents.data_canonical import (
             normalize_formula,
@@ -461,7 +461,7 @@ def search_cod(
     user_intent: str,
     *,
     max_results: int = 5,
-) -> Tuple[List[CodReference], bool]:
+) -> tuple[list[CodReference], bool]:
     """便捷函数:查 COD
 
     Returns:
@@ -471,7 +471,7 @@ def search_cod(
     return client.search(user_intent, max_results=max_results)
 
 
-def fetch_cif(cod_id: str, *, timeout: int = COD_TIMEOUT_SEC) -> Optional[str]:
+def fetch_cif(cod_id: str, *, timeout: int = COD_TIMEOUT_SEC) -> str | None:
     """便捷函数:拉单个 cod-id 的 CIF
 
     Args:

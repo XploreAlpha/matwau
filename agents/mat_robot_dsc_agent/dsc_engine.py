@@ -23,11 +23,10 @@ import logging
 import random
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
-from matwau.core.agent_base import AgentResponse
+from typing import Any
 
 from agents.mat_robot_synth_agent.synth_engine import SafetyGuard
+from matwau.core.agent_base import AgentResponse
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +74,7 @@ class DSCStep:
     target_temperature_celsius: float = 25.0        # 目标温度
     heating_rate_c_per_min: float = 10.0            # 升温速率(°C/min)
     is_isothermal: bool = False                     # 恒温段
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
 
     def is_ramp(self) -> bool:
         return not self.is_isothermal and self.heating_rate_c_per_min > 0
@@ -86,8 +85,8 @@ class DSCProcedure:
     """1 个 DSC 测试方案"""
 
     sample_formula: str = ""                         # 样品化学式
-    target_properties: List[str] = field(default_factory=list)  # ['Tg', 'Tm', 'Tc', 'crystallization']
-    steps: List[DSCStep] = field(default_factory=list)
+    target_properties: list[str] = field(default_factory=list)  # ['Tg', 'Tm', 'Tc', 'crystallization']
+    steps: list[DSCStep] = field(default_factory=list)
     atmosphere: str = "N2"                          # 默认 N2(惰性)
     sample_mass_mg: float = 5.0                     # 样品质量(mg)
     crucible_sealed: bool = True                     # 坩埚是否密封
@@ -114,21 +113,21 @@ class DSCResult:
     """1 次 DSC 测试结果"""
 
     run_id: str = ""
-    procedure: Optional[DSCProcedure] = None
+    procedure: DSCProcedure | None = None
     success: bool = True
-    glass_transition_temp_c: Optional[float] = None      # Tg
-    melting_temp_c: Optional[float] = None               # Tm
-    crystallization_temp_c: Optional[float] = None       # Tc
-    enthalpy_change_j_per_g: Optional[float] = None      # ΔH
-    dsc_curve_x: List[float] = field(default_factory=list)     # 温度序列(°C)
-    dsc_curve_y: List[float] = field(default_factory=list)     # 热流(W/g)
-    warnings: List[str] = field(default_factory=list)
-    blocked_steps: List[str] = field(default_factory=list)
-    log: List[str] = field(default_factory=list)
+    glass_transition_temp_c: float | None = None      # Tg
+    melting_temp_c: float | None = None               # Tm
+    crystallization_temp_c: float | None = None       # Tc
+    enthalpy_change_j_per_g: float | None = None      # ΔH
+    dsc_curve_x: list[float] = field(default_factory=list)     # 温度序列(°C)
+    dsc_curve_y: list[float] = field(default_factory=list)     # 热流(W/g)
+    warnings: list[str] = field(default_factory=list)
+    blocked_steps: list[str] = field(default_factory=list)
+    log: list[str] = field(default_factory=list)
     cost: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "run_id": self.run_id,
             "sample_formula": self.procedure.sample_formula if self.procedure else "",
@@ -159,10 +158,10 @@ class TAMockSDK:
     def __init__(self, *, lab_id: str = "matwau-dsc-01", fail_chance: float = 0.05) -> None:
         self.lab_id = lab_id
         self.fail_chance = fail_chance
-        self.commands_executed: List[str] = []
+        self.commands_executed: list[str] = []
         self.connected = True
 
-    def execute(self, step: DSCStep) -> Dict[str, Any]:
+    def execute(self, step: DSCStep) -> dict[str, Any]:
         """执行 1 个 DSCStep(真接 = TA Trios remote API)"""
         self.commands_executed.append(step.name)
         if not self.connected:
@@ -261,7 +260,7 @@ class DSCSafetyGuard(SafetyGuard):
             return False
         return True
 
-    def check_dsc(self, procedure: DSCProcedure) -> List[str]:
+    def check_dsc(self, procedure: DSCProcedure) -> list[str]:
         """DSC 流程专用安全检查(扩展父类 + 5 类 DSC 特有)"""
         warnings = []
 

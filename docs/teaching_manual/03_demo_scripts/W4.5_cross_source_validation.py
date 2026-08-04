@@ -21,6 +21,7 @@
   node critic_l5: score=0.85, consensus_rate=0.83, n_clusters=1
 """
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -40,15 +41,15 @@ def main():
 
     # 测试 1 — cross_source_lookup_workflow DAG 结构
     try:
-        from agents.mat_orchestrator.dag import cross_source_lookup_workflow
         from agents.mat_intent_agent.intent_classifier import classify_subclass
+        from agents.mat_orchestrator.dag import cross_source_lookup_workflow
     except ImportError as e:
         print(f"❌ ImportError: {e}")
         print("   提示:这是 v1.3-Academic 新增功能,请确认版本 ≥ v1.3-Academic")
         return
 
     wf = cross_source_lookup_workflow()
-    print(f"=== 测试 1: cross_source_lookup workflow 5 节点 ===")
+    print("=== 测试 1: cross_source_lookup workflow 5 节点 ===")
     print(f"workflow name: {wf.name}")
     print(f"node count: {len(wf.nodes)}")
     for i, node in enumerate(wf.nodes, 1):
@@ -71,11 +72,11 @@ def main():
     # 测试 3 — mat-critic 5-way 加权(L5 输入 4 库)
     print("\n=== 测试 3: mat-critic 5-way 加权总分(L1-L5 跨源) ===")
     try:
-        from agents.mat_critic_agent.critic_engine import evaluate_with_cross_source
-        from agents.oqmd_client import OqmdReference
         from agents.cod_client import CodReference
-        from agents.nomad_client import NomadReference
         from agents.jarvis_client import JarvReference
+        from agents.mat_critic_agent.critic_engine import evaluate_with_cross_source
+        from agents.nomad_client import NomadReference
+        from agents.oqmd_client import OqmdReference
 
         recs = {
             "OQMD": [OqmdReference(oqmd_id="oqmd-1", formula="Si",

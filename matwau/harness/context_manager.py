@@ -30,8 +30,9 @@ Stage 1 简版,11 agent 各自实例化 1 个。
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -67,8 +68,8 @@ class ContextManager:
         summary_max_tokens: int = 500,
         rag_top_k: int = 5,
         artifacts_max_tokens: int = 500,
-        llm_summarize_fn: Optional[Callable[[str, int], str]] = None,
-        token_estimator: Optional[Callable[[str], int]] = None,
+        llm_summarize_fn: Callable[[str, int], str] | None = None,
+        token_estimator: Callable[[str], int] | None = None,
     ) -> None:
         self.max_tokens = max_tokens
         self.summary_max_tokens = summary_max_tokens
@@ -85,12 +86,12 @@ class ContextManager:
         self,
         system_prompt: str,
         user_message: str,
-        artifacts: Optional[Dict[str, Any]] = None,
-        history: Optional[List[Dict[str, Any]]] = None,
-        rag_results: Optional[List[str]] = None,
-        task_state: Optional[Dict[str, Any]] = None,
+        artifacts: dict[str, Any] | None = None,
+        history: list[dict[str, Any]] | None = None,
+        rag_results: list[str] | None = None,
+        task_state: dict[str, Any] | None = None,
         **kwargs: Any,  # W15: 兼容 mat-* agent 透传的额外字段(domain / workflow / ...)
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """拼装 1 个完整 LLM Context
 
         Args:
@@ -110,7 +111,7 @@ class ContextManager:
                 "parts": {"system": int, "summary": int, "rag": int, ...}
             }
         """
-        messages: List[ContextMessage] = []
+        messages: list[ContextMessage] = []
 
         # 1. 系统 prompt(必填)
         messages.append(ContextMessage(role="system", content=system_prompt))
@@ -170,7 +171,7 @@ class ContextManager:
     # 内部方法
     # ========================================================================
 
-    def _summarize_history(self, history: List[Dict[str, Any]]) -> str:
+    def _summarize_history(self, history: list[dict[str, Any]]) -> str:
         """智能摘要历史消息
 
         Stage 1:naive 截断(取最近 N 条)
@@ -208,7 +209,7 @@ class ContextManager:
 
         return summary
 
-    def _format_task_state(self, task_state: Dict[str, Any]) -> str:
+    def _format_task_state(self, task_state: dict[str, Any]) -> str:
         """格式化任务状态(简洁版)"""
         lines = []
         for key, value in task_state.items():
@@ -218,7 +219,7 @@ class ContextManager:
                 lines.append(f"{key}={type(value).__name__}")
         return ", ".join(lines)
 
-    def _describe_artifacts(self, artifacts: Dict[str, Any]) -> str:
+    def _describe_artifacts(self, artifacts: dict[str, Any]) -> str:
         """描述 artifacts(粗描述,不全文加载)"""
         if not artifacts:
             return ""
@@ -241,8 +242,8 @@ class ContextManager:
         return text
 
     def _compress(
-        self, messages: List[ContextMessage], total_tokens: int
-    ) -> List[ContextMessage]:
+        self, messages: list[ContextMessage], total_tokens: int
+    ) -> list[ContextMessage]:
         """压缩 Context:超 max_tokens 时截断非关键部分
 
         优先级(从低到高):
@@ -255,7 +256,7 @@ class ContextManager:
 
         # 简化版压缩:从后往前裁剪非核心消息
         # 实际 Stage 2 会用 LLM 重新摘要
-        compressed: List[ContextMessage] = []
+        compressed: list[ContextMessage] = []
         for msg in messages:
             content = msg.content
             if "[历史摘要]" in content and len(content) > 200:
@@ -279,7 +280,7 @@ class ContextManager:
 
         return compressed
 
-    def _calc_parts_tokens(self, messages: List[ContextMessage]) -> Dict[str, int]:
+    def _calc_parts_tokens(self, messages: list[ContextMessage]) -> dict[str, int]:
         """按段统计 token(system / summary / rag / state / artifacts / user)"""
         parts = {
             "system": 0,
@@ -324,10 +325,10 @@ class ContextManager:
 def naive_assemble(
     system_prompt: str,
     user_message: str,
-    artifacts: Optional[Dict[str, Any]] = None,
-    history: Optional[List[Dict[str, Any]]] = None,
-    rag_results: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    artifacts: dict[str, Any] | None = None,
+    history: list[dict[str, Any]] | None = None,
+    rag_results: list[str] | None = None,
+) -> dict[str, Any]:
     """Naive 对照组:全塞 prompt,不摘要不截断
 
     Returns: ~16000 tokens(per doc §5.1 对比)

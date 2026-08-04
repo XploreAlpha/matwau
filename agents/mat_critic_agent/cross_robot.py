@@ -20,13 +20,9 @@ W30 设计:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .critic_engine import (
-    FAIL_DATA_CONSISTENCY_LOW,
-    FAIL_DSC_CLASS_MISMATCH,
-    FAIL_EDS_EXTRA_ELEMENTS,
-    FAIL_XRD_PHASE_MISMATCH,
     RULE_R1_XRD_PHASE,
     RULE_R2_EDS_ELEMENTS,
     RULE_R3_DSC_CLASS,
@@ -38,7 +34,6 @@ from .cross_robot_phase_library import (
     match_phase_name,
     parse_formula_elements,
 )
-
 
 # ============================================================================
 # Dataclasses
@@ -56,19 +51,19 @@ class RobotEvidence:
     robot_type: str                       # synth / xrd / em / dsc
     success: bool = False
     formula: str = ""                     # 从 procedure / matched_phase / elements 提取
-    elements: List[str] = field(default_factory=list)
+    elements: list[str] = field(default_factory=list)
 
     # XRD 专属
-    xrd_peaks: List[Dict[str, float]] = field(default_factory=list)
+    xrd_peaks: list[dict[str, float]] = field(default_factory=list)
     xrd_matched_phase: str = ""
 
     # EM 专属
-    em_eds_elements: List[Dict[str, Any]] = field(default_factory=list)
+    em_eds_elements: list[dict[str, Any]] = field(default_factory=list)
 
     # DSC 专属
-    dsc_Tg: Optional[float] = None        # 玻璃化温度
-    dsc_Tm: Optional[float] = None        # 熔点
-    dsc_Tc: Optional[float] = None        # 结晶温度
+    dsc_Tg: float | None = None        # 玻璃化温度
+    dsc_Tm: float | None = None        # 熔点
+    dsc_Tc: float | None = None        # 结晶温度
 
     # Synth 专属
     synth_product_formula: str = ""
@@ -76,7 +71,7 @@ class RobotEvidence:
     synth_cost_cny: float = 0.0
 
     # 原始 artifacts(debug 用)
-    raw_artifacts: Dict[str, Any] = field(default_factory=dict)
+    raw_artifacts: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -85,10 +80,10 @@ class CrossRobotResult:
 
     score: float = 0.0                    # 0-1,越高越一致
     consistent: bool = True
-    issues: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
-    rules_passed: List[str] = field(default_factory=list)
-    rules_failed: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
+    rules_passed: list[str] = field(default_factory=list)
+    rules_failed: list[str] = field(default_factory=list)
 
 
 # ============================================================================
@@ -96,7 +91,7 @@ class CrossRobotResult:
 # ============================================================================
 
 
-def _extract_xrd_peaks(item: Any) -> Tuple[List[Dict[str, float]], str]:
+def _extract_xrd_peaks(item: Any) -> tuple[list[dict[str, float]], str]:
     """从 XrdResult / dict 抽 peaks + matched_phase
 
     Args:
@@ -105,7 +100,7 @@ def _extract_xrd_peaks(item: Any) -> Tuple[List[Dict[str, float]], str]:
     Returns:
         (peaks: List[{two_theta, d_spacing_angstrom, intensity}], matched_phase: str)
     """
-    peaks: List[Dict[str, float]] = []
+    peaks: list[dict[str, float]] = []
     matched_phase = ""
 
     # dict 形式
@@ -123,7 +118,7 @@ def _extract_xrd_peaks(item: Any) -> Tuple[List[Dict[str, float]], str]:
     return peaks, matched_phase
 
 
-def _extract_em_eds(item: Any) -> List[Dict[str, Any]]:
+def _extract_em_eds(item: Any) -> list[dict[str, Any]]:
     """从 EmResult / dict 抽 EDS 元素列表
 
     Returns:
@@ -136,7 +131,7 @@ def _extract_em_eds(item: Any) -> List[Dict[str, Any]]:
     return []
 
 
-def _extract_dsc_tm(item: Any) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def _extract_dsc_tm(item: Any) -> tuple[float | None, float | None, float | None]:
     """从 DscResult / dict 抽 Tg / Tm / Tc
 
     Returns:
@@ -168,7 +163,7 @@ def _extract_dsc_tm(item: Any) -> Tuple[Optional[float], Optional[float], Option
     return _to_float(tg), _to_float(tm), _to_float(tc)
 
 
-def _extract_synth_product(item: Any) -> Tuple[str, float, float]:
+def _extract_synth_product(item: Any) -> tuple[str, float, float]:
     """从 SynthResult / dict 抽 product_formula + yield_grams + cost_cny
 
     Returns:
@@ -198,7 +193,7 @@ def _extract_synth_product(item: Any) -> Tuple[str, float, float]:
 # ============================================================================
 
 
-def build_robot_evidence_list(robot_results: List[Any]) -> List[RobotEvidence]:
+def build_robot_evidence_list(robot_results: list[Any]) -> list[RobotEvidence]:
     """从 ChemistReport.robot_results 抽 4 robot 的 RobotEvidence
 
     Args:
@@ -208,7 +203,7 @@ def build_robot_evidence_list(robot_results: List[Any]) -> List[RobotEvidence]:
     Returns:
         List[RobotEvidence](通常 0-4 项,空表示没跑任何 robot)
     """
-    evidence_list: List[RobotEvidence] = []
+    evidence_list: list[RobotEvidence] = []
 
     for rr in robot_results:
         # 兼容 dataclass(RobotStepResult)和 dict 两种形式
@@ -293,7 +288,7 @@ def build_robot_evidence_list(robot_results: List[Any]) -> List[RobotEvidence]:
 # ============================================================================
 
 
-def rule_xrd_phase_in_synth_product(xrd_phase: str, synth_formula: str) -> Tuple[bool, str]:
+def rule_xrd_phase_in_synth_product(xrd_phase: str, synth_formula: str) -> tuple[bool, str]:
     """R1: XRD matched_phase 应在 synth product_formula 的元素空间里
 
     匹配规则(W30 改进):
@@ -359,7 +354,7 @@ def rule_xrd_phase_in_synth_product(xrd_phase: str, synth_formula: str) -> Tuple
     return False, f"XRD found {extra} not in synth product {synth_formula!r}"
 
 
-def rule_eds_elements_subset_of_synth(eds_elements: List[Dict[str, Any]], synth_formula: str) -> Tuple[bool, str]:
+def rule_eds_elements_subset_of_synth(eds_elements: list[dict[str, Any]], synth_formula: str) -> tuple[bool, str]:
     """R2: EDS 元素应 ⊆ synth 化学式
 
     Args:
@@ -387,10 +382,10 @@ def rule_eds_elements_subset_of_synth(eds_elements: List[Dict[str, Any]], synth_
 
 
 def rule_dsc_class_matches_synth(
-    tg: Optional[float],
-    tm: Optional[float],
+    tg: float | None,
+    tm: float | None,
     synth_formula: str,
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """R3: DSC Tg/Tm 类应与 synth 化学式类别一致
 
     分类规则(简化):
@@ -447,7 +442,7 @@ def rule_dsc_class_matches_synth(
 
 
 # 元素分类 helper(简化版,覆盖 MatWAU 4 域常见材料)
-def _is_polymer(elements: Set[str]) -> bool:
+def _is_polymer(elements: set[str]) -> bool:
     """简单 polymer 分类:仅有 C/H/O(可能含 N)→ polymer"""
     non_polymer = {"Si", "Al", "Ti", "Fe", "Ni", "Cr", "Mo", "Nb", "Cu", "Zn", "Na", "Cl",
                    "Li", "La", "Zr", "Co", "Mn", "Mg", "Ca", "K", "V"}
@@ -456,14 +451,14 @@ def _is_polymer(elements: Set[str]) -> bool:
     return has_organic and not has_metal_like
 
 
-def _is_metal(elements: Set[str]) -> bool:
+def _is_metal(elements: set[str]) -> bool:
     """简单 metal 分类:含典型金属元素且不是 polymer"""
     metals = {"Fe", "Ni", "Cr", "Ti", "Al", "Cu", "Zn", "Mn", "Mg", "Ca", "V", "Mo", "Nb",
               "Co", "W", "Ta", "Au", "Ag", "Pt", "Pd"}
     return bool(elements & metals) and not _is_polymer(elements)
 
 
-def _is_ceramic(elements: Set[str]) -> bool:
+def _is_ceramic(elements: set[str]) -> bool:
     """简单 ceramic 分类:含 O 但无 H、无 C,且无金属合金"""
     if "O" not in elements:
         return False
@@ -476,7 +471,7 @@ def _is_ceramic(elements: Set[str]) -> bool:
     return True
 
 
-def rule_synth_cost_per_gram(yield_grams: float, cost_cny: float) -> Tuple[bool, str]:
+def rule_synth_cost_per_gram(yield_grams: float, cost_cny: float) -> tuple[bool, str]:
     """R4: synth cost-per-gram 应在合理范围
 
     范围(per MatWAU 4 域):
@@ -505,7 +500,7 @@ def rule_synth_cost_per_gram(yield_grams: float, cost_cny: float) -> Tuple[bool,
     return True, ""
 
 
-def rule_xrd_peak_count_for_crystallinity(peaks: List[Dict[str, float]], synth_formula: str) -> Tuple[bool, str]:
+def rule_xrd_peak_count_for_crystallinity(peaks: list[dict[str, float]], synth_formula: str) -> tuple[bool, str]:
     """R5: XRD peak count 应与结晶性匹配
 
     规则:
@@ -546,7 +541,7 @@ def rule_xrd_peak_count_for_crystallinity(peaks: List[Dict[str, float]], synth_f
 # ============================================================================
 
 
-def evaluate_cross_robot(robot_evidence_list: List[RobotEvidence]) -> CrossRobotResult:
+def evaluate_cross_robot(robot_evidence_list: list[RobotEvidence]) -> CrossRobotResult:
     """跑 5 条规则,出 CrossRobotResult
 
     Args:
@@ -555,10 +550,10 @@ def evaluate_cross_robot(robot_evidence_list: List[RobotEvidence]) -> CrossRobot
     Returns:
         CrossRobotResult
     """
-    issues: List[str] = []
-    suggestions: List[str] = []
-    rules_passed: List[str] = []
-    rules_failed: List[str] = []
+    issues: list[str] = []
+    suggestions: list[str] = []
+    rules_passed: list[str] = []
+    rules_failed: list[str] = []
 
     # 找 synth 和 xrd(em/dsc 可选)
     synth_ev = next((e for e in robot_evidence_list if e.robot_type == "synth" and e.success), None)
@@ -661,7 +656,7 @@ def evaluate_cross_robot(robot_evidence_list: List[RobotEvidence]) -> CrossRobot
 
 # 避免循环 import:SafetyGuard 在 matwau/harness/safety_guard.py
 try:
-    from matwau.harness.safety_guard import SafetyGuard, AgentResponse
+    from matwau.harness.safety_guard import AgentResponse, SafetyGuard
 except ImportError:
     # 兼容:测试环境下可能 matwau 不在 path
     try:
@@ -670,7 +665,7 @@ except ImportError:
         _PROJECT_ROOT = Path(__file__).resolve().parents[2]
         if str(_PROJECT_ROOT) not in sys.path:
             sys.path.insert(0, str(_PROJECT_ROOT))
-        from matwau.harness.safety_guard import SafetyGuard, AgentResponse
+        from matwau.harness.safety_guard import AgentResponse, SafetyGuard
     except ImportError:
         # stub — 测试时单独 mock
         SafetyGuard = object  # type: ignore
@@ -719,14 +714,14 @@ class CrossRobotConsistencyGuard(SafetyGuard):
 
 
 __all__ = [
-    "RobotEvidence",
+    "CrossRobotConsistencyGuard",
     "CrossRobotResult",
+    "RobotEvidence",
     "build_robot_evidence_list",
     "evaluate_cross_robot",
-    "rule_xrd_phase_in_synth_product",
-    "rule_eds_elements_subset_of_synth",
     "rule_dsc_class_matches_synth",
+    "rule_eds_elements_subset_of_synth",
     "rule_synth_cost_per_gram",
     "rule_xrd_peak_count_for_crystallinity",
-    "CrossRobotConsistencyGuard",
+    "rule_xrd_phase_in_synth_product",
 ]

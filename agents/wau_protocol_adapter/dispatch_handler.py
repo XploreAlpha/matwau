@@ -37,7 +37,6 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ except ImportError:
 # ============================================================================
 
 
-def _load_jwt_secret(secrets_file: Optional[str] = None) -> Optional[str]:
+def _load_jwt_secret(secrets_file: str | None = None) -> str | None:
     """从 env / secrets file 读 WAU_JWT_SHARED_SECRET"""
     env_val = os.environ.get("WAU_JWT_SHARED_SECRET", "").strip()
     if env_val:
@@ -74,7 +73,7 @@ def _load_jwt_secret(secrets_file: Optional[str] = None) -> Optional[str]:
     return None
 
 
-def _verify_jwt(token: str, secret: str, expected_tenant: Optional[str] = None) -> tuple[bool, str, dict]:
+def _verify_jwt(token: str, secret: str, expected_tenant: str | None = None) -> tuple[bool, str, dict]:
     """验证 JWT HS256
 
     Args:
@@ -110,8 +109,8 @@ def _verify_jwt(token: str, secret: str, expected_tenant: Optional[str] = None) 
 
 def make_dispatch_handler(
     *,
-    jwt_secret: Optional[str] = None,
-    expected_tenant: Optional[str] = None,
+    jwt_secret: str | None = None,
+    expected_tenant: str | None = None,
     base_handler_class: type = BaseHTTPRequestHandler,
 ):
     """工厂函数:返回一个 BaseHTTPRequestHandler 子类,带 /wau/dispatch 端点
@@ -246,7 +245,7 @@ def make_dispatch_handler(
 
 
 __all__ = [
-    "make_dispatch_handler",
-    "_verify_jwt",
     "_load_jwt_secret",
+    "_verify_jwt",
+    "make_dispatch_handler",
 ]

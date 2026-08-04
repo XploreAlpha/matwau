@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import logging
 
-from .client import (  # noqa: F401
+from .client import (
     ENV_NOMAD_API_BASE,
     ENV_NOMAD_TOKEN,
     NOMAD_API_URL_DEFAULT,
@@ -41,7 +41,7 @@ from .client import (  # noqa: F401
     is_nomad_available,
     search_nomad,
 )
-from .metainfo_mapping import (  # noqa: F401
+from .metainfo_mapping import (
     KNOWN_PROPERTY_GROUPS,
     KNOWN_SECTIONS,
     MAPPED_METAINFO_PATHS,
@@ -51,18 +51,18 @@ from .metainfo_mapping import (  # noqa: F401
 )
 
 __all__ = [
-    "NOMAD_API_URL_DEFAULT",
-    "NOMAD_TIMEOUT_SEC",
     "ENV_NOMAD_API_BASE",
     "ENV_NOMAD_TOKEN",
+    "KNOWN_PROPERTY_GROUPS",
+    "KNOWN_SECTIONS",
+    "MAPPED_METAINFO_PATHS",
+    "NOMAD_API_URL_DEFAULT",
+    "NOMAD_TIMEOUT_SEC",
+    "UNMAPPED_PATTERNS",
     "NomadClient",
     "NomadReference",
-    "is_nomad_available",
-    "search_nomad",
-    "KNOWN_SECTIONS",
-    "KNOWN_PROPERTY_GROUPS",
-    "MAPPED_METAINFO_PATHS",
-    "UNMAPPED_PATTERNS",
     "count_mapped_metainfo_paths",
     "extract_nomad_record",
+    "is_nomad_available",
+    "search_nomad",
 ]

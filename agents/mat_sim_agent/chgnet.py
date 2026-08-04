@@ -19,8 +19,6 @@ from __future__ import annotations
 import random
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
-
 
 # ============================================================================
 # 数据类
@@ -46,8 +44,8 @@ class SimConstraints:
 
     formula: str = ""
     n_candidates: int = 1
-    target_property: Optional[str] = None  # "energy_low" / "stable" / "band_gap"
-    forbidden_elements: List[str] = field(default_factory=list)
+    target_property: str | None = None  # "energy_low" / "stable" / "band_gap"
+    forbidden_elements: list[str] = field(default_factory=list)
 
 
 # ============================================================================
@@ -78,7 +76,7 @@ ELEMENT_BASELINE_EV = {
 # ============================================================================
 
 
-def _extract_elements(formula: str) -> List[str]:
+def _extract_elements(formula: str) -> list[str]:
     """从化学式提取元素列表(去重,保序)
 
     例:'LiFePO4' → ['Li', 'Fe', 'P', 'O']
@@ -215,9 +213,9 @@ def relax(
 
 
 def relax_batch(
-    candidates: List,
+    candidates: list,
     seed_base: int = 0,
-) -> List[SimResult]:
+) -> list[SimResult]:
     """批量弛豫
 
     Args:
@@ -282,7 +280,7 @@ def parse_constraints(user_message: str) -> SimConstraints:
     )
 
 
-def stats(results: List[SimResult]) -> Dict[str, int]:
+def stats(results: list[SimResult]) -> dict[str, int]:
     """统计弛豫结果"""
     stats_dict = {
         "total": len(results),
@@ -295,11 +293,11 @@ def stats(results: List[SimResult]) -> Dict[str, int]:
 
 
 __all__ = [
-    "SimResult",
+    "ELEMENT_BASELINE_EV",
     "SimConstraints",
+    "SimResult",
+    "parse_constraints",
     "relax",
     "relax_batch",
-    "parse_constraints",
     "stats",
-    "ELEMENT_BASELINE_EV",
 ]

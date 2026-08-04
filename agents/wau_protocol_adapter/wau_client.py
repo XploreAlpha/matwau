@@ -33,7 +33,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Self
 
 import requests
 
@@ -77,7 +77,7 @@ class WauConfig:
     host: str = "localhost"
 
     @classmethod
-    def from_env(cls, secrets_file: Optional[str] = None) -> "WauConfig":
+    def from_env(cls, secrets_file: str | None = None) -> WauConfig:
         """从 env + secrets file 构造 config
 
         优先级:显式 arg > env var > secrets file > default
@@ -147,12 +147,12 @@ class WauClient:
 
     def __init__(
         self,
-        config: Optional[WauConfig] = None,
+        config: WauConfig | None = None,
         *,
-        registry_url: Optional[str] = None,
-        jwt_secret: Optional[str] = None,
-        tenant_id: Optional[str] = None,
-        instance_id: Optional[str] = None,
+        registry_url: str | None = None,
+        jwt_secret: str | None = None,
+        tenant_id: str | None = None,
+        instance_id: str | None = None,
         agent_name: str = "matwau",
     ) -> None:
         """构造
@@ -181,7 +181,7 @@ class WauClient:
             config.agent_name = agent_name
 
         self.config = config
-        self._heartbeat_thread: Optional[threading.Thread] = None
+        self._heartbeat_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._register_lock = threading.Lock()
         self._registered = False
@@ -378,7 +378,7 @@ class WauClient:
     # ----------------------------------------------------------------
     # 上下文管理器支持
     # ----------------------------------------------------------------
-    def __enter__(self) -> "WauClient":
+    def __enter__(self) -> Self:
         self.start_heartbeat()
         return self
 
@@ -387,8 +387,8 @@ class WauClient:
 
 
 __all__ = [
-    "WauClient",
-    "WauConfig",
     "DEFAULT_REGISTRY_URL",
     "DEFAULT_TENANT_ID",
+    "WauClient",
+    "WauConfig",
 ]

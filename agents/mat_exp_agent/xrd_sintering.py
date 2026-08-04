@@ -23,8 +23,7 @@ import math
 import random
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
-
+from typing import Any
 
 # ============================================================================
 # 数据类
@@ -47,10 +46,10 @@ class XRDPattern:
     formula: str
     wavelength_angstrom: float  # Å,Cu Kα = 1.5406
     lattice_a: float  # Å,立方晶格常数
-    peaks: List[XRDPeak] = field(default_factory=list)
+    peaks: list[XRDPeak] = field(default_factory=list)
 
     @property
-    def top_3_2theta(self) -> List[float]:
+    def top_3_2theta(self) -> list[float]:
         """主峰 top-3 的 2θ"""
         return [p.two_theta for p in self.peaks[:3]]
 
@@ -149,7 +148,7 @@ DEFAULT_SINTERING = SinteringRecipe(
 # ============================================================================
 
 
-def _extract_elements(formula: str) -> List[str]:
+def _extract_elements(formula: str) -> list[str]:
     """从化学式提取元素列表"""
     tokens = re.findall(r"([A-Z][a-z]?)", formula)
     seen = set()
@@ -221,7 +220,7 @@ def compute_bragg_2theta(
     k: int,
     l: int,
     wavelength: float = 1.5406,
-) -> Optional[float]:
+) -> float | None:
     """Bragg 方程:2θ = 2 * arcsin(λ / 2d)
 
     d = a / sqrt(h² + k² + l²)(立方晶系)
@@ -306,7 +305,7 @@ def generate_xrd_pattern(formula: str, cif: str = "") -> XRDPattern:
     n_atoms = _count_atoms(formula)
     wavelength = 1.5406  # Cu Kα
 
-    peaks: List[XRDPeak] = []
+    peaks: list[XRDPeak] = []
     rng = random.Random(hash(formula))
 
     for (h, k, l) in COMMON_HKL:
@@ -385,9 +384,9 @@ def recommend_sintering(formula: str) -> SinteringRecipe:
 
 
 def generate_exp_recipes(
-    candidates: List,
+    candidates: list,
     seed_base: int = 0,
-) -> List[ExpRecipe]:
+) -> list[ExpRecipe]:
     """批量生成实验方案
 
     Args:
@@ -423,7 +422,7 @@ def generate_exp_recipes(
     return recipes
 
 
-def parse_constraints(user_message: str) -> Dict[str, Any]:
+def parse_constraints(user_message: str) -> dict[str, Any]:
     """从用户消息解析约束(Stage 1 规则解析)
 
     Stage 2 升级:走 wau-python-sdk 调 LLM
@@ -448,14 +447,14 @@ def parse_constraints(user_message: str) -> Dict[str, Any]:
 
 
 __all__ = [
-    "XRDPeak",
-    "XRDPattern",
-    "SinteringRecipe",
-    "ExpRecipe",
-    "generate_xrd_pattern",
-    "recommend_sintering",
-    "generate_exp_recipes",
-    "parse_constraints",
     "ELEMENT_LATTICE_A",
     "SINTERING_TABLE",
+    "ExpRecipe",
+    "SinteringRecipe",
+    "XRDPattern",
+    "XRDPeak",
+    "generate_exp_recipes",
+    "generate_xrd_pattern",
+    "parse_constraints",
+    "recommend_sintering",
 ]

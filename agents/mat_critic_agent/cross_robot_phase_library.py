@@ -13,14 +13,12 @@ W30 设计原则:
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional, Set
-
 
 # ============================================================================
 # 17 个常见样品 → 元素组成
 # ============================================================================
 
-PHASE_ELEMENT_MAP: Dict[str, Set[str]] = {
+PHASE_ELEMENT_MAP: dict[str, set[str]] = {
     # 金属合金
     "Inconel 718": {"Ni", "Cr", "Fe", "Nb", "Mo", "Ti", "Al"},
     "Inconel": {"Ni", "Cr", "Fe"},                # 模糊兜底
@@ -54,7 +52,7 @@ PHASE_ELEMENT_MAP: Dict[str, Set[str]] = {
 _ELEMENT_PATTERN = re.compile(r"([A-Z][a-z]?)(\d*)")
 
 
-def parse_formula_elements(formula: str) -> Set[str]:
+def parse_formula_elements(formula: str) -> set[str]:
     """从化学式抽元素集合
 
     Args:
@@ -93,7 +91,7 @@ def parse_formula_elements(formula: str) -> Set[str]:
     return elements
 
 
-def match_phase_name(xrd_phase: str) -> Optional[str]:
+def match_phase_name(xrd_phase: str) -> str | None:
     """XRD matched_phase → PHASE_ELEMENT_MAP key 的模糊匹配
 
     匹配优先级:
@@ -132,14 +130,14 @@ def match_phase_name(xrd_phase: str) -> Optional[str]:
     return None
 
 
-def list_known_phases() -> List[str]:
+def list_known_phases() -> list[str]:
     """列出所有已知 phase(给测试/debug 用)"""
     return sorted(PHASE_ELEMENT_MAP.keys())
 
 
 __all__ = [
     "PHASE_ELEMENT_MAP",
-    "parse_formula_elements",
-    "match_phase_name",
     "list_known_phases",
+    "match_phase_name",
+    "parse_formula_elements",
 ]

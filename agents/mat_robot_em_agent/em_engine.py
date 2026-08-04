@@ -25,11 +25,10 @@ import logging
 import random
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
-from matwau.core.agent_base import AgentResponse
+from typing import Any
 
 from agents.mat_robot_synth_agent.synth_engine import SafetyGuard
+from matwau.core.agent_base import AgentResponse
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +90,7 @@ class EMStep:
     beam_voltage_kv: float = 15.0               # 电子束电压
     beam_current_na: float = 1.0                # 电子束电流(nA)
     imaging_mode: str = "SEM"                   # SEM / TEM / STEM / EDS
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
 
     def is_high_voltage(self) -> bool:
         return self.beam_voltage_kv > HAZARD_EM_HIGH_VOLTAGE_KV
@@ -102,8 +101,8 @@ class EMProcedure:
     """1 个电镜测试方案"""
 
     sample_formula: str = ""                     # 样品化学式
-    target_imaging_modes: List[str] = field(default_factory=list)  # ['SEM', 'EDS']
-    steps: List[EMStep] = field(default_factory=list)
+    target_imaging_modes: list[str] = field(default_factory=list)  # ['SEM', 'EDS']
+    steps: list[EMStep] = field(default_factory=list)
     door_open: bool = HAZARD_EM_DOOR_OPEN       # 默认违规
     vacuum_ok: bool = HAZARD_EM_VACUUM_OK        # 默认 OK
     sample_conductive_coated: bool = HAZARD_EM_NO_CONDUCTIVE_COATING  # 默认没喷金
@@ -127,19 +126,19 @@ class EMResult:
     """1 次电镜测试结果"""
 
     run_id: str = ""
-    procedure: Optional[EMProcedure] = None
+    procedure: EMProcedure | None = None
     success: bool = True
-    images: List[Dict[str, Any]] = field(default_factory=list)        # [{"path": "...", "mag": 1000, "mode": "SEM"}]
-    elements_detected: List[Dict[str, Any]] = field(default_factory=list)  # EDS 输出 [{"element": "Fe", "wt_pct": 65.2}]
-    diffraction_peaks: List[Dict[str, float]] = field(default_factory=list)  # SAED 输出(TEM 模式)
-    grain_size_um: Optional[float] = None
-    warnings: List[str] = field(default_factory=list)
-    blocked_steps: List[str] = field(default_factory=list)
-    log: List[str] = field(default_factory=list)
+    images: list[dict[str, Any]] = field(default_factory=list)        # [{"path": "...", "mag": 1000, "mode": "SEM"}]
+    elements_detected: list[dict[str, Any]] = field(default_factory=list)  # EDS 输出 [{"element": "Fe", "wt_pct": 65.2}]
+    diffraction_peaks: list[dict[str, float]] = field(default_factory=list)  # SAED 输出(TEM 模式)
+    grain_size_um: float | None = None
+    warnings: list[str] = field(default_factory=list)
+    blocked_steps: list[str] = field(default_factory=list)
+    log: list[str] = field(default_factory=list)
     cost: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "run_id": self.run_id,
             "sample_formula": self.procedure.sample_formula if self.procedure else "",
@@ -169,10 +168,10 @@ class ZeissMockSDK:
     def __init__(self, *, lab_id: str = "matwau-em-01", fail_chance: float = 0.05) -> None:
         self.lab_id = lab_id
         self.fail_chance = fail_chance
-        self.commands_executed: List[str] = []
+        self.commands_executed: list[str] = []
         self.connected = True
 
-    def execute(self, step: EMStep) -> Dict[str, Any]:
+    def execute(self, step: EMStep) -> dict[str, Any]:
         """执行 1 个 EMStep(真接 = Zeiss SmartSEM remote API)"""
         self.commands_executed.append(step.name)
         if not self.connected:
@@ -297,7 +296,7 @@ class EMSafetyGuard(SafetyGuard):
             return False
         return True
 
-    def check_em(self, procedure: EMProcedure) -> List[str]:
+    def check_em(self, procedure: EMProcedure) -> list[str]:
         """电镜流程专用安全检查(扩展父类 + 6 类 EM 特有)"""
         warnings = []
 

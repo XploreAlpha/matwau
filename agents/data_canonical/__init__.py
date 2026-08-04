@@ -12,13 +12,13 @@
 
 per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M1 第 9 项 + M3 第 4 项
 """
-from .canonical_key import (  # noqa: F401
+from .canonical_key import (
     CanonicalKey,
     normalize_formula,
     parse_pearson_symbol,
     spacegroup_to_number,
 )
-from .cross_source_resolver import (  # noqa: F401
+from .cross_source_resolver import (
     ConsensusCluster,
     ConsensusReport,
     ConsistencyConflict,
@@ -27,12 +27,12 @@ from .cross_source_resolver import (  # noqa: F401
 
 __all__ = [
     "CanonicalKey",
-    "normalize_formula",
-    "parse_pearson_symbol",
-    "spacegroup_to_number",
     # M3
     "ConsensusCluster",
     "ConsensusReport",
     "ConsistencyConflict",
+    "normalize_formula",
+    "parse_pearson_symbol",
     "resolve_cross_source",
+    "spacegroup_to_number",
 ]

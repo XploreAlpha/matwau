@@ -18,9 +18,8 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from dataclasses import asdict, is_dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from .lineage_engine import (
     LineageRecord,
@@ -37,7 +36,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 
-def _to_dict(obj: Any) -> Dict[str, Any]:
+def _to_dict(obj: Any) -> dict[str, Any]:
     """安全把 dataclass / dict / 对象转 dict
 
     - dataclass → asdict (recursively)
@@ -59,7 +58,7 @@ def _to_dict(obj: Any) -> Dict[str, Any]:
     return {"_repr": str(obj)[:200]}
 
 
-def _summarize_critic_verdict(verdict: Any) -> Dict[str, Any]:
+def _summarize_critic_verdict(verdict: Any) -> dict[str, Any]:
     """CriticVerdict → lineage summary(verdict / scores / rules)
 
     CriticVerdict / CriticOutput 字段抽取(安全 try-import):
@@ -69,7 +68,7 @@ def _summarize_critic_verdict(verdict: Any) -> Dict[str, Any]:
     - failures[]: list of {code, severity, ...}
     - top_suggestions[]: list of str
     """
-    summary: Dict[str, Any] = {"_type": "critic_verdict"}
+    summary: dict[str, Any] = {"_type": "critic_verdict"}
 
     if verdict is None:
         return summary
@@ -117,9 +116,9 @@ def _summarize_critic_verdict(verdict: Any) -> Dict[str, Any]:
     return summary
 
 
-def _summarize_chemist_report(report: Any) -> Dict[str, Any]:
+def _summarize_chemist_report(report: Any) -> dict[str, Any]:
     """ChemistReport → lineage summary(success / cost / robot steps)"""
-    summary: Dict[str, Any] = {"_type": "chemist_report"}
+    summary: dict[str, Any] = {"_type": "chemist_report"}
 
     if report is None:
         return summary
@@ -146,7 +145,7 @@ def _summarize_chemist_report(report: Any) -> Dict[str, Any]:
     if hasattr(report, "overall_success"):
         summary["overall_success"] = bool(report.overall_success)
     if hasattr(report, "summary"):
-        s = getattr(report, "summary")
+        s = report.summary
         if isinstance(s, str) and s:
             summary["summary_excerpt"] = s[:100]
 
@@ -193,7 +192,7 @@ class LineageRecorder:
         )
     """
 
-    def __init__(self, store: Optional[LineageStore] = None) -> None:
+    def __init__(self, store: LineageStore | None = None) -> None:
         self.store = store  # None → 懒加载 get_global_store()
 
     def _get_store(self) -> LineageStore:
@@ -209,13 +208,13 @@ class LineageRecorder:
         run_id: str,
         agent_name: str,
         *,
-        input_artifacts: Optional[Dict[str, Any]] = None,
-        output_artifacts: Optional[Dict[str, Any]] = None,
-        parent_run_id: Optional[str] = None,
+        input_artifacts: dict[str, Any] | None = None,
+        output_artifacts: dict[str, Any] | None = None,
+        parent_run_id: str | None = None,
         duration_seconds: float = 0.0,
         cost: float = 0.0,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Optional[LineageRecord]:
+        metadata: dict[str, Any] | None = None,
+    ) -> LineageRecord | None:
         """打 1 条 lineage 记录(失败吞掉,返回 None)
 
         Returns:
@@ -249,8 +248,8 @@ class LineageRecorder:
         cost: float = 0.0,
         duration_seconds: float = 0.0,
         user_intent: str = "",
-        parent_run_id: Optional[str] = None,
-    ) -> Optional[LineageRecord]:
+        parent_run_id: str | None = None,
+    ) -> LineageRecord | None:
         """W32 — 记录 critic 跑 1 次的结果
 
         run_id: f"{experiment_id}-critic"
@@ -259,7 +258,7 @@ class LineageRecorder:
         output_artifacts: critic verdict summary
         """
         summary = _summarize_critic_verdict(critic_verdict)
-        verdict_str = summary.get("verdict", "unknown")
+        summary.get("verdict", "unknown")
 
         metadata = {
             "target_sample": target_sample,
@@ -290,7 +289,7 @@ class LineageRecorder:
         *,
         cost: float = 0.0,
         duration_seconds: float = 0.0,
-    ) -> Optional[LineageRecord]:
+    ) -> LineageRecord | None:
         """W32 — 记录 chemist 跑 1 个 task 的结果"""
         summary = _summarize_chemist_report(report)
 
@@ -320,8 +319,8 @@ class LineageRecorder:
         subclass: str,
         result: Any,
         *,
-        parent_run_id: Optional[str] = None,
-    ) -> Optional[LineageRecord]:
+        parent_run_id: str | None = None,
+    ) -> LineageRecord | None:
         """W32 — 记录 orchestrator run() 完整 workflow 结果"""
         success = bool(getattr(result, "success", False))
         duration = float(getattr(result, "total_duration_seconds", 0.0))
@@ -372,8 +371,8 @@ class LineageRecorder:
         self,
         experiment_result: Any,
         *,
-        parent_run_id: Optional[str] = None,
-    ) -> Optional[LineageRecord]:
+        parent_run_id: str | None = None,
+    ) -> LineageRecord | None:
         """W32 — 记录 run_batch() 中 1 个 experiment 的结果(chemist + critic 双结果)
 
         run_id: experiment_result.experiment_id
@@ -421,7 +420,7 @@ class LineageRecorder:
     def record_batch_workflow_result(
         self,
         batch_result: Any,
-    ) -> Optional[LineageRecord]:
+    ) -> LineageRecord | None:
         """W32 — 记录 run_batch() 的 BatchWorkflowResult 总览"""
         n_total = int(getattr(batch_result, "n_total", 0))
         n_passed = int(getattr(batch_result, "n_passed", 0))
@@ -481,7 +480,7 @@ class LineageRecorder:
 # ============================================================================
 
 
-_global_recorder: Optional[LineageRecorder] = None
+_global_recorder: LineageRecorder | None = None
 _recorder_lock = threading.Lock()
 
 
@@ -495,7 +494,7 @@ def get_global_recorder() -> LineageRecorder:
     return _global_recorder
 
 
-def get_recorder(store: Optional[LineageStore] = None) -> LineageRecorder:
+def get_recorder(store: LineageStore | None = None) -> LineageRecorder:
     """工厂函数 — 给定 store 造 1 个 LineageRecorder(测试用显式注入)
 
     store=None → 全局单例

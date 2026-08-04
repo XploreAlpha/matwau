@@ -23,8 +23,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
-
+from typing import Any
 
 # ============================================================================
 # 常量
@@ -51,12 +50,12 @@ _SPACEGROUP_NUMBER_MAP = {
     "Im-3m": 229, "Im3m": 229,
     "Ia-3d": 230, "Ia3d": 230,
     "R-3m": 166, "R3m": 166, "R3c": 161, "R-3c": 161,
-    "P63/mmc": 194, "P6_3/mmc": 194, "P4/mmm": 123, "P4/mmm": 123,
-    "P6/mmm": 191, "P6/mmm": 191, "P4_2/mnm": 136, "P4_2/mnm": 136,
+    "P63/mmc": 194, "P6_3/mmc": 194, "P4/mmm": 123,
+    "P6/mmm": 191, "P4_2/mnm": 136,
     "P63mc": 186, "P6_3mc": 186, "Pca21": 29,
     "Pnma": 62, "P n m a": 62,
     "Pbca": 61, "P b c a": 61,
-    "I4/mmm": 139, "I4/mmm": 139,
+    "I4/mmm": 139,
 }
 
 
@@ -281,7 +280,7 @@ class CanonicalKey:
     @classmethod
     def from_formula_spacegroup(
         cls, formula: str, spacegroup_symbol: str = "", *, pearson: str = ""
-    ) -> "CanonicalKey":
+    ) -> CanonicalKey:
         """从化学式 + 空间群符号构造
 
         Args:
@@ -300,7 +299,7 @@ class CanonicalKey:
         return cls(reduced_formula=rf, pearson_symbol=ps, spacegroup_number=sgn)
 
     @classmethod
-    def from_record(cls, record: Any) -> "CanonicalKey":
+    def from_record(cls, record: Any) -> CanonicalKey:
         """从任意 XxxRecord 构造 CanonicalKey
 
         字段命名约定(从 MatWAU v1.1 现有 client 抽象):
@@ -332,7 +331,7 @@ class CanonicalKey:
         pearson = getattr(record, "pearson_symbol", "")
         return cls.from_formula_spacegroup(formula, sg, pearson=pearson)
 
-    def matches(self, other: "CanonicalKey", *, strict: bool = False) -> bool:
+    def matches(self, other: CanonicalKey, *, strict: bool = False) -> bool:
         """判断两个 CanonicalKey 是否指向同一物相
 
         匹配策略:

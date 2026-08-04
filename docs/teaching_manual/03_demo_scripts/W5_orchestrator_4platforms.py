@@ -20,6 +20,7 @@
   workflow=5 nodes success, L5 score=0.85, lineage.db 4 条新记录
 """
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -42,9 +43,9 @@ def main():
     try:
         from agents.mat_intent_agent.intent_classifier import parse_mat_intent
         from agents.mat_orchestrator.dag import (
+            WORKFLOW_BY_SUBCLASS,
             cross_source_lookup_workflow,
             cross_source_property_workflow,
-            WORKFLOW_BY_SUBCLASS,
         )
     except ImportError as e:
         print(f"❌ ImportError: {e}")
@@ -90,7 +91,7 @@ def main():
     # 测试 5 — DAGExecutor outputs.X 解析能力
     print("\n=== 测试 5: DAGExecutor outputs.X 解析(M3 新能力)===")
     try:
-        from agents.mat_orchestrator.dag import DAGExecutor, DAGNode, DAG
+        from agents.mat_orchestrator.dag import DAG, DAGExecutor, DAGNode
         from matwau.core.agent_base import AgentRequest, AgentResponse
 
         class _StubAgent:
@@ -111,7 +112,7 @@ def main():
         })
         print(f"  execute success: {result.success}")
         print(f"  node count:      {len(result.node_results)}")
-        print(f"  验证:outputs.X 解析 + DAG 节点通讯工作")
+        print("  验证:outputs.X 解析 + DAG 节点通讯工作")
     except Exception as e:
         print(f"  异常: {e}")
 

@@ -21,6 +21,7 @@
   ...
 """
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -55,7 +56,7 @@ def _run_sim():
     resp = agent.run(req)
 
     print(f"🤖 reply: {resp.reply[:200]}...")
-    print(f"\n📊 候选排序(按 relaxed_energy):")
+    print("\n📊 候选排序(按 relaxed_energy):")
     if "candidates" in resp.artifacts:
         for i, c in enumerate(resp.artifacts["candidates"][:3], 1):
             print(f"  {i}. {c.formula:12s}  E = {c.relaxed_energy:6.2f} eV/atom  stability = {c.stability}")
@@ -64,7 +65,7 @@ def _run_sim():
 def _run_xrd():
     print("\n=== Step 2: mat-exp-agent 解 XRD 谱(实验老师)===\n")
     print("📐 布拉格定律: 2d sinθ = nλ")
-    print(f"   Cu Kα 波长 λ = 1.5406 Å")
+    print("   Cu Kα 波长 λ = 1.5406 Å")
     print()
 
     try:
@@ -91,7 +92,7 @@ def _run_xrd():
     resp = agent.run(req)
 
     print(f"🤖 reply: {resp.reply[:200]}...")
-    print(f"\n📊 3 个最强峰(布拉格定律反推 d-spacing):")
+    print("\n📊 3 个最强峰(布拉格定律反推 d-spacing):")
     import math
     lam = xrd_data["wavelength_A"]
     for peak in sorted(xrd_data["peaks"], key=lambda p: -p["intensity"])[:3]:
@@ -100,7 +101,7 @@ def _run_xrd():
         print(f"   2θ = {peak['two_theta']:5.1f}°  intensity = {peak['intensity']:5.1f}  "
               f"→ d = {d:.3f} Å  →  {peak['hkl']}")
 
-    print(f"\n💡 试着改 wavelength_A 从 1.5406(Cu Kα)→ 0.7107(Mo Kα),看峰位移。")
+    print("\n💡 试着改 wavelength_A 从 1.5406(Cu Kα)→ 0.7107(Mo Kα),看峰位移。")
 
 
 def main():

@@ -22,15 +22,15 @@ from .mat_pipeline import (
     create_default_pipeline,
 )
 from .pipeline_demos import (
-    PipelineDemo,
     DEMO_CASES,
+    PipelineDemo,
 )
 
 __all__ = [
+    "DEMO_CASES",
     "MatPipeline",
+    "PipelineDemo",
     "PipelineReport",
     "StageResult",
     "create_default_pipeline",
-    "PipelineDemo",
-    "DEMO_CASES",
 ]

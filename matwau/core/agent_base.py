@@ -23,8 +23,9 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +50,10 @@ class AgentRequest:
 
     run_id: str
     message: str
-    artifacts: Dict[str, Any] = field(default_factory=dict)
-    context: Dict[str, Any] = field(default_factory=dict)
-    budget: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    artifacts: dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
+    budget: float | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -69,11 +70,11 @@ class AgentResponse:
     """
 
     reply: str = ""
-    artifacts: Dict[str, Any] = field(default_factory=dict)
+    artifacts: dict[str, Any] = field(default_factory=dict)
     confidence: float = 0.0
     cost: float = 0.0
-    lineage_id: Optional[str] = None
-    error: Optional[str] = None
+    lineage_id: str | None = None
+    error: str | None = None
 
 
 # ============================================================================
@@ -94,10 +95,10 @@ class ContextManager(ABC):  # type: ignore[misc]
         self,
         system_prompt: str,
         user_message: str,
-        artifacts: Dict[str, Any],
-        history: List[Dict[str, Any]],
+        artifacts: dict[str, Any],
+        history: list[dict[str, Any]],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """拼装 LLM Context,返回 {messages: [...], estimated_tokens: int}"""
         ...
 
@@ -109,7 +110,7 @@ class ToolRegistry(ABC):  # type: ignore[misc]
     """
 
     @abstractmethod
-    def select_tools(self, ctx: Dict[str, Any]) -> List[str]:
+    def select_tools(self, ctx: dict[str, Any]) -> list[str]:
         """根据 ctx 选 1 组工具"""
         ...
 
@@ -125,7 +126,7 @@ class StateStore(ABC):  # type: ignore[misc]
         """写 1 步 lineage"""
 
     @abstractmethod
-    def load_history(self, run_id: str) -> List[Dict[str, Any]]:
+    def load_history(self, run_id: str) -> list[dict[str, Any]]:
         """读历史消息"""
 
 
@@ -186,14 +187,14 @@ class MatWAUAgentBase(ABC):
     name: str = ""  # agent 名(mat-lit / mat-gen / mat-sim / ...)
 
     # === Harness 部件(子类注入,W2 完整) ===
-    context_manager: Optional[ContextManager] = None
-    tool_registry: Optional[ToolRegistry] = None
-    state_store: Optional[StateStore] = None
-    safety_guard: Optional[SafetyGuard] = None
-    eval_harness: Optional[EvalHarness] = None
+    context_manager: ContextManager | None = None
+    tool_registry: ToolRegistry | None = None
+    state_store: StateStore | None = None
+    safety_guard: SafetyGuard | None = None
+    eval_harness: EvalHarness | None = None
 
     # === 可选:Outer Loop 钩子(per doc §6)===
-    failure_callback: Optional[Callable[[AgentRequest, AgentResponse], None]] = None
+    failure_callback: Callable[[AgentRequest, AgentResponse], None] | None = None
 
     # === Inner Loop 配置 ===
     max_iterations: int = 5  # 防止无限循环(可子类重写)
@@ -202,12 +203,12 @@ class MatWAUAgentBase(ABC):
     def __init__(
         self,
         *,
-        context_manager: Optional[ContextManager] = None,
-        tool_registry: Optional[ToolRegistry] = None,
-        state_store: Optional[StateStore] = None,
-        safety_guard: Optional[SafetyGuard] = None,
-        eval_harness: Optional[EvalHarness] = None,
-        failure_callback: Optional[Callable[[AgentRequest, AgentResponse], None]] = None,
+        context_manager: ContextManager | None = None,
+        tool_registry: ToolRegistry | None = None,
+        state_store: StateStore | None = None,
+        safety_guard: SafetyGuard | None = None,
+        eval_harness: EvalHarness | None = None,
+        failure_callback: Callable[[AgentRequest, AgentResponse], None] | None = None,
         max_iterations: int = 5,
         confidence_threshold: float = 0.85,
     ) -> None:
@@ -228,7 +229,7 @@ class MatWAUAgentBase(ABC):
 
     # === Inner Loop 4 步 ===
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1:感知输入 — 拼装 LLM 需要的 Context
 
         默认走 ContextManager;若未注入,返回最简 ctx(只有 user_message)
@@ -236,7 +237,7 @@ class MatWAUAgentBase(ABC):
         W15 关键修正:把 req.context["domain"] 透传到 act() 的 ctx 里
         (ContextManager 不消费,但 act() 需要 domain 路由)
         """
-        history: List[Dict[str, Any]] = []
+        history: list[dict[str, Any]] = []
         if self.state_store:
             try:
                 history = self.state_store.load_history(req.run_id)
@@ -276,7 +277,7 @@ class MatWAUAgentBase(ABC):
         fallback_ctx.update(req.context)
         return fallback_ctx
 
-    def plan(self, ctx: Dict[str, Any]) -> List[str]:
+    def plan(self, ctx: dict[str, Any]) -> list[str]:
         """步骤 2:规划 — 决定调哪些 tools
 
         默认走 ToolRegistry;若未注入,返回 ["__default__"](sentinel 让 act() 仍能跑)
@@ -291,7 +292,7 @@ class MatWAUAgentBase(ABC):
         return ["__default__"]  # 未注入 → 给 sentinel,让 act() 仍能跑
 
     @abstractmethod
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """步骤 3:执行 — 子类必须实现(每个 agent 业务不同)
 
         Args:
@@ -373,7 +374,7 @@ class MatWAUAgentBase(ABC):
             req.message[:80],
         )
 
-        best_response: Optional[AgentResponse] = None
+        best_response: AgentResponse | None = None
 
         for i in range(self.max_iterations):
             # Inner Loop 4 步
@@ -451,9 +452,9 @@ __all__ = [
     "AgentRequest",
     "AgentResponse",
     "ContextManager",
-    "ToolRegistry",
-    "StateStore",
-    "SafetyGuard",
     "EvalHarness",
     "MatWAUAgentBase",
+    "SafetyGuard",
+    "StateStore",
+    "ToolRegistry",
 ]

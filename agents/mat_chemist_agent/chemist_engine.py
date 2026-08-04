@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from matwau.core.agent_base import AgentResponse
 
@@ -59,8 +59,8 @@ class RobotStep:
     description: str = ""                # 人类描述
     required: bool = True                # 是否必需(失败 → 整体 fail)
     estimated_cost_cny: float = 0.0
-    dependencies: List[str] = field(default_factory=list)  # 依赖的 step_id
-    params: Dict[str, Any] = field(default_factory=dict)
+    dependencies: list[str] = field(default_factory=list)  # 依赖的 step_id
+    params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -71,15 +71,15 @@ class ChemistTask:
     target_sample: str = ""                  # 目标样品(例 "Inconel 718")
     domain: str = "metal_alloy"              # 默认金属合金
     goal: str = ""                           # 人类目标
-    robot_steps: List[RobotStep] = field(default_factory=list)
+    robot_steps: list[RobotStep] = field(default_factory=list)
     budget_cny: float = CHEMIST_DEFAULT_BUDGET_CNY
     parallel_allowed: bool = False           # 是否允许并行(默认串行,防样品竞争)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def total_estimated_cost(self) -> float:
         return sum(s.estimated_cost_cny for s in self.robot_steps)
 
-    def required_robots(self) -> List[str]:
+    def required_robots(self) -> list[str]:
         return [s.robot_type for s in self.robot_steps if s.required]
 
 
@@ -92,9 +92,9 @@ class RobotStepResult:
     success: bool = False
     blocked: bool = False
     reply: str = ""
-    artifacts: Dict[str, Any] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
-    blocked_steps: List[str] = field(default_factory=list)
+    artifacts: dict[str, Any] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+    blocked_steps: list[str] = field(default_factory=list)
     cost_cny: float = 0.0
     duration_seconds: float = 0.0
 
@@ -107,15 +107,15 @@ class ChemistReport:
     target_sample: str = ""
     goal: str = ""
     overall_success: bool = True
-    robot_results: List[RobotStepResult] = field(default_factory=list)
+    robot_results: list[RobotStepResult] = field(default_factory=list)
     total_cost_cny: float = 0.0
     total_duration_seconds: float = 0.0
     summary: str = ""
-    cross_validation: Dict[str, Any] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
-    blocked_steps: List[str] = field(default_factory=list)
+    cross_validation: dict[str, Any] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+    blocked_steps: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "target_sample": self.target_sample,
@@ -254,13 +254,13 @@ class ChemistSafetyGuard:
             return False
         return True
 
-    def check_chemist_task(self, task: ChemistTask) -> List[str]:
+    def check_chemist_task(self, task: ChemistTask) -> list[str]:
         """检查 1 个 ChemistTask,返回 warning 列表
 
         Returns:
             列表里有 "⛔" = 阻断 / "⚠️" = 警告
         """
-        warnings: List[str] = []
+        warnings: list[str] = []
 
         # 1. 预算检查
         total_cost = task.total_estimated_cost()
@@ -294,7 +294,6 @@ class ChemistSafetyGuard:
                 synth_idx = task.robot_steps.index(synth_step)
                 em_idx = task.robot_steps.index(em_step)
                 # 检查 synthesis 是否有高温 step(>800°C)
-                has_high_temp = False
                 if "estimated_cost_cny" in synth_step.params:
                     pass  # 可扩展
                 # 简化:如果 EM 在 synth 之前,且 task 没有显式声明,警告
@@ -314,7 +313,7 @@ class ChemistSafetyGuard:
 
         return warnings
 
-    def check_cross_validation(self, report: ChemistReport) -> Dict[str, Any]:
+    def check_cross_validation(self, report: ChemistReport) -> dict[str, Any]:
         """跨机器人结果一致性检查(只警告不阻断)
 
         检查项:
@@ -325,8 +324,8 @@ class ChemistSafetyGuard:
         Returns:
             Dict with keys: consistent, issues, warnings
         """
-        issues: List[str] = []
-        warnings: List[str] = []
+        issues: list[str] = []
+        warnings: list[str] = []
 
         if not self.warn_cross_robot_inconsistency:
             return {"consistent": True, "issues": [], "warnings": []}
@@ -363,7 +362,7 @@ class ChemistSafetyGuard:
 # ============================================================================
 
 
-def decompose_goal_to_robots(target_sample: str, goal: str) -> List[RobotStep]:
+def decompose_goal_to_robots(target_sample: str, goal: str) -> list[RobotStep]:
     """根据目标样品 + 目标自然语言 → 拆解成 robot steps(Stage 1 简单关键词)
 
     Args:
@@ -374,8 +373,8 @@ def decompose_goal_to_robots(target_sample: str, goal: str) -> List[RobotStep]:
         List of RobotStep
     """
     upper_goal = goal.upper()
-    upper_sample = target_sample.upper()
-    steps: List[RobotStep] = []
+    target_sample.upper()
+    steps: list[RobotStep] = []
 
     # 关键词 → 机器人映射
     needs_synth = any(k in upper_goal for k in ["合成", "制备", "PREPARE", "SYNTH"]) or "标样" in upper_goal

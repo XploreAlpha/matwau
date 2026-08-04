@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import logging
 import random
-import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from matwau.core.agent_base import AgentResponse, SafetyGuard as BaseSafetyGuard
+from matwau.core.agent_base import AgentResponse
+from matwau.core.agent_base import SafetyGuard as BaseSafetyGuard
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,8 @@ class SynthStep:
     name: str = ""                                # 称量 / 球磨 / 烧结 / 等
     duration_minutes: float = 0.0
     temperature_celsius: float = 25.0             # 该步骤温度(室温默认)
-    chemicals: List[str] = field(default_factory=list)  # 用到的化学试剂
-    params: Dict[str, Any] = field(default_factory=dict)  # 其他参数
+    chemicals: list[str] = field(default_factory=list)  # 用到的化学试剂
+    params: dict[str, Any] = field(default_factory=dict)  # 其他参数
 
     def is_high_temperature(self) -> bool:
         return self.temperature_celsius > HAZARD_TEMP_CELSIUS_LIMIT
@@ -51,7 +51,7 @@ class SynthProcedure:
     """1 个合成配方(用户提交)"""
 
     target_formula: str = ""                       # 目标化学式(Ca-LLZO 等)
-    steps: List[SynthStep] = field(default_factory=list)
+    steps: list[SynthStep] = field(default_factory=list)
     target_yield_grams: float = 1.0                # 期望产物质量(g)
     method: str = "Pechini"                        # Pechini / sol-gel / 共沉淀 / 等
 
@@ -69,19 +69,19 @@ class SynthResult:
     """1 次合成结果"""
 
     run_id: str = ""
-    procedure: Optional[SynthProcedure] = None
+    procedure: SynthProcedure | None = None
     success: bool = True
     product_formula: str = ""                      # 实际产物(可能不是目标)
     yield_grams: float = 0.0
     synthesis_duration_minutes: float = 0.0
-    warnings: List[str] = field(default_factory=list)   # SafetyGuard 报警
-    blocked_steps: List[str] = field(default_factory=list)  # 被拦截的步骤
-    log: List[str] = field(default_factory=list)     # 实验日志
+    warnings: list[str] = field(default_factory=list)   # SafetyGuard 报警
+    blocked_steps: list[str] = field(default_factory=list)  # 被拦截的步骤
+    log: list[str] = field(default_factory=list)     # 实验日志
     cost: float = 0.0
-    cost_estimate: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    cost_estimate: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "run_id": self.run_id,
             "target_formula": self.procedure.target_formula if self.procedure else "",
@@ -113,10 +113,10 @@ class OpentronsMockSDK:
     def __init__(self, *, lab_id: str = "matwau-lab-01", fail_chance: float = 0.05) -> None:
         self.lab_id = lab_id
         self.fail_chance = fail_chance  # 模拟机械臂 5% 失败率
-        self.commands_executed: List[str] = []
+        self.commands_executed: list[str] = []
         self.connected = True
 
-    def execute(self, step: SynthStep) -> Dict[str, Any]:
+    def execute(self, step: SynthStep) -> dict[str, Any]:
         """执行 1 个 SynthStep(真接就是 robot.transfer / robot.aspirate / robot.dispense)
 
         Returns:
@@ -179,7 +179,7 @@ class SafetyGuard(BaseSafetyGuard):
         True = 通过(可以继续)
         False = 拦截(危险)
         """
-        procedure: Optional[SynthProcedure] = response.artifacts.get("procedure") if response.artifacts else None
+        procedure: SynthProcedure | None = response.artifacts.get("procedure") if response.artifacts else None
         if procedure is None:
             return True  # 没 procedure → 默认放行
 
@@ -202,7 +202,7 @@ class SafetyGuard(BaseSafetyGuard):
 
         return True
 
-    def check_procedure(self, procedure: SynthProcedure) -> List[str]:
+    def check_procedure(self, procedure: SynthProcedure) -> list[str]:
         """额外接口:返回报警列表(诊断用)"""
         warnings = []
         if procedure.max_temperature() > self.temp_limit:
@@ -258,7 +258,7 @@ DEFAULT_PROCEDURES = {
 }
 
 
-def get_default_procedure(name: str) -> Optional[SynthProcedure]:
+def get_default_procedure(name: str) -> SynthProcedure | None:
     """获取 1 个默认 procedure"""
     return DEFAULT_PROCEDURES.get(name)
 

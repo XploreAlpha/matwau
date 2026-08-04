@@ -11,14 +11,12 @@ from __future__ import annotations
 
 import logging
 import random
-import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
-from matwau.core.agent_base import AgentResponse
+from typing import Any
 
 from agents.mat_robot_synth_agent.synth_engine import SafetyGuard
+from matwau.core.agent_base import AgentResponse
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +47,7 @@ class XRDStep:
     tube_voltage_kv: float = 40.0                 # X 射线管电压(kV)
     tube_current_ma: float = 30.0                 # X 射线管电流(mA)
     two_theta_range: tuple = (5.0, 90.0)         # 扫描 2θ 范围
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -57,8 +55,8 @@ class XRDProcedure:
     """1 个 XRD 测试方案"""
 
     sample_formula: str = ""                      # 样品化学式
-    target_phases: List[str] = field(default_factory=list)  # 期望匹配的 PDF 卡片
-    steps: List[XRDStep] = field(default_factory=list)
+    target_phases: list[str] = field(default_factory=list)  # 期望匹配的 PDF 卡片
+    steps: list[XRDStep] = field(default_factory=list)
     door_open: bool = HAZARD_XRD_DOOR_OPEN        # 仪器舱门(默认安全)
     user_in_apron: bool = HAZARD_XRD_NO_APRON     # 用户着铅围裙(默认违规)
     sample_is_radioactive_sensitive: bool = False  # 易辐射分解样品
@@ -72,16 +70,16 @@ class XRDResult:
     """1 次 XRD 测试结果"""
 
     run_id: str = ""
-    procedure: Optional[XRDProcedure] = None
+    procedure: XRDProcedure | None = None
     success: bool = True
-    peaks: List[Dict[str, float]] = field(default_factory=list)  # [(2θ, d, intensity)]
+    peaks: list[dict[str, float]] = field(default_factory=list)  # [(2θ, d, intensity)]
     matched_phase: str = ""                       # 匹配的 PDF 卡片
     confidence: float = 0.0                       # 匹配确信度
-    warnings: List[str] = field(default_factory=list)
-    blocked_steps: List[str] = field(default_factory=list)
-    log: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    blocked_steps: list[str] = field(default_factory=list)
+    log: list[str] = field(default_factory=list)
     cost: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # ============================================================================
@@ -100,10 +98,10 @@ class BrukerMockSDK:
     def __init__(self, *, lab_id: str = "matwau-xrd-01", fail_chance: float = 0.05) -> None:
         self.lab_id = lab_id
         self.fail_chance = fail_chance
-        self.scans_completed: List[str] = []
+        self.scans_completed: list[str] = []
         self.connected = True
 
-    def execute(self, step: XRDStep) -> Dict[str, Any]:
+    def execute(self, step: XRDStep) -> dict[str, Any]:
         """执行 1 个 XRDStep(真接就是 Bruker XRD Bridge API)"""
         self.scans_completed.append(step.name)
         if not self.connected:
@@ -177,7 +175,7 @@ class XRDSafetyGuard(SafetyGuard):
             return False
         return True
 
-    def check_xrd(self, procedure: XRDProcedure) -> List[str]:
+    def check_xrd(self, procedure: XRDProcedure) -> list[str]:
         """XRD 流程专用安全检查(扩展父类)"""
         warnings = []
 

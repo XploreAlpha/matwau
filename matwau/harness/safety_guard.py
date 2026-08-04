@@ -34,10 +34,10 @@ Stage 1 简版(软件层),Stage 3 升级为 3 重防线(软件 + AI + 硬件 PLC
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
-
+from typing import Any
 
 # ============================================================================
 # 异常
@@ -121,8 +121,8 @@ class SafetyGuard:
     def __init__(
         self,
         budget_limit: float = 1000.0,
-        policy: Optional[SafetyPolicy] = None,
-        approval_callback: Optional[Callable[[str, str], bool]] = None,
+        policy: SafetyPolicy | None = None,
+        approval_callback: Callable[[str, str], bool] | None = None,
     ) -> None:
         self.budget_limit = budget_limit
         self.policy = policy or SafetyPolicy()
@@ -223,9 +223,7 @@ class SafetyGuard:
         url = artifacts.get("url", "")
         if not url:
             return True
-        if not url.startswith(self.policy.api_whitelist):
-            return False
-        return True
+        return url.startswith(self.policy.api_whitelist)
 
     # ========================================================================
     # PII 脱敏
@@ -272,7 +270,7 @@ class SafetyGuard:
         # 测试环境默认 False 避免阻塞,生产环境要换 approval_callback
         return False
 
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> dict[str, int]:
         """安全统计"""
         return {
             "blocked": self._blocked_count,
@@ -287,9 +285,9 @@ class SafetyGuard:
 
 
 def guard(
-    quota: Optional[str] = None,
+    quota: str | None = None,
     sandbox: bool = True,
-    safety_guard: Optional[SafetyGuard] = None,
+    safety_guard: SafetyGuard | None = None,
 ):
     """装饰器:任何 agent method 自动套 SafetyGuard
 
@@ -311,9 +309,8 @@ def guard(
             sg = safety_guard or getattr(self, "safety_guard", None)
 
             # 1. 配额检查
-            if quota and sg:
-                if not sg.check_quota(quota):
-                    raise QuotaExceeded(quota)
+            if quota and sg and not sg.check_quota(quota):
+                raise QuotaExceeded(quota)
 
             # 2. 沙箱执行 + 输出清洗
             try:
@@ -353,10 +350,10 @@ def guard(
 
 
 __all__ = [
+    "HumanApprovalRequired",
+    "QuotaExceeded",
     "SafetyGuard",
     "SafetyPolicy",
     "SafetyViolation",
-    "QuotaExceeded",
-    "HumanApprovalRequired",
     "guard",
 ]

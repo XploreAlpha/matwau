@@ -27,8 +27,8 @@ import csv
 import io
 import logging
 import os
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +58,13 @@ def is_ta_trios_available() -> bool:
         return False
 
 
-def get_ta_sdk_list() -> List[str]:
+def get_ta_sdk_list() -> list[str]:
     """列出当前装了哪些 TA 相关库
 
     Returns:
         装了的库名列表(可能为空)
     """
-    found: List[str] = []
+    found: list[str] = []
     for pkg in ["requests", "ta_trios", "triosautopilot"]:
         try:
             __import__(pkg)
@@ -103,7 +103,7 @@ def trios_endpoint_available(
 # ============================================================================
 
 # TA Instruments DSC 250 标准硬件参数(per 公开规格表)
-TA_DSC_250_DEFAULT_PARAMS: Dict[str, Any] = {
+TA_DSC_250_DEFAULT_PARAMS: dict[str, Any] = {
     "instrument": "TA Instruments DSC 250",
     "temperature_range_c": (-90.0, 400.0),
     "heating_rate_range_c_per_min": (0.01, 20.0),
@@ -146,7 +146,7 @@ class TATriosProtocolBuilder:
         writer = csv.writer(buf)
 
         # 1. 头注释(以 # 开头,TriOS 软件会跳过)
-        writer.writerow([f"# TA Trios temperature program — MatWAU generated"])
+        writer.writerow(["# TA Trios temperature program — MatWAU generated"])
         writer.writerow([f"# run_id: {run_id}"])
         writer.writerow([f"# sample: {procedure.sample_formula}"])
         writer.writerow([f"# instrument: {self.instrument}"])
@@ -204,7 +204,7 @@ class TATriosProtocolBuilder:
         """
         from xml.sax.saxutils import escape
 
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append('<?xml version="1.0" encoding="UTF-8"?>')
         lines.append(f'<TATriosMethod run_id="{escape(run_id)}">')
         lines.append(f'  <Instrument model="{escape(self.instrument)}"/>')
@@ -236,7 +236,7 @@ class TATriosProtocolBuilder:
 # ============================================================================
 
 # 已知材料的 Tg / Tm / Tc 标准值(per TA Instruments Trios 材料库 + 公开文献)
-MATERIAL_DSC_LIBRARY: Dict[str, Dict[str, Any]] = {
+MATERIAL_DSC_LIBRARY: dict[str, dict[str, Any]] = {
     "PMMA": {
         "Tg_c": 105.0,                       # 玻璃化转变温度
         "Tm_c": 160.0,                       # 软化点(无严格熔点)
@@ -321,7 +321,7 @@ MATERIAL_DSC_LIBRARY: Dict[str, Dict[str, Any]] = {
 }
 
 
-def lookup_material_dsc(sample_formula: str) -> Optional[Dict[str, Any]]:
+def lookup_material_dsc(sample_formula: str) -> dict[str, Any] | None:
     """查已知材料的标准 DSC 属性
 
     Args:
@@ -340,7 +340,7 @@ def lookup_material_dsc(sample_formula: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def compute_tg_tm(procedure, sample_formula: str) -> Dict[str, Any]:
+def compute_tg_tm(procedure, sample_formula: str) -> dict[str, Any]:
     """从标准库 + procedure 估算 Tg / Tm / Tc / ΔH(W25 增量)
 
     Args:
@@ -362,7 +362,7 @@ def compute_tg_tm(procedure, sample_formula: str) -> Dict[str, Any]:
 
     # 从 procedure target_properties 过滤输出
     target_props = procedure.target_properties if procedure.target_properties else []
-    result: Dict[str, Any] = {"source": "library"}
+    result: dict[str, Any] = {"source": "library"}
     if "Tg" in target_props or not target_props:
         result["Tg_c"] = mat.get("Tg_c")
     if "Tm" in target_props or not target_props:
@@ -380,7 +380,7 @@ def generate_dsc_curve(
     sample_formula: str,
     *,
     noise: int = 0,
-) -> Dict[str, List[float]]:
+) -> dict[str, list[float]]:
     """生成 DSC 曲线(温度 vs 热流,W25 增量)
 
     Args:
@@ -398,8 +398,8 @@ def generate_dsc_curve(
     tg = mat.get("Tg_c") or 100.0
     tm = mat.get("Tm_c") or 150.0
 
-    x: List[float] = []
-    y: List[float] = []
+    x: list[float] = []
+    y: list[float] = []
 
     for step in procedure.steps:
         if step.is_isothermal:
@@ -466,7 +466,7 @@ class TATriosRealSDK:
         lab_id: str = "matwau-dsc-01",
         fail_chance: float = 0.0,
         prefer_real: bool = True,
-        csv_output_dir: Optional[str] = None,
+        csv_output_dir: str | None = None,
         trios_api_url: str = TA_TRIOS_DEFAULT_API_URL,
         skip_endpoint_check: bool = False,
         sample_formula: str = "",           # W25: 真接 SDK 也需要 sample_formula 用于查标准库
@@ -485,8 +485,8 @@ class TATriosRealSDK:
         self.csv_output_dir = csv_output_dir
         self.trios_api_url = trios_api_url
         self.sample_formula = sample_formula
-        self.commands_executed: List[str] = []
-        self.csv_files_generated: List[str] = []
+        self.commands_executed: list[str] = []
+        self.csv_files_generated: list[str] = []
         self.installed_packages_cache = get_ta_sdk_list()
 
         # 探测真接可用性
@@ -529,7 +529,7 @@ class TATriosRealSDK:
 
     # ---------- 接口与 Mock 100% 兼容 ----------
 
-    def execute(self, step) -> Dict[str, Any]:
+    def execute(self, step) -> dict[str, Any]:
         """执行 1 个 DSCStep(per TAMockSDK 接口)
 
         真 SDK 路径:
@@ -634,27 +634,27 @@ class TATriosRealSDK:
         """生成 Trios method XML 元数据(W25 增量)"""
         return self.protocol_builder.build_method_xml(procedure, run_id=run_id)
 
-    def lookup_material_dsc(self, sample_formula: str) -> Optional[Dict[str, Any]]:
+    def lookup_material_dsc(self, sample_formula: str) -> dict[str, Any] | None:
         """查标准材料 DSC 属性(W25 增量)"""
         return lookup_material_dsc(sample_formula)
 
-    def compute_tg_tm(self, procedure, sample_formula: str) -> Dict[str, Any]:
+    def compute_tg_tm(self, procedure, sample_formula: str) -> dict[str, Any]:
         """估算 Tg / Tm / Tc / ΔH(W25 增量)"""
         return compute_tg_tm(procedure, sample_formula)
 
     def generate_dsc_curve(
         self, procedure, sample_formula: str, *, noise: int = 0,
-    ) -> Dict[str, List[float]]:
+    ) -> dict[str, list[float]]:
         """生成 DSC 曲线(W25 增量)"""
         return generate_dsc_curve(procedure, sample_formula, noise=noise)
 
     def trios_endpoint_reachable(
-        self, url: Optional[str] = None,
+        self, url: str | None = None,
     ) -> bool:
         """探测 Trios AutoPilot REST endpoint 是否可达(W25 增量)"""
         return trios_endpoint_available(url or self.trios_api_url)
 
-    def installed_packages(self) -> List[str]:
+    def installed_packages(self) -> list[str]:
         """列出当前装了哪些 TA 相关库(W25 增量)"""
         return list(self.installed_packages_cache)
 
@@ -670,15 +670,15 @@ class TATriosRealSDK:
 
 
 __all__ = [
-    "is_ta_trios_available",
-    "get_ta_sdk_list",
-    "trios_endpoint_available",
+    "MATERIAL_DSC_LIBRARY",
+    "TA_DSC_250_DEFAULT_PARAMS",
+    "TA_TRIOS_DEFAULT_API_URL",
     "TATriosProtocolBuilder",
     "TATriosRealSDK",
-    "TA_DSC_250_DEFAULT_PARAMS",
-    "MATERIAL_DSC_LIBRARY",
-    "lookup_material_dsc",
     "compute_tg_tm",
     "generate_dsc_curve",
-    "TA_TRIOS_DEFAULT_API_URL",
+    "get_ta_sdk_list",
+    "is_ta_trios_available",
+    "lookup_material_dsc",
+    "trios_endpoint_available",
 ]

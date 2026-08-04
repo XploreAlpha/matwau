@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
-
+from typing import Any
 
 # ============================================================================
 # DAG 节点
@@ -21,11 +20,11 @@ class DAGNode:
 
     node_id: str                                    # 唯一 ID
     agent_name: str                                 # 调用的 agent
-    inputs: Dict[str, str] = field(default_factory=dict)  # 从其他节点的 outputs 取数据
+    inputs: dict[str, str] = field(default_factory=dict)  # 从其他节点的 outputs 取数据
     output_key: str = "result"                      # 节点输出 key
     description: str = ""                           # 人类可读描述
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "node_id": self.node_id,
             "agent_name": self.agent_name,
@@ -47,8 +46,8 @@ class NodeResult:
     node_id: str
     agent_name: str
     success: bool
-    outputs: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    outputs: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
     duration_seconds: float = 0.0
 
     def to_summary(self) -> str:
@@ -66,13 +65,13 @@ class WorkflowResult:
 
     workflow_name: str                              # 5 workflow 名
     subclass: str                                   # 触发 workflow 的子类
-    node_results: List[NodeResult] = field(default_factory=list)
+    node_results: list[NodeResult] = field(default_factory=list)
     total_duration_seconds: float = 0.0
     success: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     # 最终输出(per workflow 类型)
-    final_outputs: Dict[str, Any] = field(default_factory=dict)
+    final_outputs: dict[str, Any] = field(default_factory=dict)
 
     def to_summary(self) -> str:
         lines = []
@@ -91,14 +90,14 @@ class WorkflowResult:
 class DAG:
     """简单 DAG(顺序节点列表,Stage 1 不用并行)"""
 
-    def __init__(self, name: str, nodes: List[DAGNode]) -> None:
+    def __init__(self, name: str, nodes: list[DAGNode]) -> None:
         self.name = name
         self.nodes = nodes
 
     def add_node(self, node: DAGNode) -> None:
         self.nodes.append(node)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "nodes": [n.to_dict() for n in self.nodes],
@@ -116,7 +115,7 @@ class DAG:
 class DAGExecutor:
     """DAG 执行器(顺序执行节点,把 outputs 传下去)"""
 
-    def __init__(self, agent_registry: Dict[str, Any]) -> None:
+    def __init__(self, agent_registry: dict[str, Any]) -> None:
         """构造
 
         Args:
@@ -128,7 +127,7 @@ class DAGExecutor:
         self,
         dag: DAG,
         *,
-        initial_inputs: Dict[str, Any],
+        initial_inputs: dict[str, Any],
     ) -> WorkflowResult:
         """执行 DAG
 
@@ -145,7 +144,7 @@ class DAGExecutor:
         )
 
         t_total = time.time()
-        outputs: Dict[str, Any] = dict(initial_inputs)
+        outputs: dict[str, Any] = dict(initial_inputs)
 
         for node in dag.nodes:
             t0 = time.time()
@@ -566,7 +565,7 @@ WORKFLOW_BY_SUBCLASS = {
 }
 
 
-def get_workflow_for_subclass(subclass: str) -> Optional[DAG]:
+def get_workflow_for_subclass(subclass: str) -> DAG | None:
     """根据子类选 workflow"""
     factory = WORKFLOW_BY_SUBCLASS.get(subclass)
     if factory is None:
@@ -597,10 +596,10 @@ class ExperimentResult:
     cost_cny: float
     duration_seconds: float
     verdict: str                                      # pass / warn / fail
-    error: Optional[str] = None
+    error: str | None = None
     blocked: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experiment_id": self.experiment_id,
             "target_sample": self.target_sample,
@@ -631,14 +630,14 @@ class BatchWorkflowResult:
     n_warned: int = 0
     n_failed: int = 0
     n_blocked: int = 0
-    experiment_results: List[ExperimentResult] = field(default_factory=list)
+    experiment_results: list[ExperimentResult] = field(default_factory=list)
     total_cost_cny: float = 0.0
     total_duration_seconds: float = 0.0
     overall_verdict: str = "fail"                      # 默认 fail,空批次也是 fail
     parallel: bool = True
     max_workers: int = 4
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "workflow_name": self.workflow_name,
             "n_total": self.n_total,
@@ -658,11 +657,11 @@ class BatchWorkflowResult:
         """全部 N 个实验都 pass 才返回 True(空批次返回 False)"""
         return self.n_passed == self.n_total and self.n_total > 0
 
-    def failed_samples(self) -> List[str]:
+    def failed_samples(self) -> list[str]:
         """返回所有 verdict=fail 的 experiment target_sample 列表"""
         return [r.target_sample for r in self.experiment_results if r.verdict == "fail"]
 
-    def warn_samples(self) -> List[str]:
+    def warn_samples(self) -> list[str]:
         """返回所有 verdict=warn 的 experiment target_sample 列表"""
         return [r.target_sample for r in self.experiment_results if r.verdict == "warn"]
 
@@ -697,7 +696,7 @@ def multi_experiment_characterization_workflow() -> DAG:
 WORKFLOW_BY_SUBCLASS["multi_experiment_characterization"] = multi_experiment_characterization_workflow
 
 
-def get_multi_experiment_default_batch() -> List[Any]:
+def get_multi_experiment_default_batch() -> list[Any]:
     """默认 3 实验批(Inconel 718 + PMMA + TiO2)— 覆盖 3 domain
 
     Returns:
@@ -743,23 +742,23 @@ def get_multi_experiment_default_batch() -> List[Any]:
 
 
 __all__ = [
-    "DAGNode",
     "DAG",
+    "WORKFLOW_BY_SUBCLASS",
+    "BatchWorkflowResult",                          # W31 NEW
+    "DAGExecutor",
+    "DAGNode",
+    "ExperimentResult",                             # W31 NEW
     "NodeResult",
     "WorkflowResult",
-    "DAGExecutor",
-    "experiment_planning_workflow",
-    "design_new_material_workflow",
-    "optimize_existing_workflow",
-    "explain_failure_workflow",
-    "literature_review_workflow",
-    "multi_experiment_characterization_workflow",   # W31 NEW
-    "get_multi_experiment_default_batch",           # W31 NEW
-    "WORKFLOW_BY_SUBCLASS",
-    "get_workflow_for_subclass",
-    "ExperimentResult",                             # W31 NEW
-    "BatchWorkflowResult",                          # W31 NEW
     # M3 NEW
     "cross_source_lookup_workflow",
     "cross_source_property_workflow",
+    "design_new_material_workflow",
+    "experiment_planning_workflow",
+    "explain_failure_workflow",
+    "get_multi_experiment_default_batch",           # W31 NEW
+    "get_workflow_for_subclass",
+    "literature_review_workflow",
+    "multi_experiment_characterization_workflow",   # W31 NEW
+    "optimize_existing_workflow",
 ]

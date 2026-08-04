@@ -17,6 +17,7 @@
   → PI 在这个简单 1D 任务上略优
 """
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -73,8 +74,7 @@ def _run_one(acquisition: str, n_trials: int = 10, seed: int = 42):
         next_x = float(suggestions[0].get("x", rng.uniform(0, 5)))
         next_score = _toy_objective(next_x)
         observed.append({"x": next_x, "score": next_score})
-        if next_score > best_score:
-            best_score = next_score
+        best_score = max(best_score, next_score)
 
     return best_score
 

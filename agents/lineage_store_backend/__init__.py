@@ -27,20 +27,20 @@ Stage 2(W17): PostgresBackend(降级到 SQLite,行为同 SQLite)
 
 from __future__ import annotations
 
-from .backends import (  # noqa: F401
-    LineageBackend,
+from .backends import (
     InMemoryBackend,
-    SQLiteBackend,
-    PostgresBackend,
-    LineageRecordDTO,
+    LineageBackend,
     LineageNotFoundError,
+    LineageRecordDTO,
+    PostgresBackend,
+    SQLiteBackend,
 )
 
 __all__ = [
-    "LineageBackend",
     "InMemoryBackend",
-    "SQLiteBackend",
-    "PostgresBackend",
-    "LineageRecordDTO",
+    "LineageBackend",
     "LineageNotFoundError",
-]  # type: ignore[name-defined]  # noqa: F821
+    "LineageRecordDTO",
+    "PostgresBackend",
+    "SQLiteBackend",
+]  # type: ignore[name-defined]

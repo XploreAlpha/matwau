@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import logging
 import random
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def is_bruker_raw_available() -> bool:
     return False
 
 
-def get_bruker_sdk_list() -> List[str]:
+def get_bruker_sdk_list() -> list[str]:
     """列出当前装了哪些 Bruker 相关库
 
     Returns:
@@ -70,7 +70,7 @@ def get_bruker_sdk_list() -> List[str]:
 # ============================================================================
 
 # Bruker D8 Advance 标准硬件参数(per 公开规格表)
-BRUKER_D8_DEFAULT_PARAMS: Dict[str, Any] = {
+BRUKER_D8_DEFAULT_PARAMS: dict[str, Any] = {
     "goniometer_radius_mm": 240.0,
     "xray_tube_target": "Cu",                # Cu Kα 辐射
     "xray_wavelength_angstrom": 1.5406,
@@ -85,7 +85,7 @@ BRUKER_D8_DEFAULT_PARAMS: Dict[str, Any] = {
 
 # 公开 PDF 卡片(Bragg 峰实验参照,W20 内置有限集合 — 跟 Materials Project 互通)
 # 数据来源:ICDD PDF-4+ 公开摘录(精选项,仅供 Stage 2 demo)
-PDF_CARDS_DB: Dict[str, Dict[str, Any]] = {
+PDF_CARDS_DB: dict[str, dict[str, Any]] = {
     "PDF 45-1090": {  # LLZO cubic
         "name": "LLZO cubic (Ca-doped)",
         "formula": "Li7La3Zr2O12",
@@ -173,7 +173,7 @@ class BrukerProtocolBuilder:
         """
         from xml.sax.saxutils import escape
 
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append('<?xml version="1.0" encoding="UTF-8"?>')
         lines.append(f'<BrukerMethod site="{escape(procedure.sample_formula)}" run_id="{escape(run_id)}">')
         lines.append(f'  <Instrument model="{escape(self.instrument)}"/>')
@@ -184,17 +184,17 @@ class BrukerProtocolBuilder:
             if "扫描" in step.name or "scan" in step.name.lower():
                 # 扫描步骤写详细参数
                 two_theta_lo, two_theta_hi = step.two_theta_range
-                lines.append(f'    <Type>scan</Type>')
+                lines.append('    <Type>scan</Type>')
                 lines.append(f'    <TwoTheta start="{two_theta_lo}" end="{two_theta_hi}" step="0.02"/>')
                 lines.append(f'    <TubeVoltage kv="{step.tube_voltage_kv}"/>')
                 lines.append(f'    <TubeCurrent ma="{step.tube_current_ma}"/>')
-                lines.append(f'    <CountTime perStepSec="1.0"/>')
+                lines.append('    <CountTime perStepSec="1.0"/>')
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             elif "装样" in step.name or "卸载" in step.name:
-                lines.append(f'    <Type>load_unload</Type>')
+                lines.append('    <Type>load_unload</Type>')
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             elif "对光" in step.name:
-                lines.append(f'    <Type>alignment</Type>')
+                lines.append('    <Type>alignment</Type>')
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             lines.append('  </Step>')
 
@@ -230,7 +230,7 @@ class BrukerProtocolBuilder:
 # ============================================================================
 
 
-def lookup_pdf_card(pdf_card_id: str) -> Optional[Dict[str, Any]]:
+def lookup_pdf_card(pdf_card_id: str) -> dict[str, Any] | None:
     """查 PDF 卡片(纯 Python 字典查询)
 
     Args:
@@ -242,7 +242,7 @@ def lookup_pdf_card(pdf_card_id: str) -> Optional[Dict[str, Any]]:
     return PDF_CARDS_DB.get(pdf_card_id)
 
 
-def compare_to_pdf_card(measured_peaks: List[Dict[str, float]], pdf_card_id: str) -> Dict[str, Any]:
+def compare_to_pdf_card(measured_peaks: list[dict[str, float]], pdf_card_id: str) -> dict[str, Any]:
     """用测量峰列表跟 PDF 卡片比对(纯 Python)
 
     Args:
@@ -280,9 +280,9 @@ def scan_to_peaks(
     sample_formula: str,
     scan_step: Any,
     *,
-    target_pdf: Optional[str] = None,
+    target_pdf: str | None = None,
     noise: int = 0,
-) -> List[Dict[str, float]]:
+) -> list[dict[str, float]]:
     """模拟 1 个扫描产生 Bragg 峰(基于 PDF 卡片或 mock)
 
     Args:
@@ -375,7 +375,7 @@ class BrukerRealSDK:
         lab_id: str = "matwau-xrd-01",
         fail_chance: float = 0.0,
         prefer_real: bool = True,
-        brml_output_dir: Optional[str] = None,
+        brml_output_dir: str | None = None,
     ) -> None:
         """
         Args:
@@ -388,8 +388,8 @@ class BrukerRealSDK:
         self.brml_output_dir = brml_output_dir
         self._use_real: bool = prefer_real and is_bruker_raw_available()
         self.protocol_builder = BrukerProtocolBuilder()
-        self.commands_executed: List[str] = []
-        self.brml_files_generated: List[str] = []
+        self.commands_executed: list[str] = []
+        self.brml_files_generated: list[str] = []
         self.installed_packages_cache = get_bruker_sdk_list()
 
         if self._use_real:
@@ -410,7 +410,7 @@ class BrukerRealSDK:
 
     # ---------- 接口与 Mock 100% 兼容 ----------
 
-    def execute(self, step) -> Dict[str, Any]:
+    def execute(self, step) -> dict[str, Any]:
         """执行 1 个 XRDStep(per BrukerMockSDK 接口)
 
         真 SDK 路径:
@@ -516,17 +516,17 @@ class BrukerRealSDK:
         """
         return self.protocol_builder.save(procedure, output_path, run_id=run_id)
 
-    def lookup_pdf_card(self, pdf_card_id: str) -> Optional[Dict[str, Any]]:
+    def lookup_pdf_card(self, pdf_card_id: str) -> dict[str, Any] | None:
         """查 PDF 卡片(W20 增量)"""
         return lookup_pdf_card(pdf_card_id)
 
     def compare_to_pdf_card(
-        self, measured_peaks: List[Dict[str, float]], pdf_card_id: str,
-    ) -> Dict[str, Any]:
+        self, measured_peaks: list[dict[str, float]], pdf_card_id: str,
+    ) -> dict[str, Any]:
         """用 PDF 卡片比对峰(W20 增量)"""
         return compare_to_pdf_card(measured_peaks, pdf_card_id)
 
-    def installed_packages(self) -> List[str]:
+    def installed_packages(self) -> list[str]:
         """列出当前装了哪些 Bruker 库(W20 增量)"""
         return list(self.installed_packages_cache)
 
@@ -537,13 +537,13 @@ class BrukerRealSDK:
 
 
 __all__ = [
-    "is_bruker_raw_available",
-    "get_bruker_sdk_list",
+    "BRUKER_D8_DEFAULT_PARAMS",
+    "PDF_CARDS_DB",
     "BrukerProtocolBuilder",
     "BrukerRealSDK",
-    "PDF_CARDS_DB",
-    "lookup_pdf_card",
     "compare_to_pdf_card",
+    "get_bruker_sdk_list",
+    "is_bruker_raw_available",
+    "lookup_pdf_card",
     "scan_to_peaks",
-    "BRUKER_D8_DEFAULT_PARAMS",
 ]

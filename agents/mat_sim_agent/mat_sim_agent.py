@@ -42,25 +42,26 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 # 允许直接 python3 -m 运行本文件
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
-from .chgnet import (  # noqa: E402
+from .chgnet import (
     SimResult,
-    parse_constraints as parse_sim_constraints,
     relax_batch,
+)
+from .chgnet import (
     stats as sim_stats,
 )
 
@@ -95,7 +96,7 @@ def _sim_result_to_candidate(r: SimResult) -> SimCandidate:
     )
 
 
-def _extract_candidates(req: AgentRequest) -> List:
+def _extract_candidates(req: AgentRequest) -> list:
     """从 req.artifacts 抽取候选(支持 GenCandidate 列表 / dict 列表 / 空)
 
     Returns:
@@ -143,7 +144,7 @@ class MatSimAgent(MatWAUAgentBase):
         stability_threshold: str = "metastable",  # "stable" / "metastable" / "unstable"
         force_threshold: float = 0.05,  # eV/Å,CHGNet 默认收敛阈值
         cost_per_candidate: float = 0.5,  # ¥/候选(MLIP 推理,无机晶体默认值)
-        domain: Optional[str] = None,
+        domain: str | None = None,
         **kwargs,
     ) -> None:
         """构造
@@ -195,7 +196,7 @@ class MatSimAgent(MatWAUAgentBase):
 - 1 个 LLM 调用 = 1 次 Goldens 跑分(mat-sim.yaml,pass-rate > 50% Stage 1 / > 80% Stage 2)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """Inner Loop 第 3 步:执行 — mat-sim 特有业务逻辑
 
         1. 从 ctx["_input_candidates"] 拿 mat-gen 的候选(由 perceive 预处理)
@@ -290,7 +291,7 @@ class MatSimAgent(MatWAUAgentBase):
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1 重写:除了 ContextManager.assemble(),还要预处理 candidates
 
         因为 Inner Loop 4 步里 act() 只能拿到 ctx,所以在 perceive 阶段
@@ -310,7 +311,7 @@ class MatSimAgent(MatWAUAgentBase):
     # 内部 helper
     # ========================================================================
 
-    def _filter_by_stability(self, sim_results: List[SimResult]) -> List[SimResult]:
+    def _filter_by_stability(self, sim_results: list[SimResult]) -> list[SimResult]:
         """按稳定性阈值过滤"""
         threshold_order = {"unstable": 0, "metastable": 1, "stable": 2}
         threshold_idx = threshold_order.get(self.stability_threshold, 1)
@@ -340,7 +341,7 @@ class MatSimAgent(MatWAUAgentBase):
             error=error,
         )
 
-    def _estimate_cost(self, n_candidates: int, domain: Optional[str] = None) -> float:
+    def _estimate_cost(self, n_candidates: int, domain: str | None = None) -> float:
         """估算成本(per W15 domain 单价)
 
         Args:
@@ -371,9 +372,8 @@ def create_default_agent() -> MatSimAgent:
 
 if __name__ == "__main__":
     # 跑 1 个 demo(mat-gen → mat-sim)
-    from agents.mat_gen_agent.mat_gen_agent import create_default_agent as create_gen
-    from agents.mat_gen_agent.mattergen import generate as mattergen_generate
     from agents.mat_gen_agent.mattergen import GenConstraints
+    from agents.mat_gen_agent.mattergen import generate as mattergen_generate
 
     print("🚀 MatSimAgent Demo")
     print("=" * 60)
@@ -398,7 +398,7 @@ if __name__ == "__main__":
 
     print(f"\n📨 reply: {response.reply}")
     print(f"📊 confidence: {response.confidence:.0%}, cost: ¥{response.cost:.2f}")
-    print(f"\n🔬 Top-5 弛豫结果:")
+    print("\n🔬 Top-5 弛豫结果:")
     for i, s in enumerate(response.artifacts.get("simulated", [])[:5]):
         print(
             f"   #{i+1} {s.formula}: "

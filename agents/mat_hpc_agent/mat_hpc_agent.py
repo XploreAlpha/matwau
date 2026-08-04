@@ -32,30 +32,31 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any
 
 # 允许直接 python3 -m 运行本文件
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
-from .vasp_slurm import (  # noqa: E402
+from .vasp_slurm import (
     HPCJobResult,
-    parse_constraints as parse_hpc_constraints,
-    stats as hpc_stats,
     submit_batch,
+)
+from .vasp_slurm import (
+    stats as hpc_stats,
 )
 
 
-def _extract_input_candidates(req: AgentRequest) -> List:
+def _extract_input_candidates(req: AgentRequest) -> list:
     """从 req.artifacts 抽取候选(支持 SimCandidate / GenCandidate / dict)
 
     Returns:
@@ -122,7 +123,7 @@ class MatHpcAgent(MatWAUAgentBase):
         calc_type: str = "relax",
         cost_per_node_hour: float = 10.0,
         cost_threshold: float = 1000.0,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         **kwargs,
     ) -> None:
         """构造
@@ -177,7 +178,7 @@ VASP 计算类型(calc_type):
 - 1 个 LLM 调用 = 1 次 Goldens 跑分(mat-hpc.yaml,pass-rate > 50% Stage 1 / > 80% Stage 2)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """Inner Loop 第 3 步:执行 — mat-hpc 特有业务逻辑
 
         1. 从 ctx 拿 candidates(由 perceive 预处理)
@@ -281,7 +282,7 @@ VASP 计算类型(calc_type):
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1 重写:预处理 candidates(mat-sim → mat-hpc 数据流)
 
         因为 act() 只能拿到 ctx,所以在 perceive 阶段
@@ -348,11 +349,9 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # 跑 1 个 demo:mat-gen → mat-sim → mat-hpc 三段链路
-    from agents.mat_gen_agent.mat_gen_agent import create_default_agent as create_gen
-    from agents.mat_gen_agent.mattergen import generate as mattergen_generate
     from agents.mat_gen_agent.mattergen import GenConstraints
+    from agents.mat_gen_agent.mattergen import generate as mattergen_generate
     from agents.mat_sim_agent.mat_sim_agent import create_default_agent as create_sim
-    from agents.mat_sim_agent.mat_sim_agent import SimCandidate
 
     # Stage 1: mat-gen
     print("\n📦 Stage 1: mat-gen 生成候选")
@@ -386,7 +385,7 @@ if __name__ == "__main__":
 
     print(f"\n📨 reply: {response.reply[:300]}")
     print(f"📊 confidence: {response.confidence:.0%}, cost: ¥{response.cost:.2f}")
-    print(f"\n🖥️ HPC 作业:")
+    print("\n🖥️ HPC 作业:")
     for i, job in enumerate(response.artifacts.get("jobs", [])[:5]):
         print(
             f"   #{i+1} {job.job_id}: {job.formula}, "
@@ -397,7 +396,7 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "MatHpcAgent",
     "HPCJobResult",
+    "MatHpcAgent",
     "create_default_agent",
 ]

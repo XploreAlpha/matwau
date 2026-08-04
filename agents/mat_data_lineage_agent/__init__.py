@@ -33,20 +33,20 @@ from .mat_data_lineage_agent import (
 )
 
 __all__ = [
-    "MatDataLineageAgent",
     "LineageConfig",
     "LineageRecord",
-    "LineageStore",
-    "LineageTree",
-    "create_default_agent",
-    "build_lineage_tree",
-    "get_global_store",
-    "hash_data",
-    "reset_global_store",
-    "summarize_artifacts",
     # W32 NEW
     "LineageRecorder",
+    "LineageStore",
+    "LineageTree",
+    "MatDataLineageAgent",
+    "build_lineage_tree",
+    "create_default_agent",
     "get_global_recorder",
+    "get_global_store",
     "get_recorder",
+    "hash_data",
     "reset_global_recorder",
+    "reset_global_store",
+    "summarize_artifacts",
 ]

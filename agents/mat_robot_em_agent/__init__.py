@@ -21,66 +21,66 @@ W24 增量:ZeissRealSDK 真接(SmartSEM REST API + 公开 .sxml XML 配置 + EDS
 per MatWAU-开发计划 §8 W21 + W24
 """
 
-from .em_engine import (  # noqa: F401
+from .em_engine import (
+    DEFAULT_EM_PROCEDURE,
+    EM_MAGNETIC_MATERIALS,
+    EM_RADIATION_DAMAGE_MATERIALS,
+    EM_VOLATILE_MATERIALS,
+    HAZARD_EM_DOOR_OPEN,
+    HAZARD_EM_HIGH_VOLTAGE_KV,
+    HAZARD_EM_VACUUM_OK,
+    VACUUM_THRESHOLD,
     EMProcedure,
     EMResult,
-    EMStep,
     EMSafetyGuard,
+    EMStep,
     ZeissMockSDK,
-    EM_VOLATILE_MATERIALS,
-    EM_RADIATION_DAMAGE_MATERIALS,
-    EM_MAGNETIC_MATERIALS,
-    HAZARD_EM_DOOR_OPEN,
-    HAZARD_EM_VACUUM_OK,
-    HAZARD_EM_HIGH_VOLTAGE_KV,
-    VACUUM_THRESHOLD,
-    DEFAULT_EM_PROCEDURE,
     estimate_em_cost,
     get_default_em_procedure,
 )
-from .mat_robot_em_agent import MatRobotEmAgent  # noqa: F401
-from .zeiss_real_sdk import (  # noqa: F401
-    ZeissRealSDK,
-    ZeissProtocolBuilder,
-    is_zeiss_smartsem_available,
-    get_zeiss_sdk_list,
-    smartsem_endpoint_available,
-    lookup_eds_composition,
-    generate_eds_output,
-    generate_sem_image,
-    ZEISS_SIGMA_DEFAULT_PARAMS,
+from .mat_robot_em_agent import MatRobotEmAgent
+from .zeiss_real_sdk import (
     EDS_KNOWN_COMPOSITIONS,
     SMARTSEM_DEFAULT_API_URL,
+    ZEISS_SIGMA_DEFAULT_PARAMS,
+    ZeissProtocolBuilder,
+    ZeissRealSDK,
+    generate_eds_output,
+    generate_sem_image,
+    get_zeiss_sdk_list,
+    is_zeiss_smartsem_available,
+    lookup_eds_composition,
+    smartsem_endpoint_available,
 )
 
 __all__ = [
-    "MatRobotEmAgent",
-    "EMProcedure",
-    "EMResult",
-    "EMStep",
-    "EMSafetyGuard",
-    "ZeissMockSDK",
-    # W24 Stage 2 真接
-    "ZeissRealSDK",                      # W24 真接 SDK
-    "ZeissProtocolBuilder",              # W24 SmartSEM XML 配置生成器
-    "is_zeiss_smartsem_available",       # W24 SDK 检测
-    "get_zeiss_sdk_list",                 # W24 列出已装 Zeiss 库
-    "smartsem_endpoint_available",       # W24 SmartSEM REST 探测
-    "lookup_eds_composition",            # W24 EDS 标准组成查表
-    "generate_eds_output",               # W24 EDS 输出生成(确定性)
-    "generate_sem_image",                # W24 SEM 图像记录生成
-    "ZEISS_SIGMA_DEFAULT_PARAMS",        # W24 Zeiss Sigma 规格
+    "DEFAULT_EM_PROCEDURE",
     "EDS_KNOWN_COMPOSITIONS",            # W24 EDS 标准组成库
-    "SMARTSEM_DEFAULT_API_URL",          # W24 SmartSEM REST URL
+    "EM_MAGNETIC_MATERIALS",
+    "EM_RADIATION_DAMAGE_MATERIALS",
     # EM 防护
     "EM_VOLATILE_MATERIALS",
-    "EM_RADIATION_DAMAGE_MATERIALS",
-    "EM_MAGNETIC_MATERIALS",
     "HAZARD_EM_DOOR_OPEN",
-    "HAZARD_EM_VACUUM_OK",
     "HAZARD_EM_HIGH_VOLTAGE_KV",
+    "HAZARD_EM_VACUUM_OK",
+    "SMARTSEM_DEFAULT_API_URL",          # W24 SmartSEM REST URL
     "VACUUM_THRESHOLD",
-    "DEFAULT_EM_PROCEDURE",
+    "ZEISS_SIGMA_DEFAULT_PARAMS",        # W24 Zeiss Sigma 规格
+    "EMProcedure",
+    "EMResult",
+    "EMSafetyGuard",
+    "EMStep",
+    "MatRobotEmAgent",
+    "ZeissMockSDK",
+    "ZeissProtocolBuilder",              # W24 SmartSEM XML 配置生成器
+    # W24 Stage 2 真接
+    "ZeissRealSDK",                      # W24 真接 SDK
     "estimate_em_cost",
+    "generate_eds_output",               # W24 EDS 输出生成(确定性)
+    "generate_sem_image",                # W24 SEM 图像记录生成
     "get_default_em_procedure",
+    "get_zeiss_sdk_list",                 # W24 列出已装 Zeiss 库
+    "is_zeiss_smartsem_available",       # W24 SDK 检测
+    "lookup_eds_composition",            # W24 EDS 标准组成查表
+    "smartsem_endpoint_available",       # W24 SmartSEM REST 探测
 ]

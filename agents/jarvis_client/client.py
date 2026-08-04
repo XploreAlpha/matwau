@@ -36,7 +36,7 @@ import urllib.parse
 import urllib.request
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,9 @@ def _check_jarvis_tools() -> bool:
     global _JARVIS_TOOLS_AVAILABLE
     if _JARVIS_TOOLS_AVAILABLE is None:
         try:
-            from jarvis.db.figshare import get_jdb_data  # type: ignore[import-not-found]  # noqa: F401
+            from jarvis.db.figshare import (
+                get_jdb_data,  # type: ignore[import-not-found]  # noqa: F401
+            )
             _JARVIS_TOOLS_AVAILABLE = True
         except Exception:
             _JARVIS_TOOLS_AVAILABLE = False
@@ -93,7 +95,7 @@ class JarvReference:
 
     jid: str
     formula: str = ""
-    elements: List[str] = field(default_factory=list)
+    elements: list[str] = field(default_factory=list)
     spacegroup_symbol: str = ""
     spacegroup_number: int = 0
     a: float = 0.0
@@ -112,7 +114,7 @@ class JarvReference:
     xc_functional: str = "PBE"
     url: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "jid": self.jid,
             "formula": self.formula,
@@ -169,7 +171,7 @@ def _jarvis_api_base() -> str:
     return os.environ.get(ENV_JARVIS_API_BASE, JARVIS_API_URL_DEFAULT).rstrip("/")
 
 
-def _jarvis_auth_headers() -> Dict[str, str]:
+def _jarvis_auth_headers() -> dict[str, str]:
     """读取可选 Bearer token"""
     token = os.environ.get(ENV_JARVIS_TOKEN)
     if token:
@@ -267,7 +269,7 @@ def _to_int(v: Any) -> int:
     return int(f) if f else 0
 
 
-def _parse_jarvis_response(data: Any) -> List[JarvReference]:
+def _parse_jarvis_response(data: Any) -> list[JarvReference]:
     """解析 JARVIS API JSON 响应 → List[JarvReference]
 
     JARVIS 响应结构(per NIST API docs):
@@ -294,7 +296,7 @@ def _parse_jarvis_response(data: Any) -> List[JarvReference]:
         ]
     }
     """
-    refs: List[JarvReference] = []
+    refs: list[JarvReference] = []
     if isinstance(data, list):
         items = data
     elif isinstance(data, dict):
@@ -312,7 +314,7 @@ def _parse_jarvis_response(data: Any) -> List[JarvReference]:
             if not jid:
                 continue
             elements_raw = item.get("elements") or item.get("element_list") or []
-            elements: List[str] = []
+            elements: list[str] = []
             if isinstance(elements_raw, str):
                 elements = re.findall(r"[A-Z][a-z]?", elements_raw)
             elif isinstance(elements_raw, list):
@@ -358,7 +360,7 @@ def _parse_jarvis_response(data: Any) -> List[JarvReference]:
 # ============================================================================
 
 
-def _mock_jarvis_response(query: str, *, n: int = 5) -> List[JarvReference]:
+def _mock_jarvis_response(query: str, *, n: int = 5) -> list[JarvReference]:
     """JARVIS mock 数据(Stage 1 fallback)
 
     给已知化学式伪造 1 组综合 entry(3D + 2D 区分)
@@ -473,8 +475,8 @@ class JarvClient:
         self,
         user_intent: str,
         *,
-        max_results: Optional[int] = None,
-    ) -> Tuple[List[JarvReference], bool]:
+        max_results: int | None = None,
+    ) -> tuple[list[JarvReference], bool]:
         """查 JARVIS,返回 (refs, is_real)
 
         Args:
@@ -553,19 +555,19 @@ def search_jarvis(
     user_intent: str,
     *,
     max_results: int = 5,
-) -> Tuple[List[JarvReference], bool]:
+) -> tuple[list[JarvReference], bool]:
     """便捷函数:查 JARVIS"""
     client = JarvClient(max_results=max_results)
     return client.search(user_intent, max_results=max_results)
 
 
 __all__ = [
-    "JARVIS_API_URL_DEFAULT",
-    "JARVIS_TIMEOUT_SEC",
     "ENV_JARVIS_API_BASE",
     "ENV_JARVIS_TOKEN",
-    "JarvReference",
+    "JARVIS_API_URL_DEFAULT",
+    "JARVIS_TIMEOUT_SEC",
     "JarvClient",
+    "JarvReference",
     "is_jarvis_available",
     "is_jarvis_tools_available",
     "search_jarvis",

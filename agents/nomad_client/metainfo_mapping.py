@@ -37,8 +37,7 @@ per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M2 第 13 项
 from __future__ import annotations
 
 import logging
-import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +161,7 @@ UNMAPPED_PATTERNS = [
 # ============================================================================
 
 
-def _dig(d: Dict[str, Any], path: str) -> Optional[Any]:
+def _dig(d: dict[str, Any], path: str) -> Any | None:
     """安全 dict drill-down(per dotted path)
 
     Examples:
@@ -180,7 +179,7 @@ def _dig(d: Dict[str, Any], path: str) -> Optional[Any]:
     return cur
 
 
-def _pick(d: Dict[str, Any], paths: Tuple[str, ...]) -> Optional[Any]:
+def _pick(d: dict[str, Any], paths: tuple[str, ...]) -> Any | None:
     """依次尝试多个 dotted path,返回首个非 None 值"""
     for p in paths:
         v = _dig(d, p)
@@ -215,7 +214,7 @@ def _to_int(v: Any) -> int:
     return int(f) if f else 0
 
 
-def _to_str_list(v: Any) -> List[str]:
+def _to_str_list(v: Any) -> list[str]:
     """list[str] 归一化(处理元素 dict 包裹情况)"""
     if not v:
         return []
@@ -240,7 +239,7 @@ def _to_str_list(v: Any) -> List[str]:
 # ============================================================================
 
 
-def extract_nomad_record(entry_data: Dict[str, Any]) -> Dict[str, Any]:
+def extract_nomad_record(entry_data: dict[str, Any]) -> dict[str, Any]:
     """从 NOMAD entry 提取标准化字段
 
     Args:
@@ -361,9 +360,9 @@ def extract_nomad_record(entry_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _collect_extras(
-    entry_data: Dict[str, Any],
-    used_subtrees: Dict[str, Dict[str, Any]],
-) -> Dict[str, Any]:
+    entry_data: dict[str, Any],
+    used_subtrees: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     """把未用到的子 dict 收进 extras(供 M3 / debug 查验)"""
     extras = {}
     for key, val in entry_data.items():
@@ -390,10 +389,10 @@ def count_mapped_metainfo_paths() -> int:
 
 
 __all__ = [
-    "KNOWN_SECTIONS",
     "KNOWN_PROPERTY_GROUPS",
+    "KNOWN_SECTIONS",
     "MAPPED_METAINFO_PATHS",
     "UNMAPPED_PATTERNS",
-    "extract_nomad_record",
     "count_mapped_metainfo_paths",
+    "extract_nomad_record",
 ]

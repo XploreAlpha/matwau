@@ -13,14 +13,14 @@
 per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M2 第 7-8 项
 """
 
-from .mat_jarvis_agent import (  # noqa: F401
-    MatJarvAgent,
+from .mat_jarvis_agent import (
     JarvConfig,
+    MatJarvAgent,
     create_default_agent,
 )
 
 __all__ = [
-    "MatJarvAgent",
     "JarvConfig",
+    "MatJarvAgent",
     "create_default_agent",
 ]

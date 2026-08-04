@@ -9,8 +9,8 @@
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable, List, Optional
 
 
 class ParallelBatchRunner:
@@ -30,8 +30,8 @@ class ParallelBatchRunner:
 
     def run_all(
         self,
-        callables: List[Callable[[], "ExperimentResultLike"]],
-    ) -> List["ExperimentResultLike"]:
+        callables: list[Callable[[], ExperimentResultLike]],
+    ) -> list[ExperimentResultLike]:
         """fan-out N 个 callable,异常隔离,顺序返回结果列表
 
         Args:
@@ -41,7 +41,7 @@ class ParallelBatchRunner:
         Returns:
             List[ExperimentResultLike] — 与 callables 同顺序
         """
-        results: List[Optional["ExperimentResultLike"]] = [None] * len(callables)
+        results: list[ExperimentResultLike | None] = [None] * len(callables)
 
         if not callables:
             return []

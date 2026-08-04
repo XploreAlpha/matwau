@@ -27,24 +27,24 @@ quick start:
     client.start_heartbeat()              # 后台心跳
     # ... app.py 在 /wau/dispatch 端点用 make_dispatch_handler() ...
 """
+from .dispatch_handler import (
+    _load_jwt_secret,
+    _verify_jwt,
+    make_dispatch_handler,
+)
 from .wau_client import (
-    WauClient,
-    WauConfig,
     DEFAULT_REGISTRY_URL,
     DEFAULT_TENANT_ID,
-)
-from .dispatch_handler import (
-    make_dispatch_handler,
-    _verify_jwt,
-    _load_jwt_secret,
+    WauClient,
+    WauConfig,
 )
 
 __all__ = [
-    "WauClient",
-    "WauConfig",
-    "make_dispatch_handler",
     "DEFAULT_REGISTRY_URL",
     "DEFAULT_TENANT_ID",
-    "_verify_jwt",
+    "WauClient",
+    "WauConfig",
     "_load_jwt_secret",
+    "_verify_jwt",
+    "make_dispatch_handler",
 ]

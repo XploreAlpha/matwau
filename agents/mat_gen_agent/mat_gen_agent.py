@@ -21,34 +21,34 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 允许直接 python3 -m 运行本文件
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
-    AgentRequest,
-    AgentResponse,
-    MatWAUAgentBase,
-)
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
-
-from .mattergen import (  # noqa: E402
-    GenCandidate,
-    GenConstraints,
-    generate as mattergen_generate,
-    parse_constraints,
-)
-
 # W15: 域路由(W2 接入真实 backend)
-from agents.material_domain_router import (  # noqa: E402
+from agents.material_domain_router import (
     DEFAULT_DOMAIN,
     detect_domain,
     get_gen_backend,
     get_profile,
+)
+from matwau.core.agent_base import (
+    AgentRequest,
+    AgentResponse,
+    MatWAUAgentBase,
+)
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
+
+from .mattergen import (
+    GenCandidate,
+    parse_constraints,
+)
+from .mattergen import (
+    generate as mattergen_generate,
 )
 
 
@@ -69,7 +69,7 @@ class MatGenAgent(MatWAUAgentBase):
         *,
         n_samples: int = 10,
         target_energy_threshold: float = -1.5,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         **kwargs,
     ) -> None:
         """构造
@@ -112,7 +112,7 @@ class MatGenAgent(MatWAUAgentBase):
 - 1 个 LLM 调用 = 1 次 Goldens 跑分(W1 末已建 50 case,pass-rate > 80%)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """Inner Loop 第 3 步:执行 — mat-gen 特有业务逻辑
 
         1. 从 ctx 拿 user_message + domain(W15 路由)
@@ -143,11 +143,10 @@ class MatGenAgent(MatWAUAgentBase):
 
         # 1. 解析约束
         constraints = parse_constraints(user_message)
-        if constraints.n_samples < self.n_samples:
-            constraints.n_samples = self.n_samples
+        constraints.n_samples = max(constraints.n_samples, self.n_samples)
 
         # 2. 调 MatterGen(Stage 1 mock;Stage 2 按 backend 路由)
-        candidates: List[GenCandidate] = mattergen_generate(constraints)
+        candidates: list[GenCandidate] = mattergen_generate(constraints)
 
         # 3. 过滤(可选:形成能低于阈值)
         stable_candidates = [
@@ -204,7 +203,7 @@ class MatGenAgent(MatWAUAgentBase):
             cost=total_cost,
         )
 
-    def _estimate_cost(self, n_candidates: int, domain: Optional[str] = None) -> float:
+    def _estimate_cost(self, n_candidates: int, domain: str | None = None) -> float:
         """估算成本(per W15 domain 单价)
 
         Args:

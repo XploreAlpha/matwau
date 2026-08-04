@@ -20,10 +20,9 @@ per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M3 第 4 项
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .canonical_key import CanonicalKey
-
 
 # ============================================================================
 # 数据结构
@@ -45,8 +44,8 @@ class ConsensusCluster:
     """
 
     canonical: CanonicalKey
-    sources: List[str] = field(default_factory=list)
-    records: List[Tuple[str, Any]] = field(default_factory=list)  # (platform, record)
+    sources: list[str] = field(default_factory=list)
+    records: list[tuple[str, Any]] = field(default_factory=list)  # (platform, record)
     hit_count: int = 0
     formation_energy_min: float = 0.0
     formation_energy_max: float = 0.0
@@ -54,7 +53,7 @@ class ConsensusCluster:
     band_gap_max: float = 0.0
     is_consensus: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "canonical": self.canonical.to_dict(),
             "sources": self.sources,
@@ -87,10 +86,10 @@ class ConsistencyConflict:
 
     canonical: CanonicalKey
     conflict_type: str = ""
-    platforms_involved: List[str] = field(default_factory=list)
+    platforms_involved: list[str] = field(default_factory=list)
     detail: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "canonical": self.canonical.to_dict(),
             "conflict_type": self.conflict_type,
@@ -114,14 +113,14 @@ class ConsensusReport:
     """
 
     user_intent: str = ""
-    clusters: List[ConsensusCluster] = field(default_factory=list)
-    conflicts: List[ConsistencyConflict] = field(default_factory=list)
+    clusters: list[ConsensusCluster] = field(default_factory=list)
+    conflicts: list[ConsistencyConflict] = field(default_factory=list)
     consensus_rate: float = 0.0
     n_platforms_hit: int = 0
     total_records: int = 0
-    platform_hit_counts: Dict[str, int] = field(default_factory=dict)
+    platform_hit_counts: dict[str, int] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "user_intent": self.user_intent,
             "consensus_rate": round(self.consensus_rate, 3),
@@ -226,7 +225,7 @@ def _extract_band_gap(record: Any) -> float:
 
 
 def resolve_cross_source(
-    records_by_platform: Dict[str, List[Any]],
+    records_by_platform: dict[str, list[Any]],
     *,
     user_intent: str = "",
     energy_mismatch_threshold: float = 0.5,  # eV/atom
@@ -246,8 +245,8 @@ def resolve_cross_source(
     report = ConsensusReport(user_intent=user_intent)
 
     # 1. 把每条 record 转 (canonical_key, platform, record) 三元组
-    flat: List[Tuple[CanonicalKey, str, Any]] = []
-    platform_hit_counts: Dict[str, int] = {}
+    flat: list[tuple[CanonicalKey, str, Any]] = []
+    platform_hit_counts: dict[str, int] = {}
     for platform, records in records_by_platform.items():
         for r in records or []:
             try:
@@ -278,7 +277,7 @@ def resolve_cross_source(
         return report
 
     # 2. 按 canonical 聚类(2-pass:exact reduced_formula → fuzzy matches)
-    clusters: List[ConsensusCluster] = []
+    clusters: list[ConsensusCluster] = []
     used = [False] * len(flat)
 
     for i, (ck_i, plat_i, rec_i) in enumerate(flat):
@@ -380,10 +379,10 @@ def resolve_cross_source(
 
 __all__ = [
     "ConsensusCluster",
-    "ConsistencyConflict",
     "ConsensusReport",
-    "resolve_cross_source",
+    "ConsistencyConflict",
     "_detect_platform",
-    "_extract_energy",
     "_extract_band_gap",
+    "_extract_energy",
+    "resolve_cross_source",
 ]

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 
-from .client import (  # noqa: F401
+from .client import (
     OQMD_API_URL,
     OQMD_TIMEOUT_SEC,
     OqmdClient,

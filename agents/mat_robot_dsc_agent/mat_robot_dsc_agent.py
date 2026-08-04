@@ -10,7 +10,7 @@ W22 关键:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from matwau.core.agent_base import (
     AgentRequest,
@@ -22,7 +22,6 @@ from .dsc_engine import (
     DSCProcedure,
     DSCResult,
     DSCSafetyGuard,
-    DSCStep,
     TAMockSDK,
     estimate_dsc_cost,
     get_default_dsc_procedure,
@@ -56,7 +55,7 @@ class MatRobotDscAgent(MatWAUAgentBase):
     def __init__(
         self,
         *,
-        safety_guard: Optional[DSCSafetyGuard] = None,
+        safety_guard: DSCSafetyGuard | None = None,
         robot_sdk=None,  # W25: 接受 TATriosRealSDK 或 TAMockSDK
         context_manager=None,
         tool_registry=None,
@@ -89,7 +88,7 @@ class MatRobotDscAgent(MatWAUAgentBase):
             )
         else:
             self.robot_sdk = TAMockSDK(fail_chance=0.0)
-        self.warnings: List[str] = []
+        self.warnings: list[str] = []
 
     def system_prompt(self) -> str:
         return (
@@ -100,9 +99,9 @@ class MatRobotDscAgent(MatWAUAgentBase):
             "输出 Tg / Tm / Tc + DSC 曲线给 mat-critic 比对材料数据库。"
         )
 
-    def act(self, ctx: Dict[str, Any], tools: Optional[List[Any]] = None) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[Any] | None = None) -> AgentResponse:
         """Inner Loop act(W22)"""
-        procedure: Optional[DSCProcedure] = None
+        procedure: DSCProcedure | None = None
 
         # 1. 拿 procedure
         if isinstance(ctx, dict):
@@ -153,10 +152,10 @@ class MatRobotDscAgent(MatWAUAgentBase):
             )
 
         # 3. 执行 DSC 温度程序
-        result_log: List[str] = []
+        result_log: list[str] = []
         all_ok = True
-        all_x: List[float] = []
-        all_y: List[float] = []
+        all_x: list[float] = []
+        all_y: list[float] = []
 
         # W25: 让 RealSDK 知道当前样品的化学式(查标准材料库用)
         if hasattr(self.robot_sdk, "set_sample_formula"):
@@ -237,7 +236,7 @@ class MatRobotDscAgent(MatWAUAgentBase):
             cost=result.cost,
         )
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """Inner Loop perceive(W22)"""
         ctx = dict(req.context) if req.context else {}
         if req.artifacts and "procedure" not in ctx:

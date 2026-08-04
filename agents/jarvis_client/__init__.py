@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import logging
 
-from .client import (  # noqa: F401
+from .client import (
     ENV_JARVIS_API_BASE,
     ENV_JARVIS_TOKEN,
     JARVIS_API_URL_DEFAULT,
@@ -46,10 +46,10 @@ from .client import (  # noqa: F401
 )
 
 __all__ = [
-    "JARVIS_API_URL_DEFAULT",
-    "JARVIS_TIMEOUT_SEC",
     "ENV_JARVIS_API_BASE",
     "ENV_JARVIS_TOKEN",
+    "JARVIS_API_URL_DEFAULT",
+    "JARVIS_TIMEOUT_SEC",
     "JarvClient",
     "JarvReference",
     "is_jarvis_available",

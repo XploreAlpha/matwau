@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any
 
 # ============================================================================
 # 数据结构
@@ -63,16 +62,16 @@ class MatIntent:
     """mat-intent 解析结果"""
 
     subclass: str                                           # 5 子类之一
-    material_system: Optional[str] = None                   # 11 类之一
-    target_props: List[str] = field(default_factory=list)   # 8 类属性列表
-    elements: List[str] = field(default_factory=list)        # 必含元素
-    forbidden: List[str] = field(default_factory=list)      # 禁止元素
+    material_system: str | None = None                   # 11 类之一
+    target_props: list[str] = field(default_factory=list)   # 8 类属性列表
+    elements: list[str] = field(default_factory=list)        # 必含元素
+    forbidden: list[str] = field(default_factory=list)      # 禁止元素
     n_samples: int = 5                                      # 生成候选数
     confidence: float = 0.5                                 # 解析置信度
     downstream_agent: str = "mat-pipeline"                  # 默认走 4 段管线
     reasoning: str = ""                                     # 解析理由
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "subclass": self.subclass,
             "material_system": self.material_system,
@@ -134,15 +133,15 @@ SUBCLASS_PATTERNS = {
 }
 
 
-def classify_subclass(user_intent: str) -> Tuple[str, float, str]:
+def classify_subclass(user_intent: str) -> tuple[str, float, str]:
     """分类 5 子类
 
     Returns:
         (subclass, confidence, reasoning)
     """
     msg = user_intent
-    scores: Dict[str, int] = {}
-    matched_patterns: Dict[str, List[str]] = {}
+    scores: dict[str, int] = {}
+    matched_patterns: dict[str, list[str]] = {}
 
     for subclass, patterns in SUBCLASS_PATTERNS.items():
         hits = []
@@ -220,7 +219,7 @@ MATERIAL_SYSTEM_PATTERNS = {
 }
 
 
-def identify_material_system(user_intent: str) -> Optional[str]:
+def identify_material_system(user_intent: str) -> str | None:
     """识别 material_system(11 类)"""
     for system, patterns in MATERIAL_SYSTEM_PATTERNS.items():
         for p in patterns:
@@ -262,7 +261,7 @@ TARGET_PROP_PATTERNS = {
 }
 
 
-def identify_target_props(user_intent: str) -> List[str]:
+def identify_target_props(user_intent: str) -> list[str]:
     """识别 target_props(8 类,可多个)"""
     props = []
     for prop, patterns in TARGET_PROP_PATTERNS.items():
@@ -297,7 +296,7 @@ ELEMENT_POOL_1CHAR = ["O", "N", "C", "H", "B", "F", "P", "S", "K", "V", "Y", "I"
 ELEMENT_POOL = sorted(ELEMENT_POOL_2CHAR + ELEMENT_POOL_1CHAR, key=lambda x: (-len(x), x))
 
 
-def extract_elements(user_intent: str) -> List[str]:
+def extract_elements(user_intent: str) -> list[str]:
     """提取必含元素(单字符避子串 + 排除单位/英文单词)"""
     elements = []
 
@@ -329,7 +328,7 @@ def extract_elements(user_intent: str) -> List[str]:
     return elements
 
 
-def extract_forbidden(user_intent: str) -> List[str]:
+def extract_forbidden(user_intent: str) -> list[str]:
     """提取禁止元素(per "无 X" / "no X" / "禁止 X" 模式)"""
     forbidden = []
 
@@ -436,15 +435,15 @@ def parse_mat_intent(user_intent: str) -> MatIntent:
 
 
 __all__ = [
-    "SUBCLASSES",
     "MATERIAL_SYSTEMS",
+    "SUBCLASSES",
     "TARGET_PROPS",
     "MatIntent",
     "classify_subclass",
-    "identify_material_system",
-    "identify_target_props",
     "extract_elements",
     "extract_forbidden",
     "extract_n_samples",
+    "identify_material_system",
+    "identify_target_props",
     "parse_mat_intent",
 ]

@@ -19,8 +19,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # ============================================================================
 # 数据结构
@@ -33,18 +32,18 @@ class LineageRecord:
 
     lineage_id: str                       # UUID
     run_id: str                           # 业务 run_id(per mat agent)
-    parent_run_id: Optional[str] = None   # 上游 run_id(per DAG)
+    parent_run_id: str | None = None   # 上游 run_id(per DAG)
     agent_name: str = ""                  # 哪个 agent 跑的
     input_hash: str = ""                  # 输入数据 hash
     output_hash: str = ""                 # 输出数据 hash
-    input_artifacts_summary: Dict[str, Any] = field(default_factory=dict)  # 简化(只存 key + size)
-    output_artifacts_summary: Dict[str, Any] = field(default_factory=dict)
+    input_artifacts_summary: dict[str, Any] = field(default_factory=dict)  # 简化(只存 key + size)
+    output_artifacts_summary: dict[str, Any] = field(default_factory=dict)
     timestamp: str = ""                   # ISO 8601
     duration_seconds: float = 0.0
     cost: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "lineage_id": self.lineage_id,
             "run_id": self.run_id,
@@ -78,7 +77,7 @@ def hash_data(data: Any) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()[:16]    # 16 字符(64 bit)
 
 
-def summarize_artifacts(artifacts: Dict[str, Any]) -> Dict[str, Any]:
+def summarize_artifacts(artifacts: dict[str, Any]) -> dict[str, Any]:
     """artifacts 摘要(只存 key + size,避免大对象)
 
     Args:
@@ -116,16 +115,16 @@ class LineageStore:
        backend 是为了"持久化兜底"(关 Python 重开数据还在)
     """
 
-    def __init__(self, backend: Optional[Any] = None) -> None:
+    def __init__(self, backend: Any | None = None) -> None:
         """构造
 
         Args:
             backend: W16 LineageBackend 实例(None → W14 纯 in-memory 行为)
         """
         self.backend = backend  # W16: 可选 backend
-        self.records: Dict[str, LineageRecord] = {}
-        self.by_run: Dict[str, List[str]] = {}
-        self.by_parent: Dict[str, List[str]] = {}
+        self.records: dict[str, LineageRecord] = {}
+        self.by_run: dict[str, list[str]] = {}
+        self.by_parent: dict[str, list[str]] = {}
 
         # W16: 如果 backend 已有数据(从磁盘恢复),加载到内存 cache
         if self.backend is not None:
@@ -162,12 +161,12 @@ class LineageStore:
         self,
         run_id: str,
         agent_name: str,
-        input_artifacts: Optional[Dict[str, Any]] = None,
-        output_artifacts: Optional[Dict[str, Any]] = None,
-        parent_run_id: Optional[str] = None,
+        input_artifacts: dict[str, Any] | None = None,
+        output_artifacts: dict[str, Any] | None = None,
+        parent_run_id: str | None = None,
         duration_seconds: float = 0.0,
         cost: float = 0.0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> LineageRecord:
         """加 1 条 record
 
@@ -231,18 +230,18 @@ class LineageStore:
 
         return record
 
-    def get(self, lineage_id: str) -> Optional[LineageRecord]:
+    def get(self, lineage_id: str) -> LineageRecord | None:
         """按 lineage_id 查"""
         return self.records.get(lineage_id)
 
-    def get_by_run(self, run_id: str) -> List[LineageRecord]:
+    def get_by_run(self, run_id: str) -> list[LineageRecord]:
         """按 run_id 查所有 record"""
         ids = self.by_run.get(run_id, [])
         return [self.records[i] for i in ids if i in self.records]
 
-    def ancestors(self, run_id: str) -> List[LineageRecord]:
+    def ancestors(self, run_id: str) -> list[LineageRecord]:
         """查 run_id 的所有上游(递归,不含 run_id 自身)"""
-        result: List[LineageRecord] = []
+        result: list[LineageRecord] = []
         visited_run = set()
 
         def _walk(rid: str) -> None:
@@ -262,9 +261,9 @@ class LineageStore:
         _walk(run_id)
         return result
 
-    def descendants(self, run_id: str) -> List[LineageRecord]:
+    def descendants(self, run_id: str) -> list[LineageRecord]:
         """查 run_id 的所有下游(递归,不含 run_id 自身)"""
-        result: List[LineageRecord] = []
+        result: list[LineageRecord] = []
         visited = set()
 
         def _walk(rid: str) -> None:
@@ -289,7 +288,7 @@ class LineageStore:
             indent=2,
         )
 
-    def to_list(self) -> List[Dict[str, Any]]:
+    def to_list(self) -> list[dict[str, Any]]:
         """导出 list of dict"""
         return [r.to_dict() for r in self.records.values()]
 
@@ -307,7 +306,7 @@ class LineageStore:
 # ============================================================================
 
 
-_global_store: Optional[LineageStore] = None
+_global_store: LineageStore | None = None
 
 
 def get_global_store() -> LineageStore:
@@ -334,13 +333,13 @@ class LineageTree:
     """1 棵血缘树(以 1 个 run_id 为根)"""
 
     root_run_id: str
-    root: Optional[LineageRecord]
-    ancestors_tree: Dict[str, List[LineageRecord]]     # run_id → parents
-    descendants_tree: Dict[str, List[LineageRecord]]  # run_id → children
+    root: LineageRecord | None
+    ancestors_tree: dict[str, list[LineageRecord]]     # run_id → parents
+    descendants_tree: dict[str, list[LineageRecord]]  # run_id → children
     depth: int                                         # 树深度(0 = 只有 root)
     total_nodes: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "root_run_id": self.root_run_id,
             "root": self.root.to_dict() if self.root else None,
@@ -361,8 +360,8 @@ def build_lineage_tree(
     root = root_records[0] if root_records else None
 
     # 递归收集
-    ancestors_tree: Dict[str, List[LineageRecord]] = {}
-    descendants_tree: Dict[str, List[LineageRecord]] = {}
+    ancestors_tree: dict[str, list[LineageRecord]] = {}
+    descendants_tree: dict[str, list[LineageRecord]] = {}
 
     def _walk_up(rid: str, depth: int) -> int:
         """返回 max depth"""
@@ -404,9 +403,9 @@ __all__ = [
     "LineageRecord",
     "LineageStore",
     "LineageTree",
-    "hash_data",
-    "summarize_artifacts",
-    "get_global_store",
-    "reset_global_store",
     "build_lineage_tree",
+    "get_global_store",
+    "hash_data",
+    "reset_global_store",
+    "summarize_artifacts",
 ]

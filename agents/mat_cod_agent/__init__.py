@@ -12,14 +12,14 @@
 per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M1 第 7-8 项
 """
 
-from .mat_cod_agent import (  # noqa: F401
-    MatCodAgent,
+from .mat_cod_agent import (
     CodConfig,
+    MatCodAgent,
     create_default_agent,
 )
 
 __all__ = [
-    "MatCodAgent",
     "CodConfig",
+    "MatCodAgent",
     "create_default_agent",
 ]

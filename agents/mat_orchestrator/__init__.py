@@ -24,14 +24,14 @@ Stage 3 W31: 多实验并行调度(本仓)
 """
 from .dag import (
     DAG,
-    DAGExecutor,
-    DAGNode,
-    NodeResult,
-    WorkflowResult,
     WORKFLOW_BY_SUBCLASS,
     # W31 NEW
     BatchWorkflowResult,
+    DAGExecutor,
+    DAGNode,
     ExperimentResult,
+    NodeResult,
+    WorkflowResult,
     get_multi_experiment_default_batch,
     get_workflow_for_subclass,
     multi_experiment_characterization_workflow,
@@ -40,22 +40,22 @@ from .mat_orchestrator import MatOrchestrator, create_default_orchestrator
 from .parallel_runner import ParallelBatchRunner  # W31 NEW
 
 __all__ = [
-    # Agent
-    "MatOrchestrator",
-    "create_default_orchestrator",
+    "DAG",
+    "WORKFLOW_BY_SUBCLASS",
+    "BatchWorkflowResult",
+    "DAGExecutor",
     # DAG 基础
     "DAGNode",
-    "DAG",
+    # W31 NEW
+    "ExperimentResult",
+    # Agent
+    "MatOrchestrator",
     "NodeResult",
+    "ParallelBatchRunner",
     "WorkflowResult",
-    "DAGExecutor",
-    "WORKFLOW_BY_SUBCLASS",
+    "create_default_orchestrator",
+    "get_multi_experiment_default_batch",
     "get_workflow_for_subclass",
     # 6 workflow 模板(5 老 + 1 W31 NEW)
     "multi_experiment_characterization_workflow",
-    "get_multi_experiment_default_batch",
-    # W31 NEW
-    "ExperimentResult",
-    "BatchWorkflowResult",
-    "ParallelBatchRunner",
 ]

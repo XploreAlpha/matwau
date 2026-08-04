@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -55,13 +55,13 @@ def is_zeiss_smartsem_available() -> bool:
         return False
 
 
-def get_zeiss_sdk_list() -> List[str]:
+def get_zeiss_sdk_list() -> list[str]:
     """列出当前装了哪些 Zeiss 相关库
 
     Returns:
         装了的库名列表(可能为空)
     """
-    found: List[str] = []
+    found: list[str] = []
     for pkg in ["requests", "zeiss_smartsem", "pysem"]:
         try:
             __import__(pkg)
@@ -101,7 +101,7 @@ def smartsem_endpoint_available(
 # ============================================================================
 
 # Zeiss Sigma FE-SEM 标准硬件参数(per 公开规格表)
-ZEISS_SIGMA_DEFAULT_PARAMS: Dict[str, Any] = {
+ZEISS_SIGMA_DEFAULT_PARAMS: dict[str, Any] = {
     "instrument": "Zeiss Sigma FE-SEM",
     "electron_source": "Schottky Field Emission",
     "accelerating_voltage_kv_range": (0.02, 30.0),
@@ -151,7 +151,7 @@ class ZeissProtocolBuilder:
         """
         from xml.sax.saxutils import escape
 
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append('<?xml version="1.0" encoding="UTF-8"?>')
         lines.append(
             f'<SmartSEMConfig sample="{escape(procedure.sample_formula)}" run_id="{escape(run_id)}">'
@@ -165,32 +165,32 @@ class ZeissProtocolBuilder:
             step_name_lower = step.name.lower()
             imaging_mode = step.imaging_mode or ""
             if ("EDS" in imaging_mode or "元素" in step.name) and "SEM" not in imaging_mode:
-                lines.append(f'    <Type>eds_analysis</Type>')
+                lines.append('    <Type>eds_analysis</Type>')
                 lines.append(f'    <BeamVoltage kv="{step.beam_voltage_kv}"/>')
                 lines.append(
                     f'    <ElementsToDetect>{",".join(EDS_DEFAULT_ELEMENTS)}</ElementsToDetect>'
                 )
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             elif "TEM" in imaging_mode or "SAED" in step_name_lower or "SAED" in step.name:
-                lines.append(f'    <Type>tem_saed</Type>')
+                lines.append('    <Type>tem_saed</Type>')
                 lines.append(f'    <Magnification>{step.magnification}</Magnification>')
                 lines.append(f'    <BeamVoltage kv="{step.beam_voltage_kv}"/>')
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             elif "STEM" in imaging_mode:
-                lines.append(f'    <Type>stem_imaging</Type>')
+                lines.append('    <Type>stem_imaging</Type>')
                 lines.append(f'    <Magnification>{step.magnification}</Magnification>')
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             elif "SEM" in imaging_mode or "拍照" in step.name or "成像" in step.name:
-                lines.append(f'    <Type>sem_image</Type>')
+                lines.append('    <Type>sem_image</Type>')
                 lines.append(f'    <Magnification>{step.magnification}</Magnification>')
                 lines.append(f'    <BeamVoltage kv="{step.beam_voltage_kv}"/>')
                 lines.append(f'    <BeamCurrent na="{step.beam_current_na}"/>')
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             elif "装样" in step.name or "卸载" in step.name:
-                lines.append(f'    <Type>load_unload</Type>')
+                lines.append('    <Type>load_unload</Type>')
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             elif "抽真空" in step.name or "pump" in step_name_lower:
-                lines.append(f'    <Type>pump_vacuum</Type>')
+                lines.append('    <Type>pump_vacuum</Type>')
                 lines.append(f'    <DurationMinutes>{step.duration_minutes}</DurationMinutes>')
             lines.append('  </Step>')
 
@@ -224,7 +224,7 @@ class ZeissProtocolBuilder:
             f.write(content)
         return output_path
 
-    def build_eds_config(self, elements: List[str]) -> str:
+    def build_eds_config(self, elements: list[str]) -> str:
         """生成 EDS 元素配置 XML(Stage 2 增量)
 
         Args:
@@ -235,14 +235,14 @@ class ZeissProtocolBuilder:
         """
         from xml.sax.saxutils import escape
 
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append('<?xml version="1.0" encoding="UTF-8"?>')
         lines.append('<EDSConfig>')
-        lines.append(f'  <Detector model="Oxford X-MaxN 80"/>')
-        lines.append(f'  <Elements>')
+        lines.append('  <Detector model="Oxford X-MaxN 80"/>')
+        lines.append('  <Elements>')
         for elem in elements:
             lines.append(f'    <Element symbol="{escape(elem)}"/>')
-        lines.append(f'  </Elements>')
+        lines.append('  </Elements>')
         lines.append('</EDSConfig>')
         return "\n".join(lines)
 
@@ -252,7 +252,7 @@ class ZeissProtocolBuilder:
 # ============================================================================
 
 # 已知样品的 EDS 标准组成(per 公开 ICP-OES / EDS 数据库,W24 内置有限集合)
-EDS_KNOWN_COMPOSITIONS: Dict[str, List[Dict[str, Any]]] = {
+EDS_KNOWN_COMPOSITIONS: dict[str, list[dict[str, Any]]] = {
     "Inconel 718": [
         {"element": "Fe", "wt_pct": 18.5},
         {"element": "Cr", "wt_pct": 19.0},
@@ -286,7 +286,7 @@ EDS_KNOWN_COMPOSITIONS: Dict[str, List[Dict[str, Any]]] = {
 }
 
 
-def lookup_eds_composition(sample_formula: str) -> List[Dict[str, Any]]:
+def lookup_eds_composition(sample_formula: str) -> list[dict[str, Any]]:
     """查已知样品的 EDS 标准组成
 
     Args:
@@ -309,7 +309,7 @@ def generate_eds_output(
     sample_formula: str,
     *,
     noise: int = 0,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """生成 1 个 EDS 元素分析输出(基于标准数据库 + 可选噪声)
 
     Args:
@@ -345,7 +345,7 @@ def generate_sem_image(
     step,
     *,
     noise: int = 0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """生成 1 个 SEM 图像记录(纯 Python,基于规格库)
 
     Args:
@@ -400,7 +400,7 @@ class ZeissRealSDK:
         lab_id: str = "matwau-em-01",
         fail_chance: float = 0.0,
         prefer_real: bool = True,
-        sxml_output_dir: Optional[str] = None,
+        sxml_output_dir: str | None = None,
         smartsem_api_url: str = SMARTSEM_DEFAULT_API_URL,
         skip_endpoint_check: bool = False,
     ) -> None:
@@ -416,8 +416,8 @@ class ZeissRealSDK:
         self.lab_id = lab_id
         self.sxml_output_dir = sxml_output_dir
         self.smartsem_api_url = smartsem_api_url
-        self.commands_executed: List[str] = []
-        self.sxml_files_generated: List[str] = []
+        self.commands_executed: list[str] = []
+        self.sxml_files_generated: list[str] = []
         self.installed_packages_cache = get_zeiss_sdk_list()
 
         # 探测真接可用性:requests + endpoint 可达
@@ -456,7 +456,7 @@ class ZeissRealSDK:
 
     # ---------- 接口与 Mock 100% 兼容 ----------
 
-    def execute(self, step) -> Dict[str, Any]:
+    def execute(self, step) -> dict[str, Any]:
         """执行 1 个 EMStep(per ZeissMockSDK 接口)
 
         真 SDK 路径:
@@ -471,8 +471,8 @@ class ZeissRealSDK:
 
         if self._use_real:
             try:
-                images: List[Dict[str, Any]] = []
-                elements: List[Dict[str, Any]] = []
+                images: list[dict[str, Any]] = []
+                elements: list[dict[str, Any]] = []
 
                 if "EDS" in step.imaging_mode or "元素" in step.name:
                     # EDS 元素分析:用标准组成生成确定性输出
@@ -597,31 +597,31 @@ class ZeissRealSDK:
         """
         return self.protocol_builder.save(procedure, output_path, run_id=run_id)
 
-    def generate_eds_config(self, elements: List[str]) -> str:
+    def generate_eds_config(self, elements: list[str]) -> str:
         """生成 EDS 元素配置 XML(W24 增量)"""
         return self.protocol_builder.build_eds_config(elements)
 
-    def lookup_eds_composition(self, sample_formula: str) -> List[Dict[str, Any]]:
+    def lookup_eds_composition(self, sample_formula: str) -> list[dict[str, Any]]:
         """查已知样品的 EDS 标准组成(W24 增量)"""
         return lookup_eds_composition(sample_formula)
 
     def generate_eds_output(
         self, sample_formula: str, *, noise: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """生成 EDS 元素分析输出(W24 增量)"""
         return generate_eds_output(sample_formula, noise=noise)
 
-    def generate_sem_image(self, step, *, noise: int = 0) -> Dict[str, Any]:
+    def generate_sem_image(self, step, *, noise: int = 0) -> dict[str, Any]:
         """生成 SEM 图像记录(W24 增量)"""
         return generate_sem_image(step, noise=noise)
 
     def smartsem_endpoint_reachable(
-        self, url: Optional[str] = None,
+        self, url: str | None = None,
     ) -> bool:
         """探测 SmartSEM REST endpoint 是否可达(W24 增量)"""
         return smartsem_endpoint_available(url or self.smartsem_api_url)
 
-    def installed_packages(self) -> List[str]:
+    def installed_packages(self) -> list[str]:
         """列出当前装了哪些 Zeiss 相关库(W24 增量)"""
         return list(self.installed_packages_cache)
 
@@ -637,16 +637,16 @@ class ZeissRealSDK:
 
 
 __all__ = [
-    "is_zeiss_smartsem_available",
-    "get_zeiss_sdk_list",
-    "smartsem_endpoint_available",
-    "ZeissProtocolBuilder",
-    "ZeissRealSDK",
-    "ZEISS_SIGMA_DEFAULT_PARAMS",
     "EDS_DEFAULT_ELEMENTS",
     "EDS_KNOWN_COMPOSITIONS",
-    "lookup_eds_composition",
+    "SMARTSEM_DEFAULT_API_URL",
+    "ZEISS_SIGMA_DEFAULT_PARAMS",
+    "ZeissProtocolBuilder",
+    "ZeissRealSDK",
     "generate_eds_output",
     "generate_sem_image",
-    "SMARTSEM_DEFAULT_API_URL",
+    "get_zeiss_sdk_list",
+    "is_zeiss_smartsem_available",
+    "lookup_eds_composition",
+    "smartsem_endpoint_available",
 ]

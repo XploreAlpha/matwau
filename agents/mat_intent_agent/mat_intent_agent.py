@@ -27,26 +27,25 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # 允许直接 python3 -m 运行
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
-from .intent_classifier import (  # noqa: E402
+from .intent_classifier import (
     MatIntent,
     parse_mat_intent,
 )
-
 
 # ============================================================================
 # MatIntentAgent 主体
@@ -109,7 +108,7 @@ class MatIntentAgent(MatWAUAgentBase):
 - 1 次 LLM 调用 = 1 次 Goldens 跑分(mat-intent.yaml)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: list) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list) -> AgentResponse:
         """Inner Loop 第 3 步:执行 — mat-intent 特有业务逻辑
 
         1. 从 ctx 拿 user_message
@@ -167,7 +166,7 @@ class MatIntentAgent(MatWAUAgentBase):
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1 重写:把 user_message 放进 ctx"""
         ctx = super().perceive(req)
         ctx["user_message"] = req.message
@@ -243,4 +242,4 @@ if __name__ == "__main__":
         print("-" * 60)
 
 
-__all__ = ["MatIntentAgent", "create_default_agent", "MatIntent"]
+__all__ = ["MatIntent", "MatIntentAgent", "create_default_agent"]

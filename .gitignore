@@ -35,3 +35,14 @@ pgdata/
 # Build / dist
 build/
 dist/
+
+# ============================================================================
+# Tests 本地化(2026-08-04 per user decision)
+# 测试文件留在本地磁盘,不入 git,不 push 到 GitHub
+# - CI GitHub Actions 不跑 pytest(改 .github/workflows/test.yml)
+# - run-acceptance.sh 本地仍可跑(python3 -m pytest tests/)
+# - 学院方 IT clone 后无 tests/,需从本地或独立仓 cp
+# ============================================================================
+tests/unit/
+tests/integration/
+# tests/goldens/ 保留(公开案例,体现 MatWAU 能力)

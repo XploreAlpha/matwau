@@ -28,16 +28,16 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from .client import (  # noqa: F401
+from .client import (
     ArxivClient,
     ArxivReference,
-    search_arxiv,
     is_arxiv_available,
+    search_arxiv,
 )
 
 __all__ = [
     "ArxivClient",
     "ArxivReference",
-    "search_arxiv",
     "is_arxiv_available",
+    "search_arxiv",
 ]

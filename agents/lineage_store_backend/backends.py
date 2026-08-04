@@ -19,13 +19,14 @@
 """
 from __future__ import annotations
 
+import builtins
 import json
 import os
 import sqlite3
 import threading
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Self
 
 
 class LineageNotFoundError(KeyError):
@@ -53,19 +54,19 @@ class LineageRecordDTO:
 
     lineage_id: str
     run_id: str
-    parent_run_id: Optional[str] = None
+    parent_run_id: str | None = None
     agent_name: str = ""
     input_hash: str = ""
     output_hash: str = ""
     timestamp: str = ""
     duration_seconds: float = 0.0
     cost: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     # W16: input_artifacts / output_artifacts 简版
-    input_artifacts_summary: Dict[str, Any] = field(default_factory=dict)
-    output_artifacts_summary: Dict[str, Any] = field(default_factory=dict)
+    input_artifacts_summary: dict[str, Any] = field(default_factory=dict)
+    output_artifacts_summary: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -90,15 +91,15 @@ class LineageBackend(ABC):
         """按 lineage_id 查"""
 
     @abstractmethod
-    def list(self) -> List[LineageRecordDTO]:
+    def list(self) -> builtins.list[LineageRecordDTO]:
         """列出所有记录"""
 
     @abstractmethod
-    def list_by_run(self, run_id: str) -> List[LineageRecordDTO]:
+    def list_by_run(self, run_id: str) -> builtins.list[LineageRecordDTO]:
         """按 run_id 查"""
 
     @abstractmethod
-    def list_by_parent(self, parent_run_id: str) -> List[LineageRecordDTO]:
+    def list_by_parent(self, parent_run_id: str) -> builtins.list[LineageRecordDTO]:
         """按 parent_run_id 查(下游)"""
 
     @abstractmethod
@@ -125,9 +126,9 @@ class InMemoryBackend(LineageBackend):
     """
 
     def __init__(self) -> None:
-        self._records: Dict[str, LineageRecordDTO] = {}
-        self._by_run: Dict[str, List[str]] = {}
-        self._by_parent: Dict[str, List[str]] = {}
+        self._records: dict[str, LineageRecordDTO] = {}
+        self._by_run: dict[str, list[str]] = {}
+        self._by_parent: dict[str, list[str]] = {}
         self._lock = threading.Lock()
 
     def add(self, record: LineageRecordDTO) -> None:
@@ -142,14 +143,14 @@ class InMemoryBackend(LineageBackend):
             raise LineageNotFoundError(lineage_id)
         return self._records[lineage_id]
 
-    def list(self) -> List[LineageRecordDTO]:
+    def list(self) -> builtins.list[LineageRecordDTO]:
         return list(self._records.values())
 
-    def list_by_run(self, run_id: str) -> List[LineageRecordDTO]:
+    def list_by_run(self, run_id: str) -> builtins.list[LineageRecordDTO]:
         ids = self._by_run.get(run_id, [])
         return [self._records[i] for i in ids if i in self._records]
 
-    def list_by_parent(self, parent_run_id: str) -> List[LineageRecordDTO]:
+    def list_by_parent(self, parent_run_id: str) -> builtins.list[LineageRecordDTO]:
         ids = self._by_parent.get(parent_run_id, [])
         return [self._records[i] for i in ids if i in self._records]
 
@@ -202,7 +203,7 @@ class SQLiteBackend(LineageBackend):
         CREATE INDEX idx_parent ON lineage_records(parent_run_id);
     """
 
-    def __init__(self, db_path: Optional[str] = None) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         """构造
 
         Args:
@@ -284,21 +285,21 @@ class SQLiteBackend(LineageBackend):
             raise LineageNotFoundError(lineage_id)
         return self._row_to_dto(row)
 
-    def list(self) -> List[LineageRecordDTO]:
+    def list(self) -> builtins.list[LineageRecordDTO]:
         with self._lock:
             cur = self._conn.cursor()
             cur.execute("SELECT * FROM lineage_records")
             rows = cur.fetchall()
         return [self._row_to_dto(r) for r in rows]
 
-    def list_by_run(self, run_id: str) -> List[LineageRecordDTO]:
+    def list_by_run(self, run_id: str) -> builtins.list[LineageRecordDTO]:
         with self._lock:
             cur = self._conn.cursor()
             cur.execute("SELECT * FROM lineage_records WHERE run_id = ?", (run_id,))
             rows = cur.fetchall()
         return [self._row_to_dto(r) for r in rows]
 
-    def list_by_parent(self, parent_run_id: str) -> List[LineageRecordDTO]:
+    def list_by_parent(self, parent_run_id: str) -> builtins.list[LineageRecordDTO]:
         with self._lock:
             cur = self._conn.cursor()
             cur.execute("SELECT * FROM lineage_records WHERE parent_run_id = ?", (parent_run_id,))
@@ -366,7 +367,7 @@ class PostgresBackend(LineageBackend):
         dsn: str = "postgresql://localhost/matwau",
         *,
         use_fallback: bool = True,
-        fallback_backend: Optional[LineageBackend] = None,
+        fallback_backend: LineageBackend | None = None,
     ) -> None:
         """构造
 
@@ -507,7 +508,7 @@ class PostgresBackend(LineageBackend):
         else:
             return self._fallback.get(lineage_id)
 
-    def list(self) -> List[LineageRecordDTO]:
+    def list(self) -> builtins.list[LineageRecordDTO]:
         if self._real_pg:
             with self._conn.cursor() as cur:
                 cur.execute("SELECT * FROM lineage_records")
@@ -531,7 +532,7 @@ class PostgresBackend(LineageBackend):
         else:
             return self._fallback.list()
 
-    def list_by_run(self, run_id: str) -> List[LineageRecordDTO]:
+    def list_by_run(self, run_id: str) -> builtins.list[LineageRecordDTO]:
         if self._real_pg:
             with self._conn.cursor() as cur:
                 cur.execute("SELECT * FROM lineage_records WHERE run_id = %s", (run_id,))
@@ -555,7 +556,7 @@ class PostgresBackend(LineageBackend):
         else:
             return self._fallback.list_by_run(run_id)
 
-    def list_by_parent(self, parent_run_id: str) -> List[LineageRecordDTO]:
+    def list_by_parent(self, parent_run_id: str) -> builtins.list[LineageRecordDTO]:
         if self._real_pg:
             with self._conn.cursor() as cur:
                 cur.execute("SELECT * FROM lineage_records WHERE parent_run_id = %s", (parent_run_id,))
@@ -599,7 +600,7 @@ class PostgresBackend(LineageBackend):
     # ----------------------------------------------------------------
     # W32 — Context manager 支持:`with PostgresBackend(...) as backend:`
     # ----------------------------------------------------------------
-    def __enter__(self) -> "PostgresBackend":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -611,10 +612,10 @@ class PostgresBackend(LineageBackend):
 
 
 __all__ = [
-    "LineageBackend",
     "InMemoryBackend",
-    "SQLiteBackend",
-    "PostgresBackend",   # W17 新增
+    "LineageBackend",
     "LineageNotFoundError",
     "LineageRecordDTO",
-]  # type: ignore[name-defined]  # noqa: F821
+    "PostgresBackend",   # W17 新增
+    "SQLiteBackend",
+]  # type: ignore[name-defined]

@@ -29,9 +29,9 @@ import urllib.parse
 import urllib.request
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from .metainfo_mapping import extract_nomad_record, MAPPED_METAINFO_PATHS
+from .metainfo_mapping import MAPPED_METAINFO_PATHS, extract_nomad_record
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class NomadReference:
     upload_id: str = ""
     archive_id: str = ""
     formula: str = ""
-    elements: List[str] = field(default_factory=list)
+    elements: list[str] = field(default_factory=list)
     spacegroup_symbol: str = ""
     spacegroup_number: int = 0
     a: float = 0.0
@@ -95,10 +95,10 @@ class NomadReference:
     xc_functional: str = ""
     program_name: str = ""
     url: str = ""
-    available_properties: List[str] = field(default_factory=list)
-    metainfo_unmapped: List[str] = field(default_factory=list)
+    available_properties: list[str] = field(default_factory=list)
+    metainfo_unmapped: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "entry_id": self.entry_id,
             "upload_id": self.upload_id,
@@ -158,7 +158,7 @@ def _nomad_api_base() -> str:
     return os.environ.get(ENV_NOMAD_API_BASE, NOMAD_API_URL_DEFAULT).rstrip("/")
 
 
-def _nomad_auth_headers() -> Dict[str, str]:
+def _nomad_auth_headers() -> dict[str, str]:
     """读取可选 Bearer token"""
     token = os.environ.get(ENV_NOMAD_TOKEN)
     if token:
@@ -231,7 +231,7 @@ def _build_nomad_query(user_intent: str) -> str:
 # ============================================================================
 
 
-def _parse_nomad_response(data: Any) -> List[NomadReference]:
+def _parse_nomad_response(data: Any) -> list[NomadReference]:
     """解析 NOMAD API JSON 响应 → List[NomadReference]
 
     NOMAD 响应结构:
@@ -249,7 +249,7 @@ def _parse_nomad_response(data: Any) -> List[NomadReference]:
         "pagination": {...}
     }
     """
-    refs: List[NomadReference] = []
+    refs: list[NomadReference] = []
     if not isinstance(data, dict):
         return refs
     items = data.get("data") or data.get("entries") or []
@@ -307,7 +307,7 @@ def _parse_nomad_response(data: Any) -> List[NomadReference]:
 # ============================================================================
 
 
-def _mock_nomad_response(query: str, *, n: int = 5) -> List[NomadReference]:
+def _mock_nomad_response(query: str, *, n: int = 5) -> list[NomadReference]:
     """NOMAD mock 数据(Stage 1 fallback)
 
     给已知化学式伪造 1 组综合 entry(metainfo 含 3 段 properties)
@@ -423,8 +423,8 @@ class NomadClient:
         self,
         user_intent: str,
         *,
-        max_results: Optional[int] = None,
-    ) -> Tuple[List[NomadReference], bool]:
+        max_results: int | None = None,
+    ) -> tuple[list[NomadReference], bool]:
         """查 NOMAD,返回 (refs, is_real)
 
         Args:
@@ -509,20 +509,20 @@ def search_nomad(
     user_intent: str,
     *,
     max_results: int = 5,
-) -> Tuple[List[NomadReference], bool]:
+) -> tuple[list[NomadReference], bool]:
     """便捷函数:查 NOMAD"""
     client = NomadClient(max_results=max_results)
     return client.search(user_intent, max_results=max_results)
 
 
 __all__ = [
-    "NOMAD_API_URL_DEFAULT",
-    "NOMAD_TIMEOUT_SEC",
     "ENV_NOMAD_API_BASE",
     "ENV_NOMAD_TOKEN",
-    "NomadReference",
+    "MAPPED_METAINFO_PATHS",
+    "NOMAD_API_URL_DEFAULT",
+    "NOMAD_TIMEOUT_SEC",
     "NomadClient",
+    "NomadReference",
     "is_nomad_available",
     "search_nomad",
-    "MAPPED_METAINFO_PATHS",
 ]

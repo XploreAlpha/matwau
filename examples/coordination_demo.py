@@ -14,24 +14,23 @@ Stage 3 钢铁侠 Phase 4 入口 — JARVIS 雏形
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from agents.mat_chemist_agent import (  # noqa: E402
+from agents.mat_chemist_agent import (
     MatChemistAgent,
     decompose_goal_to_robots,
     get_default_inconel_718_workflow,
     get_default_pmma_workflow,
 )
-from agents.mat_robot_dsc_agent import MatRobotDscAgent  # noqa: E402
-from agents.mat_robot_em_agent import MatRobotEmAgent  # noqa: E402
-from agents.mat_robot_synth_agent import MatRobotSynthAgent  # noqa: E402
-from agents.mat_robot_xrd_agent import MatRobotXrdAgent  # noqa: E402
-from matwau.core.agent_base import AgentRequest  # noqa: E402
+from agents.mat_robot_dsc_agent import MatRobotDscAgent
+from agents.mat_robot_em_agent import MatRobotEmAgent
+from agents.mat_robot_synth_agent import MatRobotSynthAgent
+from agents.mat_robot_xrd_agent import MatRobotXrdAgent
+from matwau.core.agent_base import AgentRequest
 
 
 def print_header(title: str) -> None:
@@ -73,7 +72,7 @@ def main() -> None:
     task = get_default_inconel_718_workflow()
     print(f"目标样品:{task.target_sample}")
     print(f"研究目标:{task.goal}")
-    print(f"机器人步骤:")
+    print("机器人步骤:")
     for step in task.robot_steps:
         print(f"  - {step.robot_type}:{step.description} (¥{step.estimated_cost_cny})")
     print(f"预算:¥{task.budget_cny}")
@@ -126,7 +125,7 @@ def main() -> None:
             if cross.rules_failed:
                 print(f"  L4 rules failed: {cross.rules_failed}")
         else:
-            print(f"  critic verdict unavailable")
+            print("  critic verdict unavailable")
     except Exception as e:
         print(f"  critic 跳过:{e}")
 
@@ -142,12 +141,12 @@ def main() -> None:
     print_header("示例 3:PMMA 玻璃化温度(简化 2 步)")
     task_pmma = get_default_pmma_workflow()
     print(f"目标样品:{task_pmma.target_sample}")
-    print(f"机器人步骤:")
+    print("机器人步骤:")
     for step in task_pmma.robot_steps:
         print(f"  - {step.robot_type}:{step.description}")
     print(f"预算:¥{task_pmma.budget_cny}")
 
-    req_pmma = AgentRequest(
+    AgentRequest(
         run_id="demo-pmma-001",
         message="测 PMMA Tg",
         artifacts={"task": task_pmma},

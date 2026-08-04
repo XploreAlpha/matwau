@@ -16,14 +16,12 @@ per MatWAU-Stage 3 钢铁侠 doc §3.5 W28
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import subprocess
-import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +30,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 # OT-2 标准化学品库(per 公开试剂目录)
-REAGENT_CATALOG: Dict[str, Dict[str, Any]] = {
+REAGENT_CATALOG: dict[str, dict[str, Any]] = {
     "H2O": {
         "name": "Deionized Water",
         "cas_number": "7732-18-5",
@@ -110,7 +108,7 @@ class ReagentOrder:
     price_cny: float = 0.0
     hazard_class: str = "none"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "chemical_formula": self.chemical_formula,
             "amount": self.amount,
@@ -144,7 +142,7 @@ def build_reagent_order(chemical_formula: str, amount: float, unit: str = "g") -
     )
 
 
-def build_reagent_manifest(procedure) -> List[ReagentOrder]:
+def build_reagent_manifest(procedure) -> list[ReagentOrder]:
     """从 SynthProcedure 构造化学品供应清单
 
     Args:
@@ -153,7 +151,7 @@ def build_reagent_manifest(procedure) -> List[ReagentOrder]:
     Returns:
         List[ReagentOrder]
     """
-    orders: List[ReagentOrder] = []
+    orders: list[ReagentOrder] = []
     for step in procedure.steps:
         for chem in (step.chemicals or []):
             # 默认估算:每种化学品 5g
@@ -162,7 +160,7 @@ def build_reagent_manifest(procedure) -> List[ReagentOrder]:
     return orders
 
 
-def estimate_reagent_cost(orders: List[ReagentOrder]) -> float:
+def estimate_reagent_cost(orders: list[ReagentOrder]) -> float:
     """估算化学品总成本(¥)"""
     return sum(o.price_cny for o in orders)
 
@@ -184,7 +182,7 @@ class GatewayConfig:
     output_dir: str = "/tmp/matwau-ot2-output"
     auto_cleanup: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "image": self.image,
             "container_name": self.container_name,
@@ -214,7 +212,7 @@ def run_opentrons_simulate(
     protocol_path: str,
     *,
     simulate_format: str = "json",
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """用 opentrons.simulate 跑协议(per opentrons 9.x)
 
     Args:
@@ -238,7 +236,7 @@ def run_opentrons_simulate(
         runtime = time.time() - start
         return {
             "ok": True,
-            "log": f"opentrons.simulate() 成功",
+            "log": "opentrons.simulate() 成功",
             "commands_count": len(runlog.commands) if runlog else 0,
             "runtime_seconds": round(runtime, 3),
             "sdk_mode": "real-simulate",
@@ -269,7 +267,7 @@ def run_opentrons_simulate(
                 "has_run_function": has_run,
                 "has_apiLevel": has_metadata,
             }
-        except SyntaxError as se:  # noqa: BLE001
+        except SyntaxError as se:
             runtime = time.time() - start
             return {
                 "ok": False,
@@ -284,8 +282,8 @@ def run_opentrons_simulate(
 def run_docker_simulate(
     protocol_path: str,
     *,
-    config: Optional[GatewayConfig] = None,
-) -> Optional[Dict[str, Any]]:
+    config: GatewayConfig | None = None,
+) -> dict[str, Any] | None:
     """用 Docker 容器跑 OT-2 模拟(per W28 + Stage 3)
 
     注意:需要 docker + opentrons/opentrons-emulation image。
@@ -343,7 +341,7 @@ def hardware_full_workflow(
     run_id: str = "w28-ot2-full",
     *,
     output_dir: str = "/tmp/matwau-ot2-output",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """W28 端到端流程:SynthProcedure → 化学品供应 + 协议生成 + Docker 模拟
 
     Args:
@@ -425,16 +423,16 @@ services:
 
 
 __all__ = [
-    "REAGENT_CATALOG",
-    "ReagentOrder",
-    "build_reagent_order",
-    "build_reagent_manifest",
-    "estimate_reagent_cost",
-    "GatewayConfig",
-    "write_protocol_to_file",
-    "run_opentrons_simulate",
-    "run_docker_simulate",
-    "hardware_full_workflow",
-    "DOCKER_OPENTRONS_IMAGE",
     "DOCKER_COMPOSE_OT2",
+    "DOCKER_OPENTRONS_IMAGE",
+    "REAGENT_CATALOG",
+    "GatewayConfig",
+    "ReagentOrder",
+    "build_reagent_manifest",
+    "build_reagent_order",
+    "estimate_reagent_cost",
+    "hardware_full_workflow",
+    "run_docker_simulate",
+    "run_opentrons_simulate",
+    "write_protocol_to_file",
 ]

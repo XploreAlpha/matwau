@@ -24,8 +24,8 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class OqmdReference:
     is_stable: bool = False
     url: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "oqmd_id": self.oqmd_id,
             "formula": self.formula,
@@ -153,7 +153,7 @@ def _build_oqmd_query(user_intent: str) -> str:
 # ============================================================================
 
 
-def _parse_oqmd_response(data: List[Dict[str, Any]]) -> List[OqmdReference]:
+def _parse_oqmd_response(data: list[dict[str, Any]]) -> list[OqmdReference]:
     """解析 OQMD API JSON 响应 → List[OqmdReference]
 
     OQMD /formationenergy 响应字段:
@@ -171,7 +171,7 @@ def _parse_oqmd_response(data: List[Dict[str, Any]]) -> List[OqmdReference]:
                 oqmd_id = str(oqmd_id_raw)
             formula = item.get("composition", "")
             spacegroup = item.get("spacegroup", "") or item.get("spacegroup_symbol", "")
-            energy_per_atom = item.get("energy_per_atom", 0.0) or 0.0
+            item.get("energy_per_atom", 0.0) or 0.0
             formation_energy = item.get("formation_energy", 0.0) or 0.0
             # OQMD 不直接返回 energy_above_hull;从 formation_energy 推算时需要 hull 参考
             # 此处使用 0.0 作为保守占位(M3 阶段 mat_critic 不会因 0 误判)
@@ -206,7 +206,7 @@ def _parse_oqmd_response(data: List[Dict[str, Any]]) -> List[OqmdReference]:
 # ============================================================================
 
 
-def _mock_oqmd_response(query: str, *, n: int = 5) -> List[OqmdReference]:
+def _mock_oqmd_response(query: str, *, n: int = 5) -> list[OqmdReference]:
     """OQMD mock 数据(Stage 1 fallback 路径)
 
     给已知化学式伪造 1 组 DFT 计算数据,跟 Materials Project mock 风格一致
@@ -299,8 +299,8 @@ class OqmdClient:
         self,
         user_intent: str,
         *,
-        max_results: Optional[int] = None,
-    ) -> Tuple[List[OqmdReference], bool]:
+        max_results: int | None = None,
+    ) -> tuple[list[OqmdReference], bool]:
         """查 OQMD API,返回 (refs, is_real)
 
         Args:
@@ -372,7 +372,7 @@ def search_oqmd(
     user_intent: str,
     *,
     max_results: int = 5,
-) -> Tuple[List[OqmdReference], bool]:
+) -> tuple[list[OqmdReference], bool]:
     """便捷函数:查 OQMD
 
     Returns:

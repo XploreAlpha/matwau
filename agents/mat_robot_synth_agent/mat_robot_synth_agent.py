@@ -11,7 +11,7 @@ W19 增量:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from matwau.core.agent_base import (
     AgentRequest,
@@ -20,7 +20,6 @@ from matwau.core.agent_base import (
 )
 
 from .synth_engine import (
-    OpentronsMockSDK,
     SafetyGuard,
     SynthProcedure,
     SynthResult,
@@ -58,8 +57,8 @@ class MatRobotSynthAgent(MatWAUAgentBase):
     def __init__(
         self,
         *,
-        safety_guard: Optional[SafetyGuard] = None,
-        robot_sdk: Optional[Any] = None,  # OpentronsMockSDK | OpentronsRealSDK(W19 兼容两种)
+        safety_guard: SafetyGuard | None = None,
+        robot_sdk: Any | None = None,  # OpentronsMockSDK | OpentronsRealSDK(W19 兼容两种)
         context_manager=None,
         tool_registry=None,
         state_store=None,
@@ -84,7 +83,7 @@ class MatRobotSynthAgent(MatWAUAgentBase):
             self.robot_sdk = OpentronsRealSDK(fail_chance=0.0)
         else:
             self.robot_sdk = robot_sdk
-        self.warnings: List[str] = []
+        self.warnings: list[str] = []
 
     def system_prompt(self) -> str:
         return (
@@ -94,7 +93,7 @@ class MatRobotSynthAgent(MatWAUAgentBase):
             "输出结构化 SynthResult 给 mat-critic 评估。"
         )
 
-    def act(self, ctx: Dict[str, Any], tools: Optional[List[Any]] = None) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[Any] | None = None) -> AgentResponse:
         """Inner Loop 第 3 步:真接(per SafetyGuard 输出)
 
         Args:
@@ -102,7 +101,7 @@ class MatRobotSynthAgent(MatWAUAgentBase):
             tools: tool_registry 暴露的可调用工具(本 agent 不使用)
         """
         # 1. 从 ctx 拿 procedure(可以从 upstream mat-gen 传来)
-        procedure: Optional[SynthProcedure] = None
+        procedure: SynthProcedure | None = None
 
         # 显式 artifacts 路径(per DAG 编排,mat-gen → mat-robot-synth)
         if isinstance(ctx, dict):
@@ -127,7 +126,7 @@ class MatRobotSynthAgent(MatWAUAgentBase):
         synth_result_warnings = sg.check_procedure(procedure)
 
         # 3. 仿真执行
-        blocked_steps: List[str] = []
+        blocked_steps: list[str] = []
         if synth_result_warnings:
             # 有报警 → block 整个实验
             self.warnings.extend(synth_result_warnings)
@@ -154,7 +153,7 @@ class MatRobotSynthAgent(MatWAUAgentBase):
             )
 
         # 4. 真接 SDK 执行(per Opentrons OT-2 real API 在 Stage 2)
-        result_log: List[str] = []
+        result_log: list[str] = []
         all_ok = True
         total_yield = 0.0
         total_duration = 0.0
@@ -212,7 +211,7 @@ class MatRobotSynthAgent(MatWAUAgentBase):
             cost=result.cost,
         )
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """Inner Loop 第 1 步
 
         本 agent 不需要复杂 context 组装(直接拿 procedure),

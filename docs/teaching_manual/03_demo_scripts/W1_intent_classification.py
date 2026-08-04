@@ -16,6 +16,7 @@
   ...
 """
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -34,7 +35,7 @@ def _print_intent(label: str, message: str):
         from matwau.core.agent_base import AgentRequest
     except ImportError as e:
         print(f"❌ ImportError: {e}")
-        print(f"   请确保已 pip install -r requirements.txt")
+        print("   请确保已 pip install -r requirements.txt")
         return
 
     agent = MatIntentAgent()

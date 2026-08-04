@@ -11,7 +11,7 @@
 per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M1 第 5-6 项
 """
 
-from .mat_oqmd_agent import (  # noqa: F401
+from .mat_oqmd_agent import (
     MatOqmdAgent,
     OqmdConfig,
     create_default_agent,

@@ -30,15 +30,15 @@ from __future__ import annotations
 
 import logging
 
-from .client import (  # noqa: F401
+from .client import (
     COD_BASE_URL,
     COD_CIF_URL_TEMPLATE,
     COD_TIMEOUT_SEC,
     CodClient,
     CodReference,
+    fetch_cif,
     is_cod_available,
     search_cod,
-    fetch_cif,
 )
 
 __all__ = [
@@ -47,7 +47,7 @@ __all__ = [
     "COD_TIMEOUT_SEC",
     "CodClient",
     "CodReference",
+    "fetch_cif",
     "is_cod_available",
     "search_cod",
-    "fetch_cif",
 ]

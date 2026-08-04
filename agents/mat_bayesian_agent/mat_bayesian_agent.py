@@ -32,29 +32,26 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 允许直接 python3 -m 运行本文件
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
-from .bayesian_engine import (  # noqa: E402
+from .bayesian_engine import (
     BayesianOutput,
     ObservedPoint,
-    extract_elements,
-    make_observed_from_simulated,
     run_bayesian_optimization,
 )
-
 
 # ============================================================================
 # 数据结构(对外暴露)
@@ -68,14 +65,14 @@ class BayesianConfig:
     algorithm: str = "auto"           # "gp" / "tpe" / "ensemble" / "auto"
     acquisition: str = "ei"            # "ei" / "ucb" / "pi"
     n_suggest: int = 5
-    forbidden: List[str] = None        # 禁止元素
+    forbidden: list[str] = None        # 禁止元素
 
     def __post_init__(self) -> None:
         if self.forbidden is None:
             self.forbidden = []
 
     @classmethod
-    def from_dict(cls, d: Optional[Dict[str, Any]]) -> "BayesianConfig":
+    def from_dict(cls, d: dict[str, Any] | None) -> BayesianConfig:
         if not d:
             return cls()
         return cls(
@@ -86,7 +83,7 @@ class BayesianConfig:
         )
 
 
-def _bayesian_to_config_dict(output: BayesianOutput) -> Dict[str, Any]:
+def _bayesian_to_config_dict(output: BayesianOutput) -> dict[str, Any]:
     """BayesianOutput → dict(给 caller 看)"""
     return {
         "next_batch": [
@@ -174,7 +171,7 @@ class MatBayesianAgent(MatWAUAgentBase):
 - 1 次调用 = 1 次 Goldens 跑分(mat-bayesian.yaml,pass-rate > 50% Stage 1 / > 80% Stage 2)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """Inner Loop 第 3 步:执行 — mat-bayesian 特有业务逻辑
 
         1. 从 ctx 抽 observed + pool + config
@@ -183,8 +180,8 @@ class MatBayesianAgent(MatWAUAgentBase):
         4. SafetyGuard 检查
         5. 返回 AgentResponse
         """
-        observed: List[ObservedPoint] = ctx.get("_input_observed") or []
-        pool: List[Any] = ctx.get("_input_pool") or []
+        observed: list[ObservedPoint] = ctx.get("_input_observed") or []
+        pool: list[Any] = ctx.get("_input_pool") or []
         config: BayesianConfig = ctx.get("_input_config") or BayesianConfig()
 
         # fallback: 从 artifacts
@@ -252,7 +249,7 @@ class MatBayesianAgent(MatWAUAgentBase):
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1 重写:抽取 observed + pool + config
 
         支持 3 种输入格式:
@@ -286,7 +283,7 @@ class MatBayesianAgent(MatWAUAgentBase):
     # 内部 helper
     # ========================================================================
 
-    def _coerce_observed(self, raw: List[Any]) -> List[ObservedPoint]:
+    def _coerce_observed(self, raw: list[Any]) -> list[ObservedPoint]:
         """把任意 list 转 List[ObservedPoint]
 
         支持:
@@ -339,7 +336,7 @@ class MatBayesianAgent(MatWAUAgentBase):
 
     def _format_reply(self, output: BayesianOutput, config: BayesianConfig) -> str:
         """生成自然语言 reply"""
-        formulas = [
+        [
             getattr(c, "formula", c.get("formula", "?") if isinstance(c, dict) else str(c))
             for c in output.next_batch
         ]
@@ -358,7 +355,7 @@ class MatBayesianAgent(MatWAUAgentBase):
             f"   观测: {output.n_observed} 个 | 候选池: {output.n_pool} 个"
         )
 
-        lines.append(f"\n📋 下一批候选:")
+        lines.append("\n📋 下一批候选:")
         for f, score in output.acquisition_scores.items():
             lines.append(f"   {f} → acquisition={score:.4f}")
 
@@ -452,7 +449,7 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "MatBayesianAgent",
     "BayesianConfig",
+    "MatBayesianAgent",
     "create_default_agent",
 ]

@@ -23,6 +23,7 @@
   L5 cross_source_consensus_rate < 0.5
 """
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -42,10 +43,10 @@ def _make_candidate(formula: str, energy: float, stable: str, conf: float):
 
 def _make_cross_source_records(formula: str, consistent: bool):
     """造 4 库 cross_source_records(consensus 一致/不一致)"""
-    from agents.oqmd_client import OqmdReference
     from agents.cod_client import CodReference
-    from agents.nomad_client import NomadReference
     from agents.jarvis_client import JarvReference
+    from agents.nomad_client import NomadReference
+    from agents.oqmd_client import OqmdReference
 
     if consistent:
         # 4 库一致:Si, Fd-3m, -1.5 eV/atom, 1.11 eV gap

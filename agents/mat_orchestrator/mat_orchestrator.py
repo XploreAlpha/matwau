@@ -22,28 +22,25 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 允许直接 python3 -m 运行
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from agents.mat_chemist_agent.chemist_engine import ChemistTask
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
-    MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
 
-from .dag import (  # noqa: E402
-    DAG,
+from .dag import (
+    BatchWorkflowResult,
     DAGExecutor,
     WorkflowResult,
     get_workflow_for_subclass,
 )
-
 
 # ============================================================================
 # Stub agent(per W12/W14 后已替换,保留给未来扩展)
@@ -110,10 +107,10 @@ class MatOrchestrator:
         """
         # 懒加载
         if gen_agent is None or sim_agent is None or hpc_agent is None or exp_agent is None:
-            from agents.mat_gen_agent.mat_gen_agent import create_default_agent as create_gen
-            from agents.mat_sim_agent.mat_sim_agent import create_default_agent as create_sim
-            from agents.mat_hpc_agent.mat_hpc_agent import create_default_agent as create_hpc
             from agents.mat_exp_agent.mat_exp_agent import create_default_agent as create_exp
+            from agents.mat_gen_agent.mat_gen_agent import create_default_agent as create_gen
+            from agents.mat_hpc_agent.mat_hpc_agent import create_default_agent as create_hpc
+            from agents.mat_sim_agent.mat_sim_agent import create_default_agent as create_sim
 
         if gen_agent is None:
             gen_agent = create_gen()
@@ -125,12 +122,16 @@ class MatOrchestrator:
             exp_agent = create_exp()
 
         if intent_agent is None:
-            from agents.mat_intent_agent.mat_intent_agent import create_default_agent as create_intent
+            from agents.mat_intent_agent.mat_intent_agent import (
+                create_default_agent as create_intent,
+            )
 
             intent_agent = create_intent()
 
         if critic_agent is None:
-            from agents.mat_critic_agent.mat_critic_agent import create_default_agent as create_critic
+            from agents.mat_critic_agent.mat_critic_agent import (
+                create_default_agent as create_critic,
+            )
 
             critic_agent = create_critic()
 
@@ -150,7 +151,9 @@ class MatOrchestrator:
             from agents.mat_nomad_agent.mat_nomad_agent import create_default_agent as create_nomad
             nomad_agent = create_nomad()
         if jarvis_agent is None:
-            from agents.mat_jarvis_agent.mat_jarvis_agent import create_default_agent as create_jarvis
+            from agents.mat_jarvis_agent.mat_jarvis_agent import (
+                create_default_agent as create_jarvis,
+            )
             jarvis_agent = create_jarvis()
 
         self.intent_agent = intent_agent
@@ -198,8 +201,8 @@ class MatOrchestrator:
                 self._lineage_recorder = LineageRecorder(store=lineage_store)
             else:
                 # 默认从 get_lineage_store() 工厂拿
-                from matwau.configs import get_lineage_store
                 from agents.mat_data_lineage_agent import LineageRecorder
+                from matwau.configs import get_lineage_store
                 store = get_lineage_store()
                 if store is not None:
                     self._lineage_recorder = LineageRecorder(store=store)
@@ -212,9 +215,9 @@ class MatOrchestrator:
         self,
         *,
         user_intent: str,
-        budget: Optional[float] = None,
-        n_samples: Optional[int] = None,
-        domain: Optional[str] = None,
+        budget: float | None = None,
+        n_samples: int | None = None,
+        domain: str | None = None,
     ) -> WorkflowResult:
         """跑编排(用户 1 句话 → mat-intent 解析 → 选 workflow → 跑 DAG)
 
@@ -283,7 +286,7 @@ class MatOrchestrator:
         *,
         user_intent: str,
         mat_intent,  # 已解析的 MatIntent
-        budget: Optional[float] = None,
+        budget: float | None = None,
     ) -> WorkflowResult:
         """用已解析的 MatIntent 跑编排(测试用,跳过 mat-intent 阶段)"""
         workflow = get_workflow_for_subclass(mat_intent.subclass)
@@ -320,12 +323,12 @@ class MatOrchestrator:
 
     def run_batch(
         self,
-        experiments: List["ChemistTask"],
+        experiments: list[ChemistTask],
         *,
         parallel: bool = True,
         max_workers: int = 4,
-        critic_agent: Optional[Any] = None,
-    ) -> "BatchWorkflowResult":
+        critic_agent: Any | None = None,
+    ) -> BatchWorkflowResult:
         """W31 — 跑 N 个 experiment 并行,每个跑完接 critic L4 复核,聚合 BatchWorkflowResult
 
         Args:
@@ -338,6 +341,7 @@ class MatOrchestrator:
             BatchWorkflowResult(overall_verdict + experiment_results)
         """
         from uuid import uuid4
+
         from .dag import BatchWorkflowResult, ExperimentResult
         from .parallel_runner import ParallelBatchRunner
 
@@ -353,7 +357,7 @@ class MatOrchestrator:
         start_time = time.time()
 
         # 2. 构造 worker callables
-        def _run_one(idx: int, task: "ChemistTask") -> ExperimentResult:
+        def _run_one(idx: int, task: ChemistTask) -> ExperimentResult:
             from agents.mat_chemist_agent import MatChemistAgent
 
             chemist = MatChemistAgent()
@@ -523,4 +527,4 @@ if __name__ == "__main__":
         print(f"   nodes: {[(nr.node_id, nr.agent_name) for nr in result.node_results]}")
         print(f"   total: {result.total_duration_seconds:.3f}s")
 
-__all__ = ["MatOrchestrator", "create_default_orchestrator", "StubAgent"]
+__all__ = ["MatOrchestrator", "StubAgent", "create_default_orchestrator"]

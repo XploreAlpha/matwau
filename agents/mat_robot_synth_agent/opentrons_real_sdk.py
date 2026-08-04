@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import logging
 import random
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def is_opentrons_available() -> bool:
         return False
 
 
-def get_opentrons_version() -> Optional[str]:
+def get_opentrons_version() -> str | None:
     """获取 opentrons 版本号
 
     Returns:
@@ -98,7 +98,7 @@ class OpentronsProtocolBuilder:
         Returns:
             合法 Python 协议字符串,可保存 .py 后用 opentrons 跑
         """
-        lines: List[str] = []
+        lines: list[str] = []
 
         # 0. 顶层 metadata(per opentrons.simulate 要求 W28)
         lines.append('"""MatWAU generated OT-2 protocol"""')
@@ -134,14 +134,14 @@ class OpentronsProtocolBuilder:
 
         return "\n".join(lines)
 
-    def _translate_step(self, idx: int, step) -> List[str]:
+    def _translate_step(self, idx: int, step) -> list[str]:
         """把 1 个 SynthStep → OT-2 命令序列
 
         翻译约定(per opentrons API):
         - 称量 / 配液 → pipette.transfer / aspirate / dispense
         - 球磨 / 烧结 → protocol.comment(无直接 API,只记日志)
         """
-        lines: List[str] = []
+        lines: list[str] = []
         step_name = step.name
         # 1. 操作类型判断
         if any(k in step_name for k in ["称量", "配液", "transfer", "移液", "加", "mix"]):
@@ -189,7 +189,7 @@ class OpentronsProtocolBuilder:
 # ============================================================================
 
 
-def simulate_protocol(protocol_path: str, *, simulate_format: str = "json") -> Optional[Dict[str, Any]]:
+def simulate_protocol(protocol_path: str, *, simulate_format: str = "json") -> dict[str, Any] | None:
     """opentrons 真模拟(降级走 mock)
 
     Args:
@@ -250,7 +250,7 @@ class OpentronsRealSDK:
         lab_id: str = "matwau-lab-01",
         fail_chance: float = 0.0,
         prefer_real: bool = True,
-        protocol_output_dir: Optional[str] = None,
+        protocol_output_dir: str | None = None,
     ) -> None:
         """
         Args:
@@ -263,8 +263,8 @@ class OpentronsRealSDK:
         self.protocol_output_dir = protocol_output_dir
         self._use_real: bool = prefer_real and is_opentrons_available()
         self.protocol_builder = OpentronsProtocolBuilder()
-        self.commands_executed: List[str] = []
-        self.protocols_generated: List[str] = []
+        self.commands_executed: list[str] = []
+        self.protocols_generated: list[str] = []
 
         if self._use_real:
             self._fallback = None
@@ -286,7 +286,7 @@ class OpentronsRealSDK:
 
     # ---------- 接口与 Mock 100% 兼容 ----------
 
-    def execute(self, step) -> Dict[str, Any]:
+    def execute(self, step) -> dict[str, Any]:
         """执行 1 个 SynthStep(per OpentronsMockSDK 接口)
 
         真 SDK 路径:
@@ -392,7 +392,7 @@ class OpentronsRealSDK:
         """
         return self.protocol_builder.save(procedure, output_path, run_id=run_id)
 
-    def simulate_protocol(self, protocol_path: str) -> Optional[Dict[str, Any]]:
+    def simulate_protocol(self, protocol_path: str) -> dict[str, Any] | None:
         """opentrons 真模拟(需要 opentrons pip)
 
         Returns:
@@ -411,13 +411,13 @@ class OpentronsRealSDK:
 
 
 __all__ = [
-    "is_opentrons_available",
-    "get_opentrons_version",
-    "OpentronsProtocolBuilder",
-    "OpentronsRealSDK",
-    "simulate_protocol",
     "OT2_PIPETTE_P20",
     "OT2_PIPETTE_P300",
-    "OT2_TIP_RACK_300",
     "OT2_PLATE_96",
+    "OT2_TIP_RACK_300",
+    "OpentronsProtocolBuilder",
+    "OpentronsRealSDK",
+    "get_opentrons_version",
+    "is_opentrons_available",
+    "simulate_protocol",
 ]

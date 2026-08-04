@@ -6,7 +6,7 @@ W18 关键:加 XRDSafetyGuard 3 类 XRD 辐射防护
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from matwau.core.agent_base import (
     AgentRequest,
@@ -15,10 +15,9 @@ from matwau.core.agent_base import (
 )
 
 from .xrd_engine import (
-    BrukerMockSDK,
-    XRDSafetyGuard,
     XRDProcedure,
     XRDResult,
+    XRDSafetyGuard,
     estimate_xrd_cost,
     get_default_xrd_procedure,
 )
@@ -54,8 +53,8 @@ class MatRobotXrdAgent(MatWAUAgentBase):
     def __init__(
         self,
         *,
-        safety_guard: Optional[XRDSafetyGuard] = None,
-        robot_sdk: Optional[Any] = None,  # BrukerMockSDK | BrukerRealSDK
+        safety_guard: XRDSafetyGuard | None = None,
+        robot_sdk: Any | None = None,  # BrukerMockSDK | BrukerRealSDK
         context_manager=None,
         tool_registry=None,
         state_store=None,
@@ -80,7 +79,7 @@ class MatRobotXrdAgent(MatWAUAgentBase):
             self.robot_sdk = BrukerRealSDK(fail_chance=0.0)
         else:
             self.robot_sdk = robot_sdk
-        self.warnings: List[str] = []
+        self.warnings: list[str] = []
 
     def system_prompt(self) -> str:
         return (
@@ -90,9 +89,9 @@ class MatRobotXrdAgent(MatWAUAgentBase):
             "输出 Bragg 峰 + PDF 卡片匹配结果给 mat-critic 比对。"
         )
 
-    def act(self, ctx: Dict[str, Any], tools: Optional[List[Any]] = None) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[Any] | None = None) -> AgentResponse:
         """Inner Loop act(W18 + W20 真接)"""
-        procedure: Optional[XRDProcedure] = None
+        procedure: XRDProcedure | None = None
 
         # 1. 拿 procedure
         if isinstance(ctx, dict):
@@ -138,9 +137,9 @@ class MatRobotXrdAgent(MatWAUAgentBase):
             )
 
         # 3. 执行 XRD 扫描
-        result_log: List[str] = []
+        result_log: list[str] = []
         all_ok = True
-        all_peaks: List[Dict[str, float]] = []
+        all_peaks: list[dict[str, float]] = []
         total_duration = 0.0
 
         for step in procedure.steps:
@@ -221,7 +220,7 @@ class MatRobotXrdAgent(MatWAUAgentBase):
             cost=result.cost,
         )
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """Inner Loop perceive(W18)"""
         ctx = dict(req.context) if req.context else {}
         if req.artifacts and "procedure" not in ctx:

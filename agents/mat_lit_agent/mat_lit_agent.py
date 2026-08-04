@@ -28,30 +28,25 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 允许直接 python3 -m 运行本文件
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
-from .lit_engine import (  # noqa: E402
-    LitQuery,
-    LitReference,
+from .lit_engine import (
     LitReview,
-    parse_lit_query,
     review_literature,
-    search_literature,
 )
-
 
 # ============================================================================
 # 配置
@@ -63,7 +58,7 @@ class LitConfig:
     """用户配置(per AgentRequest.context)"""
 
     n_results: int = 5
-    sources: List[str] = None
+    sources: list[str] = None
     include_query_echo: bool = True
 
     def __post_init__(self) -> None:
@@ -71,7 +66,7 @@ class LitConfig:
             self.sources = ["arXiv", "Materials Project", "ICSD", "PubChem"]
 
     @classmethod
-    def from_dict(cls, d: Optional[Dict[str, Any]]) -> "LitConfig":
+    def from_dict(cls, d: dict[str, Any] | None) -> LitConfig:
         if not d:
             return cls()
         return cls(
@@ -155,7 +150,7 @@ class MatLitAgent(MatWAUAgentBase):
         *,
         default_n_results: int = 5,
         cost_per_review: float = 0.1,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         use_real_arxiv: bool = False,  # W16: 默认 False = W14 mock
         **kwargs,
     ) -> None:
@@ -208,7 +203,7 @@ class MatLitAgent(MatWAUAgentBase):
 - 1 次调用 = 1 次 Goldens 跑分(mat-lit.yaml,pass-rate > 50% Stage 1 / > 80% Stage 2)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """Inner Loop 第 3 步:执行 — mat-lit 特有业务逻辑"""
         user_message = ctx.get("user_message") or ctx.get("message") or ""
         config: LitConfig = ctx.get("_input_config") or LitConfig()
@@ -248,7 +243,7 @@ class MatLitAgent(MatWAUAgentBase):
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1 重写:抽取 user_message + config"""
         ctx = super().perceive(req)
         ctx["user_message"] = req.message
@@ -328,7 +323,7 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "MatLitAgent",
     "LitConfig",
+    "MatLitAgent",
     "create_default_agent",
 ]

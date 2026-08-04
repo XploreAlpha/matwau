@@ -11,20 +11,20 @@ mock 行为:
 
 from __future__ import annotations
 
-import random
 import functools
+import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 @dataclass
 class GenConstraints:
     """mat-gen 生成约束(per 用户 query)"""
 
-    elements: List[str] = field(default_factory=list)
+    elements: list[str] = field(default_factory=list)
     n_samples: int = 10
-    target_property: Optional[str] = None  # "ionic_conductivity" / "energy_density" / None
-    forbidden_elements: List[str] = field(default_factory=list)
+    target_property: str | None = None  # "ionic_conductivity" / "energy_density" / None
+    forbidden_elements: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -37,7 +37,7 @@ class GenCandidate:
     confidence: float = 0.0  # 0-1
 
 
-def parse_constraints(user_message: str, context: Optional[Dict[str, Any]] = None) -> GenConstraints:
+def parse_constraints(user_message: str, context: dict[str, Any] | None = None) -> GenConstraints:
     """从用户消息解析约束(LLM 调用,Stage 1 用规则解析)
 
     Stage 1 简版:关键词匹配
@@ -165,7 +165,7 @@ def _build_formula(elements_tuple: tuple, seed: int) -> str:
     return "".join(counts)
 
 
-def _build_formula_unpacked(elements: List[str], seed: int) -> str:
+def _build_formula_unpacked(elements: list[str], seed: int) -> str:
     """对外接口(自动转 tuple 给 lru_cache)"""
     return _build_formula(tuple(elements), seed)
 
@@ -188,9 +188,9 @@ def _estimate_confidence(energy: float) -> float:
     return 0.3
 
 
-def generate(constraints: GenConstraints) -> List[GenCandidate]:
+def generate(constraints: GenConstraints) -> list[GenCandidate]:
     """MatterGen 模拟生成(per dev plan §5.2)"""
-    candidates: List[GenCandidate] = []
+    candidates: list[GenCandidate] = []
     used_formulas = set()
     seed_base = hash(tuple(sorted(constraints.elements)) + tuple(sorted(constraints.forbidden_elements)))
 
@@ -247,8 +247,8 @@ def generate(constraints: GenConstraints) -> List[GenCandidate]:
 
 
 __all__ = [
-    "GenConstraints",
     "GenCandidate",
-    "parse_constraints",
+    "GenConstraints",
     "generate",
+    "parse_constraints",
 ]

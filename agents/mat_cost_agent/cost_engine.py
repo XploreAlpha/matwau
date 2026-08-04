@@ -15,8 +15,7 @@ per MatWAU-开发计划 §七 W14
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # ============================================================================
 # Agent 单次成本表(Stage 1 预定义)
@@ -88,14 +87,14 @@ class CostEstimate:
 
     workflow: str
     n_candidates: int                 # 总候选数(从 user / artifacts 推断)
-    breakdown: Dict[str, float]       # agent_name → ¥
+    breakdown: dict[str, float]       # agent_name → ¥
     total: float                      # 总成本 ¥
-    budget: Optional[float] = None
+    budget: float | None = None
     over_budget: bool = False
     overage: float = 0.0              # 超出量 ¥
-    suggestions: List[str] = field(default_factory=list)  # 降本建议
+    suggestions: list[str] = field(default_factory=list)  # 降本建议
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "workflow": self.workflow,
             "n_candidates": self.n_candidates,
@@ -115,10 +114,10 @@ class CostEstimate:
 
 def estimate_agent_cost(
     agent_name: str,
-    artifacts: Optional[Dict[str, Any]] = None,
-    n_override: Optional[int] = None,
+    artifacts: dict[str, Any] | None = None,
+    n_override: int | None = None,
     *,
-    domain: Optional[str] = None,
+    domain: str | None = None,
 ) -> float:
     """估算 1 个 agent 的成本
 
@@ -164,10 +163,10 @@ def estimate_agent_cost(
 def estimate_workflow_cost(
     workflow: str,
     n_candidates: int = 10,
-    budget: Optional[float] = None,
-    per_node_costs: Optional[Dict[str, float]] = None,
+    budget: float | None = None,
+    per_node_costs: dict[str, float] | None = None,
     *,
-    domain: Optional[str] = None,
+    domain: str | None = None,
 ) -> CostEstimate:
     """估算 1 个 workflow 的总成本(W15: 支持 domain)
 
@@ -244,8 +243,8 @@ def estimate_workflow_cost(
 
 def estimate_from_artifacts(
     workflow: str,
-    artifacts: Optional[Dict[str, Any]] = None,
-    budget: Optional[float] = None,
+    artifacts: dict[str, Any] | None = None,
+    budget: float | None = None,
 ) -> CostEstimate:
     """从实际 artifacts 数算成本(更准确)
 
@@ -298,7 +297,7 @@ def estimate_from_artifacts(
 def suggest_cost_reduction(
     estimate: CostEstimate,
     target_budget: float,
-) -> List[str]:
+) -> list[str]:
     """给降本建议(把成本压到 target_budget 内)
 
     Args:
@@ -343,12 +342,12 @@ def suggest_cost_reduction(
 
 
 __all__ = [
-    "AGENT_UNIT_COST",
     "AGENT_COST_FIELD",
+    "AGENT_UNIT_COST",
     "WORKFLOW_AGENTS",
     "CostEstimate",
     "estimate_agent_cost",
-    "estimate_workflow_cost",
     "estimate_from_artifacts",
+    "estimate_workflow_cost",
     "suggest_cost_reduction",
 ]

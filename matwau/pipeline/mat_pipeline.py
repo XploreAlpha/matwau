@@ -18,18 +18,16 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 # 允许直接 python3 -m 运行
 _PIPELINE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _PIPELINE_DIR.parents[1]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
 )
-
 
 # ============================================================================
 # 数据结构
@@ -42,10 +40,10 @@ class StageResult:
 
     stage_name: str  # "mat-gen" / "mat-sim" / "mat-hpc" / "mat-exp"
     agent_name: str
-    response: Optional[AgentResponse]
+    response: AgentResponse | None
     duration_seconds: float
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
     input_count: int = 0
     output_count: int = 0
 
@@ -67,31 +65,31 @@ class PipelineReport:
     """完整管线报告"""
 
     user_intent: str
-    elements: List[str]
-    forbidden: List[str] = field(default_factory=list)
-    budget: Optional[float] = None
+    elements: list[str]
+    forbidden: list[str] = field(default_factory=list)
+    budget: float | None = None
 
     # 每段结果
-    stage_results: List[StageResult] = field(default_factory=list)
+    stage_results: list[StageResult] = field(default_factory=list)
 
     # 总览
     total_duration_seconds: float = 0.0
     total_cost: float = 0.0
     success: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     # 公式一致性检查
     formula_consistency_ok: bool = True
-    consistency_violations: List[str] = field(default_factory=list)
+    consistency_violations: list[str] = field(default_factory=list)
 
     # 最终产物
-    final_recipes: List = field(default_factory=list)  # List[ExpRecipe]
+    final_recipes: list = field(default_factory=list)  # List[ExpRecipe]
 
     def to_report(self) -> str:
         """完整人类可读报告"""
         lines = []
         lines.append("=" * 70)
-        lines.append(f"🧪 MatWAU 4 段管线报告")
+        lines.append("🧪 MatWAU 4 段管线报告")
         lines.append("=" * 70)
         lines.append(f"📝 用户意图: {self.user_intent}")
         lines.append(f"🧬 元素约束: {self.elements}")
@@ -176,10 +174,10 @@ class MatPipeline:
         """
         if gen_agent is None or sim_agent is None or hpc_agent is None or exp_agent is None:
             # 懒加载(避免循环 import)
-            from agents.mat_gen_agent.mat_gen_agent import create_default_agent as create_gen
-            from agents.mat_sim_agent.mat_sim_agent import create_default_agent as create_sim
-            from agents.mat_hpc_agent.mat_hpc_agent import create_default_agent as create_hpc
             from agents.mat_exp_agent.mat_exp_agent import create_default_agent as create_exp
+            from agents.mat_gen_agent.mat_gen_agent import create_default_agent as create_gen
+            from agents.mat_hpc_agent.mat_hpc_agent import create_default_agent as create_hpc
+            from agents.mat_sim_agent.mat_sim_agent import create_default_agent as create_sim
 
         if gen_agent is None:
             gen_agent = create_gen()
@@ -197,7 +195,9 @@ class MatPipeline:
 
         # W9 新增:mat-intent-agent(可选,run_from_natural_language 用)
         if intent_agent is None:
-            from agents.mat_intent_agent.mat_intent_agent import create_default_agent as create_intent
+            from agents.mat_intent_agent.mat_intent_agent import (
+                create_default_agent as create_intent,
+            )
 
             intent_agent = create_intent()
         self.intent_agent = intent_agent
@@ -213,8 +213,8 @@ class MatPipeline:
         self,
         *,
         user_intent: str,
-        budget: Optional[float] = None,
-        n_samples: Optional[int] = None,
+        budget: float | None = None,
+        n_samples: int | None = None,
         run_id_prefix: str = "nl-pipe",
     ) -> PipelineReport:
         """从自然语言意图跑完整 4 段管线(per W9 mat-intent-agent)
@@ -228,7 +228,6 @@ class MatPipeline:
         Returns:
             PipelineReport(包含 mat_intent 在 stage 0)
         """
-        from agents.mat_intent_agent.intent_classifier import parse_mat_intent
         from agents.mat_intent_agent.mat_intent_agent import create_default_agent as create_intent
         from matwau.core.agent_base import AgentRequest
 
@@ -239,7 +238,6 @@ class MatPipeline:
         mi = intent_response.artifacts["mat_intent"]
 
         # 把 mat-intent 结果塞到 PipelineReport stage_results[0]
-        from dataclasses import dataclass as _dc
         intent_sr = StageResult(
             stage_name="mat-intent",
             agent_name=intent_agent.name,
@@ -274,9 +272,9 @@ class MatPipeline:
         self,
         *,
         user_intent: str,
-        elements: List[str],
-        forbidden: Optional[List[str]] = None,
-        budget: Optional[float] = None,
+        elements: list[str],
+        forbidden: list[str] | None = None,
+        budget: float | None = None,
         n_samples: int = 5,
         run_id_prefix: str = "pipe",
     ) -> PipelineReport:
@@ -416,11 +414,11 @@ class MatPipeline:
         self,
         *,
         user_intent: str,
-        elements: List[str],
-        forbidden: List[str],
+        elements: list[str],
+        forbidden: list[str],
         n_samples: int,
         run_id: str,
-        budget: Optional[float],
+        budget: float | None,
     ) -> StageResult:
         """Stage 1: mat-gen
 
@@ -468,9 +466,9 @@ class MatPipeline:
     def _run_stage_sim(
         self,
         *,
-        gen_candidates: List,
+        gen_candidates: list,
         run_id: str,
-        budget: Optional[float],
+        budget: float | None,
     ) -> StageResult:
         """Stage 2: mat-sim"""
         t0 = time.time()
@@ -505,9 +503,9 @@ class MatPipeline:
     def _run_stage_hpc(
         self,
         *,
-        sim_candidates: List,
+        sim_candidates: list,
         run_id: str,
-        budget: Optional[float],
+        budget: float | None,
         relaxed: bool,
     ) -> StageResult:
         """Stage 3: mat-hpc
@@ -563,9 +561,9 @@ class MatPipeline:
     def _run_stage_exp(
         self,
         *,
-        hpc_jobs: List,
+        hpc_jobs: list,
         run_id: str,
-        budget: Optional[float],
+        budget: float | None,
     ) -> StageResult:
         """Stage 4: mat-exp"""
         t0 = time.time()
@@ -604,10 +602,10 @@ class MatPipeline:
 
 
 def _check_formula_constraints(
-    formulas: List[str],
-    required_elements: List[str],
-    forbidden_elements: List[str],
-) -> tuple[bool, List[str]]:
+    formulas: list[str],
+    required_elements: list[str],
+    forbidden_elements: list[str],
+) -> tuple[bool, list[str]]:
     """检查 formula 集合是否满足元素约束
 
     规则:

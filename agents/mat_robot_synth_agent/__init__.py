@@ -16,38 +16,38 @@ W19 增量:OpentronsRealSDK 真接 OT-2(装 opentrons 真协议生成 / 降级 m
 per MatWAU-开发计划 §8 W17-D + W19 真接
 """
 
-from .mat_robot_synth_agent import MatRobotSynthAgent  # noqa: F401
-from .opentrons_real_sdk import (  # noqa: F401
+from .mat_robot_synth_agent import MatRobotSynthAgent
+from .opentrons_real_sdk import (
     OpentronsProtocolBuilder,
     OpentronsRealSDK,
-    is_opentrons_available,
     get_opentrons_version,
+    is_opentrons_available,
     simulate_protocol,
 )
-from .synth_engine import (  # noqa: F401
-    SynthProcedure,
-    SynthStep,
-    SynthResult,
+from .synth_engine import (
+    HAZARD_TEMP_CELSIUS_LIMIT,
     OpentronsMockSDK,
     SafetyGuard,
-    HAZARD_TEMP_CELSIUS_LIMIT,
-    get_default_procedure,
+    SynthProcedure,
+    SynthResult,
+    SynthStep,
     estimate_synth_cost,
+    get_default_procedure,
 )
 
 __all__ = [
-    "MatRobotSynthAgent",
-    "SynthProcedure",
-    "SynthStep",
-    "SynthResult",
-    "OpentronsMockSDK",
-    "OpentronsRealSDK",          # W19 Stage 2 真接
-    "OpentronsProtocolBuilder",  # W19 协议生成器
-    "is_opentrons_available",    # W19 SDK 检测
-    "get_opentrons_version",     # W19 版本查询
-    "simulate_protocol",         # W19 opentrons.simulate()
-    "SafetyGuard",
     "HAZARD_TEMP_CELSIUS_LIMIT",
-    "get_default_procedure",
+    "MatRobotSynthAgent",
+    "OpentronsMockSDK",
+    "OpentronsProtocolBuilder",  # W19 协议生成器
+    "OpentronsRealSDK",          # W19 Stage 2 真接
+    "SafetyGuard",
+    "SynthProcedure",
+    "SynthResult",
+    "SynthStep",
     "estimate_synth_cost",
+    "get_default_procedure",
+    "get_opentrons_version",     # W19 版本查询
+    "is_opentrons_available",    # W19 SDK 检测
+    "simulate_protocol",         # W19 opentrons.simulate()
 ]

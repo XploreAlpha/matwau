@@ -14,27 +14,23 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from agents.nomad_client import (
+    NomadClient,
+    NomadReference,
+)
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
-
-from agents.nomad_client import (  # noqa: E402
-    NomadClient,
-    NomadReference,
-    is_nomad_available,
-    search_nomad,
-)
-
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
 # ============================================================================
 # 配置
@@ -50,7 +46,7 @@ class NomadConfig:
     include_metainfo_unmapped: bool = True  # 是否导出 metainfo_unmapped 到 artifacts
 
     @classmethod
-    def from_dict(cls, d: Optional[Dict[str, Any]]) -> "NomadConfig":
+    def from_dict(cls, d: dict[str, Any] | None) -> NomadConfig:
         if not d:
             return cls()
         return cls(
@@ -66,7 +62,7 @@ class NomadConfig:
 
 
 def _results_to_response(
-    refs: List[NomadReference],
+    refs: list[NomadReference],
     is_real: bool,
     config: NomadConfig,
     user_intent: str,
@@ -75,7 +71,7 @@ def _results_to_response(
     from agents.data_canonical import CanonicalKey
 
     # 1. 转 canonical_key
-    canonical_keys: List[CanonicalKey] = []
+    canonical_keys: list[CanonicalKey] = []
     if config.include_canonical and refs:
         for r in refs:
             try:
@@ -107,7 +103,7 @@ def _results_to_response(
             )
 
     # metainfo_unmapped 聚合
-    all_unmapped: List[str] = []
+    all_unmapped: list[str] = []
     if config.include_metainfo_unmapped:
         for r in refs:
             all_unmapped.extend(r.metainfo_unmapped)
@@ -123,7 +119,7 @@ def _results_to_response(
             lines.append(f"   ... +{len(unique_unmapped) - 5} more")
 
     if canonical_keys:
-        unique_canonical = set(str(k) for k in canonical_keys if k.reduced_formula)
+        unique_canonical = {str(k) for k in canonical_keys if k.reduced_formula}
         lines.append(f"\n🔑 Canonical key 归一化: {len(unique_canonical)} 个唯一物相")
 
     reply = "\n".join(lines)
@@ -178,7 +174,7 @@ class MatNomadAgent(MatWAUAgentBase):
         default_n_results: int = 5,
         cost_per_query: float = 0.05,
         use_real_nomad: bool = True,
-        client: Optional[NomadClient] = None,
+        client: NomadClient | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -220,7 +216,7 @@ class MatNomadAgent(MatWAUAgentBase):
 - 0 行 UI 代码
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         user_message = ctx.get("user_message") or ctx.get("message") or ""
         config: NomadConfig = ctx.get("_input_config") or NomadConfig()
 
@@ -248,7 +244,7 @@ class MatNomadAgent(MatWAUAgentBase):
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         ctx = super().perceive(req)
         ctx["user_message"] = req.message
         ctx["_input_config"] = NomadConfig.from_dict(req.context)
@@ -278,7 +274,7 @@ class MatNomadAgent(MatWAUAgentBase):
 
 def _mock_search_safe(user_intent: str, n: int) -> tuple:
     """mock 模式快捷调用"""
-    from agents.nomad_client.client import _mock_nomad_response, _build_nomad_query
+    from agents.nomad_client.client import _build_nomad_query, _mock_nomad_response
     formula = _build_nomad_query(user_intent)
     refs = _mock_nomad_response(formula, n=n)
     return refs, False

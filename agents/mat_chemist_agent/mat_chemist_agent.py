@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from matwau.core.agent_base import (
     AgentRequest,
@@ -27,11 +27,8 @@ from .chemist_engine import (
     ChemistReport,
     ChemistSafetyGuard,
     ChemistTask,
-    RobotStep,
     RobotStepResult,
-    decompose_goal_to_robots,
     get_default_inconel_718_workflow,
-    get_default_pmma_workflow,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,7 +59,7 @@ class MatChemistAgent(MatWAUAgentBase):
     def __init__(
         self,
         *,
-        safety_guard: Optional[ChemistSafetyGuard] = None,
+        safety_guard: ChemistSafetyGuard | None = None,
         synth_agent=None,
         xrd_agent=None,
         em_agent=None,
@@ -90,7 +87,7 @@ class MatChemistAgent(MatWAUAgentBase):
         self.xrd_agent = xrd_agent
         self.em_agent = em_agent
         self.dsc_agent = dsc_agent
-        self.warnings: List[str] = []
+        self.warnings: list[str] = []
 
     def _get_robot_agent(self, robot_type: str):
         """懒加载 robot agent(W26)"""
@@ -123,9 +120,9 @@ class MatChemistAgent(MatWAUAgentBase):
             "(预算 / 样品竞争 / 危险顺序 / 样品量过大)。"
         )
 
-    def act(self, ctx: Dict[str, Any], tools: Optional[List[Any]] = None) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[Any] | None = None) -> AgentResponse:
         """Inner Loop act(W26)"""
-        task: Optional[ChemistTask] = None
+        task: ChemistTask | None = None
 
         # 1. 拿 task(从 artifacts 或默认)
         if isinstance(ctx, dict):
@@ -156,9 +153,9 @@ class MatChemistAgent(MatWAUAgentBase):
             )
 
         # 3. 串行执行 4 个 robot step
-        robot_results: List[RobotStepResult] = []
+        robot_results: list[RobotStepResult] = []
         all_success = True
-        result_log: List[str] = []
+        result_log: list[str] = []
         total_cost = 0.0
         total_duration = 0.0
 
@@ -209,7 +206,7 @@ class MatChemistAgent(MatWAUAgentBase):
                 total_duration += rr.duration_seconds
                 # 检查 budget
                 if total_cost > task.budget_cny:
-                    rr.reply += f" (⚠️ 累计成本超预算)"
+                    rr.reply += " (⚠️ 累计成本超预算)"
                 if step.required and not success:
                     all_success = False
             except Exception as e:  # noqa: BLE001
@@ -290,7 +287,7 @@ class MatChemistAgent(MatWAUAgentBase):
             cost=total_cost,
         )
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """Inner Loop perceive(W26)"""
         ctx = dict(req.context) if req.context else {}
         if req.artifacts and "task" not in ctx:

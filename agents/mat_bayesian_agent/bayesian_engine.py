@@ -25,8 +25,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any
 
 # ============================================================================
 # 常量
@@ -75,9 +74,9 @@ class ObservedPoint:
     """
 
     formula: str
-    features: List[float] = field(default_factory=list)  # One-Hot 元素组成
+    features: list[float] = field(default_factory=list)  # One-Hot 元素组成
     score: float = 0.0
-    relaxed_energy: Optional[float] = None  # 原始观测(eV/atom)
+    relaxed_energy: float | None = None  # 原始观测(eV/atom)
     stability: str = ""                     # stable / metastable / unstable
 
     def __post_init__(self) -> None:
@@ -85,7 +84,7 @@ class ObservedPoint:
         if not self.features and self.formula:
             self.features = formula_to_features(self.formula)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "formula": self.formula,
             "score": round(self.score, 4),
@@ -109,17 +108,17 @@ class AcquisitionResult:
 class BayesianOutput:
     """mat-bayesian 对外输出"""
 
-    next_batch: List[Any]                                  # 建议下一批候选(GenCandidate / dict)
-    acquisition_scores: Dict[str, float]                  # formula → score
+    next_batch: list[Any]                                  # 建议下一批候选(GenCandidate / dict)
+    acquisition_scores: dict[str, float]                  # formula → score
     algorithm_used: str                                    # gp / tpe / ensemble
     status: str                                            # searching / converging / converged
     convergence_estimate: float                            # 0-1
-    best_so_far: Optional[ObservedPoint]                   # 历史最佳
+    best_so_far: ObservedPoint | None                   # 历史最佳
     n_observed: int
     n_pool: int
     n_suggest: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "next_batch_formulas": [getattr(c, "formula", c.get("formula", "?")) if isinstance(c, dict) or hasattr(c, "formula") else str(c) for c in self.next_batch],
             "acquisition_scores": {k: round(v, 4) for k, v in self.acquisition_scores.items()},
@@ -138,7 +137,7 @@ class BayesianOutput:
 # ============================================================================
 
 
-def extract_elements(formula: str) -> List[str]:
+def extract_elements(formula: str) -> list[str]:
     """从化学式提取元素列表(去重,保序)
 
     例:'LiFePO4' → ['Li', 'Fe', 'P', 'O']
@@ -154,7 +153,7 @@ def extract_elements(formula: str) -> List[str]:
     return elements
 
 
-def formula_to_features(formula: str, pool: Optional[List[str]] = None) -> List[float]:
+def formula_to_features(formula: str, pool: list[str] | None = None) -> list[float]:
     """化学式 → One-Hot 元素组成向量
 
     Args:
@@ -181,8 +180,8 @@ def formula_to_features(formula: str, pool: Optional[List[str]] = None) -> List[
 
 
 def _rbf_kernel(
-    x1: List[float],
-    x2: List[float],
+    x1: list[float],
+    x2: list[float],
     length_scale: float = GP_LENGTH_SCALE,
     kernel_var: float = GP_KERNEL_VAR,
 ) -> float:
@@ -192,11 +191,11 @@ def _rbf_kernel(
 
 
 def _kernel_matrix(
-    X1: List[List[float]],
-    X2: List[List[float]],
+    X1: list[list[float]],
+    X2: list[list[float]],
     length_scale: float = GP_LENGTH_SCALE,
     kernel_var: float = GP_KERNEL_VAR,
-) -> List[List[float]]:
+) -> list[list[float]]:
     """计算 kernel matrix K[i][j] = kernel(X1[i], X2[j])"""
     K = [[0.0] * len(X2) for _ in range(len(X1))]
     for i, x1 in enumerate(X1):
@@ -205,7 +204,7 @@ def _kernel_matrix(
     return K
 
 
-def _cholesky_solve(L: List[List[float]], b: List[float]) -> List[float]:
+def _cholesky_solve(L: list[list[float]], b: list[float]) -> list[float]:
     """Cholesky 解 L @ L.T @ x = b
 
     注:Cholesky 分解 L 已经给出
@@ -224,7 +223,7 @@ def _cholesky_solve(L: List[List[float]], b: List[float]) -> List[float]:
     return x
 
 
-def _cholesky_decompose(K: List[List[float]], jitter: float = 1e-4) -> Optional[List[List[float]]]:
+def _cholesky_decompose(K: list[list[float]], jitter: float = 1e-4) -> list[list[float]] | None:
     """Cholesky 分解 K = L @ L.T(返回 L,失败返回 None)
 
     注:加入 jitter 保证正定
@@ -250,7 +249,7 @@ def _cholesky_decompose(K: List[List[float]], jitter: float = 1e-4) -> Optional[
     return L
 
 
-def gp_fit(observed: List[ObservedPoint]) -> Optional[Dict[str, Any]]:
+def gp_fit(observed: list[ObservedPoint]) -> dict[str, Any] | None:
     """GP 拟合(纯 NumPy,无 sklearn)
 
     Args:
@@ -295,9 +294,9 @@ def gp_fit(observed: List[ObservedPoint]) -> Optional[Dict[str, Any]]:
 
 
 def gp_predict(
-    fit_state: Dict[str, Any],
-    X_new: List[List[float]],
-) -> List[Tuple[float, float]]:
+    fit_state: dict[str, Any],
+    X_new: list[list[float]],
+) -> list[tuple[float, float]]:
     """GP 预测,返回 (μ, σ) 对每个新点
 
     Args:
@@ -348,7 +347,7 @@ def gp_predict(
 # ============================================================================
 
 
-def tpe_fit(observed: List[ObservedPoint]) -> Optional[Dict[str, Any]]:
+def tpe_fit(observed: list[ObservedPoint]) -> dict[str, Any] | None:
     """TPE 拟合:划分 good / bad
 
     Args:
@@ -378,10 +377,10 @@ def tpe_fit(observed: List[ObservedPoint]) -> Optional[Dict[str, Any]]:
 
 
 def _gaussian_kde(
-    X_query: List[List[float]],
-    X_ref: List[List[float]],
+    X_query: list[list[float]],
+    X_ref: list[list[float]],
     bandwidth: float = TPE_BANDWIDTH,
-) -> List[float]:
+) -> list[float]:
     """高斯 KDE(per dim 独立)→ 返回每个 query 的密度
 
     简化:每维独立 KDE,取几何均值(等权平均假设)
@@ -411,9 +410,9 @@ def _gaussian_kde(
 
 
 def tpe_acquisition(
-    fit_state: Dict[str, Any],
-    X_new: List[List[float]],
-) -> List[float]:
+    fit_state: dict[str, Any],
+    X_new: list[list[float]],
+) -> list[float]:
     """TPE acquisition: l(x) / g(x)
 
     Args:
@@ -493,12 +492,12 @@ def acquisition_pi(
 
 
 def suggest_next_batch(
-    observed: List[ObservedPoint],
-    pool: List[Any],
+    observed: list[ObservedPoint],
+    pool: list[Any],
     n_suggest: int = 5,
     algorithm: str = "auto",       # auto / gp / tpe / ensemble
     acquisition: str = "ei",       # ei / ucb / pi
-    forbidden: Optional[List[str]] = None,
+    forbidden: list[str] | None = None,
 ) -> BayesianOutput:
     """统一接口:根据 observed + pool,选下一批候选
 
@@ -578,7 +577,7 @@ def suggest_next_batch(
         valid_formulas.append(formula)
         X_pool.append(formula_to_features(formula))
 
-    scores: Dict[str, float] = {}
+    scores: dict[str, float] = {}
 
     if algorithm == "gp":
         fit = gp_fit(observed)
@@ -606,8 +605,8 @@ def suggest_next_batch(
 
     elif algorithm == "ensemble":
         # GP + TPE 取 max
-        gp_scores: Dict[str, float] = {}
-        tpe_scores_map: Dict[str, float] = {}
+        gp_scores: dict[str, float] = {}
+        tpe_scores_map: dict[str, float] = {}
 
         # GP
         fit_gp = gp_fit(observed)
@@ -687,7 +686,7 @@ def suggest_next_batch(
 # ============================================================================
 
 
-def _estimate_convergence(observed: List[ObservedPoint], acq_scores: Dict[str, float]) -> float:
+def _estimate_convergence(observed: list[ObservedPoint], acq_scores: dict[str, float]) -> float:
     """估计收敛度 0-1
 
     启发式:
@@ -726,9 +725,9 @@ def _estimate_convergence(observed: List[ObservedPoint], acq_scores: Dict[str, f
 
 
 def make_observed_from_simulated(
-    simulated: List[Any],
+    simulated: list[Any],
     score_field: str = "score",
-) -> List[ObservedPoint]:
+) -> list[ObservedPoint]:
     """从 SimCandidate 列表构造 ObservedPoint 列表
 
     Args:
@@ -782,12 +781,12 @@ def make_observed_from_simulated(
 
 
 def run_bayesian_optimization(
-    observed: List[ObservedPoint],
-    pool: List[Any],
+    observed: list[ObservedPoint],
+    pool: list[Any],
     n_suggest: int = 5,
     algorithm: str = "auto",
     acquisition: str = "ei",
-    forbidden: Optional[List[str]] = None,
+    forbidden: list[str] | None = None,
 ) -> BayesianOutput:
     """主接口 alias = suggest_next_batch(语义更明确)"""
     return suggest_next_batch(
@@ -801,21 +800,21 @@ def run_bayesian_optimization(
 
 
 __all__ = [
-    "ELEMENT_POOL",
     "ELEMENT_INDEX",
-    "ObservedPoint",
+    "ELEMENT_POOL",
     "AcquisitionResult",
     "BayesianOutput",
+    "ObservedPoint",
+    "acquisition_ei",
+    "acquisition_pi",
+    "acquisition_ucb",
     "extract_elements",
     "formula_to_features",
     "gp_fit",
     "gp_predict",
-    "tpe_fit",
-    "tpe_acquisition",
-    "acquisition_ei",
-    "acquisition_ucb",
-    "acquisition_pi",
-    "suggest_next_batch",
-    "run_bayesian_optimization",
     "make_observed_from_simulated",
+    "run_bayesian_optimization",
+    "suggest_next_batch",
+    "tpe_acquisition",
+    "tpe_fit",
 ]

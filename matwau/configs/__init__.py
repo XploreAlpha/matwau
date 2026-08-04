@@ -8,31 +8,31 @@
 per W32 LineageStore 自动记录
 """
 from .matwau_settings import (
-    get_lineage_store,
-    get_orchestrator,
-    get_default_settings,
-    MatWAUSettings,
-    reset_settings_cache,
-    DEFAULT_LLM_BASE_URL,        # W33
-    DEFAULT_LLM_MODEL,            # W33
-    DEFAULT_PG_DSN,
-    DEFAULT_SQLITE_PATH,
+    BACKEND_MEMORY,
     BACKEND_POSTGRES,
     BACKEND_SQLITE,
-    BACKEND_MEMORY,
+    DEFAULT_LLM_BASE_URL,  # W33
+    DEFAULT_LLM_MODEL,  # W33
+    DEFAULT_PG_DSN,
+    DEFAULT_SQLITE_PATH,
+    MatWAUSettings,
+    get_default_settings,
+    get_lineage_store,
+    get_orchestrator,
+    reset_settings_cache,
 )
 
 __all__ = [
-    "get_lineage_store",
-    "get_orchestrator",
-    "get_default_settings",
-    "MatWAUSettings",
-    "reset_settings_cache",
+    "BACKEND_MEMORY",
+    "BACKEND_POSTGRES",
+    "BACKEND_SQLITE",
     "DEFAULT_LLM_BASE_URL",       # W33
     "DEFAULT_LLM_MODEL",           # W33
     "DEFAULT_PG_DSN",
     "DEFAULT_SQLITE_PATH",
-    "BACKEND_POSTGRES",
-    "BACKEND_SQLITE",
-    "BACKEND_MEMORY",
+    "MatWAUSettings",
+    "get_default_settings",
+    "get_lineage_store",
+    "get_orchestrator",
+    "reset_settings_cache",
 ]

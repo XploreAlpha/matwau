@@ -32,22 +32,22 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # 允许直接 python3 -m 运行本文件
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
-from .xrd_sintering import (  # noqa: E402
+from .xrd_sintering import (
     ExpRecipe,
     SinteringRecipe,
     XRDPattern,
@@ -55,7 +55,7 @@ from .xrd_sintering import (  # noqa: E402
 )
 
 
-def _extract_input_candidates(req: AgentRequest) -> List:
+def _extract_input_candidates(req: AgentRequest) -> list:
     """从 req.artifacts 抽取候选(支持 3 种格式)
 
     Returns:
@@ -147,7 +147,7 @@ mat-gen(造物主)→ mat-sim(快速试菜)→ mat-hpc(超算对接员)→ mat-e
 - 1 个 LLM 调用 = 1 次 Goldens 跑分(mat-exp.yaml,pass-rate > 50% Stage 1 / > 80% Stage 2)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """Inner Loop 第 3 步:执行 — mat-exp 特有业务逻辑
 
         1. 从 ctx 拿 candidates(由 perceive 预处理)
@@ -181,8 +181,8 @@ mat-gen(造物主)→ mat-sim(快速试菜)→ mat-hpc(超算对接员)→ mat-e
             reply = "❌ 未能生成任何实验方案"
             confidence = 0.2
         else:
-            top_3_formulas = [r.formula for r in recipes[:3]]
-            top_3_peaks = [
+            [r.formula for r in recipes[:3]]
+            [
                 f"{r.formula}@{r.xrd.main_peak_hkl}={r.xrd.peaks[0].two_theta:.1f}°"
                 if r.xrd.peaks else f"{r.formula}@N/A"
                 for r in recipes[:3]
@@ -220,7 +220,7 @@ mat-gen(造物主)→ mat-sim(快速试菜)→ mat-hpc(超算对接员)→ mat-e
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1 重写:预处理 candidates(mat-hpc → mat-exp 数据流)
 
         因为 act() 只能拿到 ctx,所以在 perceive 阶段
@@ -272,12 +272,10 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # 跑 1 个 demo:mat-gen → mat-sim → mat-hpc → mat-exp 4 段链路
-    from agents.mat_gen_agent.mat_gen_agent import create_default_agent as create_gen
-    from agents.mat_gen_agent.mattergen import generate as mattergen_generate
     from agents.mat_gen_agent.mattergen import GenConstraints
-    from agents.mat_sim_agent.mat_sim_agent import create_default_agent as create_sim
+    from agents.mat_gen_agent.mattergen import generate as mattergen_generate
     from agents.mat_hpc_agent.mat_hpc_agent import create_default_agent as create_hpc
-    from agents.mat_hpc_agent.mat_hpc_agent import HPCJobResult
+    from agents.mat_sim_agent.mat_sim_agent import create_default_agent as create_sim
 
     # Stage 1: mat-gen
     print("\n📦 Stage 1: mat-gen 生成候选")
@@ -318,7 +316,7 @@ if __name__ == "__main__":
 
     print(f"\n📨 reply: {response.reply[:400]}")
     print(f"📊 confidence: {response.confidence:.0%}, cost: ¥{response.cost:.2f}")
-    print(f"\n🧪 实验方案 (top-5):")
+    print("\n🧪 实验方案 (top-5):")
     for i, recipe in enumerate(response.artifacts.get("recipes", [])[:5]):
         sint = recipe.sintering
         xrd = recipe.xrd
@@ -333,9 +331,9 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "MatExpAgent",
     "ExpRecipe",
-    "XRDPattern",
+    "MatExpAgent",
     "SinteringRecipe",
+    "XRDPattern",
     "create_default_agent",
 ]

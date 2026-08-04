@@ -38,35 +38,34 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 # 允许直接 python3 -m 运行本文件
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
-from .critic_engine import (  # noqa: E402
-    CriticScore,
+from .critic_engine import (
     CriticVerdict,
     FailureType,
     evaluate_candidates,
     evaluate_chemist_report,  # W30
     explain_failure,
 )
-from .llm_reviewer import (  # noqa: E402 — W33
+from .llm_reviewer import (
     LLMReviewer,
-    LLMReviewResult,
+)
+from .llm_reviewer import (
     get_default_reviewer as _get_default_reviewer,
 )
-
 
 # ============================================================================
 # 数据结构(对外暴露)
@@ -86,8 +85,8 @@ class CriticOutput:
     l5_cross_source_score: float = 0.0           # M3 NEW - 跨数据源一致率
     l5_cross_source_consensus_rate: float = 0.0  # M3 NEW
     l5_cross_source_n_clusters: int = 0          # M3 NEW
-    failures: List[FailureType] = None            # type: ignore
-    top_suggestions: List[str] = None             # type: ignore
+    failures: list[FailureType] = None            # type: ignore
+    top_suggestions: list[str] = None             # type: ignore
     confidence: float = 0.85
     # W33 NEW — LLM 二次复核
     llm_review: str = ""                         # 自然语言复核文本(空串 = 未跑 / 失败)
@@ -101,7 +100,7 @@ class CriticOutput:
         if self.top_suggestions is None:
             self.top_suggestions = []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "verdict": self.verdict,
             "overall_score": round(self.overall_score, 3),
@@ -171,7 +170,7 @@ class MatCriticAgent(MatWAUAgentBase):
         *,
         cost_per_eval: float = 0.05,        # ¥/次(规则引擎几乎免费)
         enable_llm_review: bool = False,    # W33 — 默认 False,保持测试确定性
-        llm_reviewer: Optional[LLMReviewer] = None,  # W33 — 显式注入(测试用)
+        llm_reviewer: LLMReviewer | None = None,  # W33 — 显式注入(测试用)
         **kwargs,
     ) -> None:
         """构造
@@ -195,7 +194,7 @@ class MatCriticAgent(MatWAUAgentBase):
         if self.safety_guard is None:
             self.safety_guard = SafetyGuard(budget_limit=500.0)
 
-    def _get_llm_reviewer(self) -> Optional[LLMReviewer]:
+    def _get_llm_reviewer(self) -> LLMReviewer | None:
         """获取 LLMReviewer(懒加载)"""
         if self._llm_reviewer is None:
             self._llm_reviewer = _get_default_reviewer()
@@ -224,7 +223,7 @@ verdict 阈值:
 - 1 个 LLM 调用 = 1 次 Goldens 跑分(mat-critic.yaml,pass-rate > 50% Stage 1 / > 80% Stage 2)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """Inner Loop 第 3 步:执行 — mat-critic 特有业务逻辑
 
         1. 从 ctx 抽 user_message + candidates
@@ -344,7 +343,7 @@ verdict 阈值:
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1 重写:抽取 user_message + candidates"""
         ctx = super().perceive(req)
 
@@ -358,7 +357,7 @@ verdict 阈值:
     # 内部 helper
     # ========================================================================
 
-    def _extract_candidates(self, req: AgentRequest) -> List:
+    def _extract_candidates(self, req: AgentRequest) -> list:
         """从 req.artifacts 抽 candidates(支持 7 种格式 — W30 加 2 种 ChemistReport)
 
         优先级(W30):
@@ -400,11 +399,11 @@ verdict 阈值:
 
     def _run_llm_review(
         self,
-        output: "CriticOutput",
-        verdict: "CriticVerdict",
+        output: CriticOutput,
+        verdict: CriticVerdict,
         *,
         user_message: str,
-        artifacts_ctx: Dict[str, Any],
+        artifacts_ctx: dict[str, Any],
     ) -> None:
         """W33 — 跑 LLM 二次复核,结果写进 output(失败吞掉)
 
@@ -470,7 +469,7 @@ verdict 阈值:
                     lines.append(f"     证据: {f.evidence[0][:80]}")
 
         if output.top_suggestions:
-            lines.append(f"\n💡 修复建议:")
+            lines.append("\n💡 修复建议:")
             for sug in output.top_suggestions[:3]:
                 lines.append(f"   - {sug}")
 
@@ -619,7 +618,7 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "MatCriticAgent",
     "CriticOutput",
+    "MatCriticAgent",
     "create_default_agent",
 ]

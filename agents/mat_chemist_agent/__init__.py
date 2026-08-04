@@ -11,29 +11,29 @@ W26 关键:
 per MatWAU-Stage 3 钢铁侠 doc §3.5 Phase 4 + Stage 3 JARVIS 愿景
 """
 
-from .chemist_engine import (  # noqa: F401
+from .chemist_engine import (
+    CHEMIST_DEFAULT_BUDGET_CNY,
+    ROBOT_TYPES,
     ChemistReport,
     ChemistSafetyGuard,
     ChemistTask,
     RobotStep,
     RobotStepResult,
-    CHEMIST_DEFAULT_BUDGET_CNY,
-    ROBOT_TYPES,
     decompose_goal_to_robots,
     get_default_inconel_718_workflow,
     get_default_pmma_workflow,
 )
-from .mat_chemist_agent import MatChemistAgent  # noqa: F401
+from .mat_chemist_agent import MatChemistAgent
 
 __all__ = [
-    "MatChemistAgent",
-    "ChemistTask",
-    "ChemistReport",
-    "ChemistSafetyGuard",
-    "RobotStep",
-    "RobotStepResult",
     "CHEMIST_DEFAULT_BUDGET_CNY",
     "ROBOT_TYPES",
+    "ChemistReport",
+    "ChemistSafetyGuard",
+    "ChemistTask",
+    "MatChemistAgent",
+    "RobotStep",
+    "RobotStepResult",
     "decompose_goal_to_robots",
     "get_default_inconel_718_workflow",
     "get_default_pmma_workflow",

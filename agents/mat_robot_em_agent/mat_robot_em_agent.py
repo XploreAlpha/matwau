@@ -10,7 +10,7 @@ W21 关键:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from matwau.core.agent_base import (
     AgentRequest,
@@ -22,7 +22,6 @@ from .em_engine import (
     EMProcedure,
     EMResult,
     EMSafetyGuard,
-    EMStep,
     ZeissMockSDK,
     estimate_em_cost,
     get_default_em_procedure,
@@ -56,7 +55,7 @@ class MatRobotEmAgent(MatWAUAgentBase):
     def __init__(
         self,
         *,
-        safety_guard: Optional[EMSafetyGuard] = None,
+        safety_guard: EMSafetyGuard | None = None,
         robot_sdk=None,  # W24: 接受 ZeissRealSDK 或 ZeissMockSDK
         context_manager=None,
         tool_registry=None,
@@ -89,7 +88,7 @@ class MatRobotEmAgent(MatWAUAgentBase):
             )
         else:
             self.robot_sdk = ZeissMockSDK(fail_chance=0.0)
-        self.warnings: List[str] = []
+        self.warnings: list[str] = []
 
     def system_prompt(self) -> str:
         return (
@@ -100,9 +99,9 @@ class MatRobotEmAgent(MatWAUAgentBase):
             "输出 SEM/TEM 图像 + EDS 元素谱 + 晶粒尺寸给 mat-critic 比对。"
         )
 
-    def act(self, ctx: Dict[str, Any], tools: Optional[List[Any]] = None) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[Any] | None = None) -> AgentResponse:
         """Inner Loop act(W21)"""
-        procedure: Optional[EMProcedure] = None
+        procedure: EMProcedure | None = None
 
         # 1. 拿 procedure
         if isinstance(ctx, dict):
@@ -153,10 +152,10 @@ class MatRobotEmAgent(MatWAUAgentBase):
             )
 
         # 3. 执行电镜操作
-        result_log: List[str] = []
+        result_log: list[str] = []
         all_ok = True
-        all_images: List[Dict[str, Any]] = []
-        all_elements: List[Dict[str, Any]] = []
+        all_images: list[dict[str, Any]] = []
+        all_elements: list[dict[str, Any]] = []
 
         for step in procedure.steps:
             exec_resp = self.robot_sdk.execute(step)
@@ -219,7 +218,7 @@ class MatRobotEmAgent(MatWAUAgentBase):
             cost=result.cost,
         )
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """Inner Loop perceive(W21)"""
         ctx = dict(req.context) if req.context else {}
         if req.artifacts and "procedure" not in ctx:

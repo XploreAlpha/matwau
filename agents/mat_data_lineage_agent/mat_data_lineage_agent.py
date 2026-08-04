@@ -41,30 +41,27 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 允许直接 python3 -m 运行本文件
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
-from .lineage_engine import (  # noqa: E402
-    LineageRecord,
+from .lineage_engine import (
     LineageStore,
-    LineageTree,
     build_lineage_tree,
     get_global_store,
     reset_global_store,
 )
-
 
 # ============================================================================
 # 配置 + 辅助
@@ -79,7 +76,7 @@ class LineageConfig:
     query_type: str = "record"          # record / ancestors / descendants / tree
 
     @classmethod
-    def from_dict(cls, d: Optional[Dict[str, Any]]) -> "LineageConfig":
+    def from_dict(cls, d: dict[str, Any] | None) -> LineageConfig:
         if not d:
             return cls()
         return cls(
@@ -108,7 +105,7 @@ class MatDataLineageAgent(MatWAUAgentBase):
     def __init__(
         self,
         *,
-        store: Optional[LineageStore] = None,
+        store: LineageStore | None = None,
         cost_per_call: float = 0.001,
         **kwargs,
     ) -> None:
@@ -145,7 +142,7 @@ class MatDataLineageAgent(MatWAUAgentBase):
 - 1 次调用 = 1 次 Goldens 跑分(mat-data-lineage.yaml,pass-rate > 50% Stage 1)
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         artifacts = ctx.get("_input_artifacts") or {}
         config: LineageConfig = ctx.get("_input_config") or LineageConfig()
 
@@ -167,7 +164,7 @@ class MatDataLineageAgent(MatWAUAgentBase):
         else:
             return self._error_response(f"未知 query_type: {query_type}")
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         ctx = super().perceive(req)
         ctx["user_message"] = req.message
         ctx["_input_config"] = LineageConfig.from_dict(req.context)
@@ -181,7 +178,7 @@ class MatDataLineageAgent(MatWAUAgentBase):
     def _record_mode(
         self,
         store: LineageStore,
-        artifacts: Dict[str, Any],
+        artifacts: dict[str, Any],
         config: LineageConfig,
     ) -> AgentResponse:
         """记录模式:加 1 条 record"""
@@ -224,7 +221,7 @@ class MatDataLineageAgent(MatWAUAgentBase):
     def _query_mode(
         self,
         store: LineageStore,
-        artifacts: Dict[str, Any],
+        artifacts: dict[str, Any],
         query_type: str,
         config: LineageConfig,
     ) -> AgentResponse:
@@ -370,7 +367,7 @@ if __name__ == "__main__":
 
 
 __all__ = [
-    "MatDataLineageAgent",
     "LineageConfig",
+    "MatDataLineageAgent",
     "create_default_agent",
 ]

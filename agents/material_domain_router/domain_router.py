@@ -16,7 +16,7 @@ Stage 2: wau-domain-registry SDK 注入 + LLM 二次校验
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ============================================================================
 # 域常量
@@ -153,7 +153,7 @@ DOMAIN_PATTERNS = {
 def detect_domain(
     user_intent: str,
     *,
-    default: Optional[str] = None,
+    default: str | None = None,
 ) -> str:
     """从 user_intent 识别材料域
 
@@ -181,7 +181,7 @@ def detect_domain(
     return default
 
 
-def list_domains() -> List[str]:
+def list_domains() -> list[str]:
     """列出所有支持的材料域"""
     return list(DOMAINS)
 
@@ -191,12 +191,12 @@ def is_valid_domain(domain: str) -> bool:
     return domain in DOMAINS
 
 
-def get_keywords_for_domain(domain: str) -> List[str]:
+def get_keywords_for_domain(domain: str) -> list[str]:
     """获取指定域的检测关键词"""
     return list(DOMAIN_PATTERNS.get(domain, []))
 
 
-def get_property_keywords(domain: str) -> List[str]:
+def get_property_keywords(domain: str) -> list[str]:
     """获取指定域的属性词(从 profiles 拿)"""
     from .profiles import get_profile
 
@@ -204,7 +204,7 @@ def get_property_keywords(domain: str) -> List[str]:
     return list(p.get("property_keywords", []))
 
 
-def get_domain_keywords(domain: str) -> List[str]:
+def get_domain_keywords(domain: str) -> list[str]:
     """获取指定域的应用领域词(从 profiles 拿)"""
     from .profiles import get_profile
 
@@ -212,7 +212,7 @@ def get_domain_keywords(domain: str) -> List[str]:
     return list(p.get("domain_keywords", []))
 
 
-def get_profile(domain: str) -> Dict[str, Any]:
+def get_profile(domain: str) -> dict[str, Any]:
     """获取指定域的完整 profile(委托给 profiles 模块)
 
     Raises:
@@ -224,14 +224,14 @@ def get_profile(domain: str) -> Dict[str, Any]:
 
 
 __all__ = [
-    "DOMAINS",
     "DEFAULT_DOMAIN",
+    "DOMAINS",
     "DOMAIN_PATTERNS",
     "detect_domain",
-    "list_domains",
-    "is_valid_domain",
-    "get_keywords_for_domain",
-    "get_property_keywords",
     "get_domain_keywords",
+    "get_keywords_for_domain",
     "get_profile",
+    "get_property_keywords",
+    "is_valid_domain",
+    "list_domains",
 ]

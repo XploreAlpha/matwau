@@ -12,11 +12,11 @@ Materials Project API 文档:
 - https://api.materialsproject.org/ (v3 API,无需 token 公开查询)
 """
 
-from .client import (  # noqa: F401
+from .client import (
     MATERIALS_PROJECT_BASE_URL,
     MATERIALS_PROJECT_TIMEOUT_SEC,
-    MaterialsProjectReference,
     MaterialsProjectClient,
+    MaterialsProjectReference,
     is_materials_project_available,
     search_materials_project,
 )
@@ -24,8 +24,8 @@ from .client import (  # noqa: F401
 __all__ = [
     "MATERIALS_PROJECT_BASE_URL",
     "MATERIALS_PROJECT_TIMEOUT_SEC",
-    "MaterialsProjectReference",
     "MaterialsProjectClient",
+    "MaterialsProjectReference",
     "is_materials_project_available",
     "search_materials_project",
 ]

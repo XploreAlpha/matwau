@@ -21,62 +21,62 @@ W25 增量:TATriosRealSDK 真接(TA Trios AutoPilot REST API + 公开 .csv 温�
 per MatWAU-开发计划 §8 W22 + W25
 """
 
-from .dsc_engine import (  # noqa: F401
-    DSCProcedure,
-    DSCResult,
-    DSCStep,
-    DSCSafetyGuard,
-    TAMockSDK,
+from .dsc_engine import (
+    DEFAULT_DSC_PROCEDURE,
+    DSC_ATMOSPHERES,
     DSC_DANGEROUS_MATERIALS,
     HAZARD_DSC_HIGH_TEMP_OXIDIZING,
     HAZARD_DSC_MAX_HEATING_RATE_C_PER_MIN,
     HAZARD_DSC_MAX_SAMPLE_MASS_MG,
-    DSC_ATMOSPHERES,
-    DEFAULT_DSC_PROCEDURE,
+    DSCProcedure,
+    DSCResult,
+    DSCSafetyGuard,
+    DSCStep,
+    TAMockSDK,
     estimate_dsc_cost,
     get_default_dsc_procedure,
 )
-from .mat_robot_dsc_agent import MatRobotDscAgent  # noqa: F401
-from .ta_trios_real_sdk import (  # noqa: F401
-    TATriosRealSDK,
+from .mat_robot_dsc_agent import MatRobotDscAgent
+from .ta_trios_real_sdk import (
+    MATERIAL_DSC_LIBRARY,
+    TA_DSC_250_DEFAULT_PARAMS,
+    TA_TRIOS_DEFAULT_API_URL,
     TATriosProtocolBuilder,
-    is_ta_trios_available,
-    get_ta_sdk_list,
-    trios_endpoint_available,
-    lookup_material_dsc,
+    TATriosRealSDK,
     compute_tg_tm,
     generate_dsc_curve,
-    TA_DSC_250_DEFAULT_PARAMS,
-    MATERIAL_DSC_LIBRARY,
-    TA_TRIOS_DEFAULT_API_URL,
+    get_ta_sdk_list,
+    is_ta_trios_available,
+    lookup_material_dsc,
+    trios_endpoint_available,
 )
 
 __all__ = [
-    "MatRobotDscAgent",
-    "DSCProcedure",
-    "DSCResult",
-    "DSCStep",
-    "DSCSafetyGuard",
-    "TAMockSDK",
-    # W25 Stage 2 真接
-    "TATriosRealSDK",                 # W25 真接 SDK
-    "TATriosProtocolBuilder",         # W25 Trios CSV 程序生成器
-    "is_ta_trios_available",          # W25 SDK 检测
-    "get_ta_sdk_list",                # W25 列出已装 TA 库
-    "trios_endpoint_available",       # W25 Trios AutoPilot 探测
-    "lookup_material_dsc",            # W25 标准材料 DSC 属性查表
-    "compute_tg_tm",                  # W25 Tg / Tm / Tc 估算
-    "generate_dsc_curve",             # W25 DSC 曲线生成(确定性)
-    "TA_DSC_250_DEFAULT_PARAMS",      # W25 TA DSC 250 规格
-    "MATERIAL_DSC_LIBRARY",           # W25 内置材料 DSC 库
-    "TA_TRIOS_DEFAULT_API_URL",       # W25 Trios AutoPilot REST URL
+    "DEFAULT_DSC_PROCEDURE",
+    "DSC_ATMOSPHERES",
     # DSC 防护
     "DSC_DANGEROUS_MATERIALS",
     "HAZARD_DSC_HIGH_TEMP_OXIDIZING",
     "HAZARD_DSC_MAX_HEATING_RATE_C_PER_MIN",
     "HAZARD_DSC_MAX_SAMPLE_MASS_MG",
-    "DSC_ATMOSPHERES",
-    "DEFAULT_DSC_PROCEDURE",
+    "MATERIAL_DSC_LIBRARY",           # W25 内置材料 DSC 库
+    "TA_DSC_250_DEFAULT_PARAMS",      # W25 TA DSC 250 规格
+    "TA_TRIOS_DEFAULT_API_URL",       # W25 Trios AutoPilot REST URL
+    "DSCProcedure",
+    "DSCResult",
+    "DSCSafetyGuard",
+    "DSCStep",
+    "MatRobotDscAgent",
+    "TAMockSDK",
+    "TATriosProtocolBuilder",         # W25 Trios CSV 程序生成器
+    # W25 Stage 2 真接
+    "TATriosRealSDK",                 # W25 真接 SDK
+    "compute_tg_tm",                  # W25 Tg / Tm / Tc 估算
     "estimate_dsc_cost",
+    "generate_dsc_curve",             # W25 DSC 曲线生成(确定性)
     "get_default_dsc_procedure",
+    "get_ta_sdk_list",                # W25 列出已装 TA 库
+    "is_ta_trios_available",          # W25 SDK 检测
+    "lookup_material_dsc",            # W25 标准材料 DSC 属性查表
+    "trios_endpoint_available",       # W25 Trios AutoPilot 探测
 ]

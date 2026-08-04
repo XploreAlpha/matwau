@@ -19,7 +19,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +44,13 @@ class ArxivReference:
 
     arxiv_id: str
     title: str
-    authors: List[str] = field(default_factory=list)
+    authors: list[str] = field(default_factory=list)
     year: int = 2024
     summary: str = ""
     url: str = ""
-    categories: List[str] = field(default_factory=list)
+    categories: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "arxiv_id": self.arxiv_id,
             "title": self.title,
@@ -76,7 +76,7 @@ def is_arxiv_available() -> bool:
         return False
 
 
-def _parse_arxiv_xml(xml_text: str) -> List[ArxivReference]:
+def _parse_arxiv_xml(xml_text: str) -> list[ArxivReference]:
     """解析 arXiv Atom XML → List[ArxivReference]
 
     Args:
@@ -140,7 +140,7 @@ def _parse_arxiv_xml(xml_text: str) -> List[ArxivReference]:
     return refs
 
 
-def _build_arxiv_query(user_intent: str, *, domain: Optional[str] = None) -> str:
+def _build_arxiv_query(user_intent: str, *, domain: str | None = None) -> str:
     """构造 arXiv search_query
 
     策略:
@@ -217,9 +217,9 @@ class ArxivClient:
         self,
         user_intent: str,
         *,
-        max_results: Optional[int] = None,
-        domain: Optional[str] = None,
-    ) -> Tuple[List[ArxivReference], bool]:
+        max_results: int | None = None,
+        domain: str | None = None,
+    ) -> tuple[list[ArxivReference], bool]:
         """查 arXiv,返回 (references, is_real_query)
 
         Args:
@@ -269,9 +269,9 @@ def search_arxiv(
     user_intent: str,
     *,
     max_results: int = 5,
-    domain: Optional[str] = None,
-    client: Optional[ArxivClient] = None,
-) -> Tuple[List[ArxivReference], bool]:
+    domain: str | None = None,
+    client: ArxivClient | None = None,
+) -> tuple[list[ArxivReference], bool]:
     """便利函数:查 arXiv
 
     Returns:
@@ -282,9 +282,9 @@ def search_arxiv(
 
 
 __all__ = [
+    "ARXIV_API_URL",
     "ArxivClient",
     "ArxivReference",
-    "search_arxiv",
     "is_arxiv_available",
-    "ARXIV_API_URL",
-]  # type: ignore[name-defined]  # noqa: F821
+    "search_arxiv",
+]  # type: ignore[name-defined]

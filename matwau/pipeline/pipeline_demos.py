@@ -11,18 +11,16 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
 
 _PIPELINE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _PIPELINE_DIR.parents[1]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.pipeline.mat_pipeline import (  # noqa: E402
+from matwau.pipeline.mat_pipeline import (
     MatPipeline,
     PipelineReport,
     create_default_pipeline,
 )
-
 
 # ============================================================================
 # Demo 用例定义
@@ -36,14 +34,14 @@ class DemoCase:
     case_id: str  # "DEMO-001"
     title: str  # "锂电池正极材料"
     user_intent: str  # "出 LiCoO2 实验方案"
-    elements: List[str]  # ["Li", "Co", "O"]
-    forbidden: List[str]  # [] (无)
-    budget: Optional[float]  # 500.0
+    elements: list[str]  # ["Li", "Co", "O"]
+    forbidden: list[str]  # [] (无)
+    budget: float | None  # 500.0
     expected_min_recipes: int  # 期望最少实验方案数
     description: str  # 用例描述
 
 
-DEMO_CASES: List[DemoCase] = [
+DEMO_CASES: list[DemoCase] = [
     DemoCase(
         case_id="DEMO-001",
         title="锂电池正极材料(LiCoO2)",
@@ -103,28 +101,28 @@ class PipelineDemo:
         demo.print_summary(summaries)
     """
 
-    def __init__(self, pipeline: Optional[MatPipeline] = None) -> None:
+    def __init__(self, pipeline: MatPipeline | None = None) -> None:
         """构造
 
         Args:
             pipeline: 注入自定义 pipeline(测试用,默认 create_default_pipeline)
         """
         self.pipeline = pipeline or create_default_pipeline()
-        self.cases: List[DemoCase] = DEMO_CASES
+        self.cases: list[DemoCase] = DEMO_CASES
 
-    def run_all(self) -> List[DemoSummary]:
+    def run_all(self) -> list[DemoSummary]:
         """跑全部 demo(按 case_id 顺序)
 
         Returns:
             List[DemoSummary]
         """
-        summaries: List[DemoSummary] = []
+        summaries: list[DemoSummary] = []
         for case in self.cases:
             summary = self._run_one(case)
             summaries.append(summary)
         return summaries
 
-    def run_one(self, case_id: str) -> Optional[DemoSummary]:
+    def run_one(self, case_id: str) -> DemoSummary | None:
         """跑单个 demo
 
         Returns:
@@ -163,7 +161,7 @@ class PipelineDemo:
             elapsed_seconds=elapsed,
         )
 
-    def print_summary(self, summaries: List[DemoSummary]) -> None:
+    def print_summary(self, summaries: list[DemoSummary]) -> None:
         """打印总览报告"""
         print("\n" + "=" * 70)
         print("🧪 MatWAU 3 个 Demo 总览报告")
@@ -191,7 +189,7 @@ class PipelineDemo:
 
         print("=" * 70)
 
-    def run_and_print_all(self) -> List[DemoSummary]:
+    def run_and_print_all(self) -> list[DemoSummary]:
         """跑全部 demo 并打印每份报告 + 总览
 
         Returns:

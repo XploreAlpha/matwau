@@ -16,26 +16,22 @@
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from agents.mat_robot_synth_agent import (  # noqa: E402
-    OpentronsProtocolBuilder,
-    OpentronsRealSDK,
-    SynthProcedure,
+from agents.mat_robot_synth_agent import (
     get_opentrons_version,
     is_opentrons_available,
 )
-from agents.mat_robot_synth_agent.synth_engine import DEFAULT_PROCEDURES  # noqa: E402
-from agents.mat_robot_synth_agent.ot2_hardware_gateway import (  # noqa: E402
+from agents.mat_robot_synth_agent.ot2_hardware_gateway import (
     build_reagent_manifest,
     estimate_reagent_cost,
     hardware_full_workflow,
 )
+from agents.mat_robot_synth_agent.synth_engine import DEFAULT_PROCEDURES
 
 
 def print_header(title: str) -> None:
@@ -49,7 +45,7 @@ def main() -> None:
     print_header("MatWAU W28 真 OT-2 硬件接入 Demo")
 
     # 1. 检测 opentrons 安装
-    print(f"\n🔌 opentrons 安装检测:")
+    print("\n🔌 opentrons 安装检测:")
     print(f"  - is_opentrons_available: {is_opentrons_available()}")
     print(f"  - version: {get_opentrons_version()}")
 
@@ -65,7 +61,7 @@ def main() -> None:
     # 3. 化学品供应清单
     orders = build_reagent_manifest(proc)
     cost = estimate_reagent_cost(orders)
-    print(f"\n💊 化学品供应清单:")
+    print("\n💊 化学品供应清单:")
     for o in orders[:5]:
         print(f"  - {o.chemical_formula}:{o.amount}{o.unit} ¥{o.price_cny:.2f} ({o.supplier})")
     if len(orders) > 5:
@@ -76,17 +72,17 @@ def main() -> None:
     print_header("W28 端到端:procedure → 化学品 → 协议 → simulate")
     result = hardware_full_workflow(proc, run_id="w28-demo-001")
 
-    print(f"\n📋 化学品供应:")
+    print("\n📋 化学品供应:")
     print(f"  - {len(result['reagent_orders'])} 个化学品")
     print(f"  - 总成本:¥{result['total_reagent_cost_cny']:.2f}")
 
-    print(f"\n📝 OT-2 协议:")
+    print("\n📝 OT-2 协议:")
     print(f"  - 路径:{result['protocol_path']}")
     print(f"  - 大小:{Path(result['protocol_path']).stat().st_size} bytes")
 
     sim = result["simulate_result"]
     if sim is not None:
-        print(f"\n🎬 simulate 结果:")
+        print("\n🎬 simulate 结果:")
         print(f"  - 状态:{'✅' if sim['ok'] else '❌'} {sim['log']}")
         print(f"  - 来源:{sim.get('source', 'unknown')}")
         if sim.get("commands_count") is not None:
@@ -94,7 +90,7 @@ def main() -> None:
         if sim.get("runtime_seconds") is not None:
             print(f"  - 运行时长:{sim['runtime_seconds']:.3f}s")
     else:
-        print(f"\n❌ simulate 完全失败(opentrons 未装?)")
+        print("\n❌ simulate 完全失败(opentrons 未装?)")
 
     # 5. 总结
     print_header("W28 收口")

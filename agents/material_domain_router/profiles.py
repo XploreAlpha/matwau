@@ -16,14 +16,14 @@ Stage 2: wau-domain-registry SDK 注入 + 真实 backend 替换
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 # ============================================================================
 # 3 个域 profile
 # ============================================================================
 
 
-INORGANIC_CRYSTAL_PROFILE: Dict[str, Any] = {
+INORGANIC_CRYSTAL_PROFILE: dict[str, Any] = {
     "name": "inorganic_crystal",
     "display_name_zh": "无机晶体",
     "description": "无机晶体材料(锂电池正极 / 固态电解质 / 催化剂 / 太阳能电池 / 超导 / 热电 / 永磁 / 半导体 / 储氢 ...)",
@@ -103,7 +103,7 @@ INORGANIC_CRYSTAL_PROFILE: Dict[str, Any] = {
 }
 
 
-POLYMER_PROFILE: Dict[str, Any] = {
+POLYMER_PROFILE: dict[str, Any] = {
     "name": "polymer",
     "display_name_zh": "高分子聚合物",
     "description": "高分子聚合物(导电聚合物 / 介电聚合物 / 水凝胶 / 弹性体 / 热塑性 / 热固性 / 3D 打印耗材 ...)",
@@ -219,7 +219,7 @@ POLYMER_PROFILE: Dict[str, Any] = {
 }
 
 
-NANO_PROFILE: Dict[str, Any] = {
+NANO_PROFILE: dict[str, Any] = {
     "name": "nano",
     "display_name_zh": "纳米材料",
     "description": "纳米材料(量子点 / 纳米线 / 2D 材料(石墨烯 / MoS₂ / TMDC)/ 介孔材料 / 纳米晶 / 纳米团簇 / 异质结 ...)",
@@ -354,7 +354,7 @@ NANO_PROFILE: Dict[str, Any] = {
 
 
 # W17: 金属 / 合金 profile(W17 新增)
-METAL_ALLOY_PROFILE: Dict[str, Any] = {
+METAL_ALLOY_PROFILE: dict[str, Any] = {
     "name": "metal_alloy",
     "display_name_zh": "金属 / 合金",
     "description": "金属与合金(钢 / 不锈钢 / 钛合金 / 镍基超合金 / 高熵合金 / 形状记忆合金 / 非晶合金 / 铝合金 / 镁合金 / 铜合金 ...)",
@@ -494,7 +494,7 @@ METAL_ALLOY_PROFILE: Dict[str, Any] = {
 # ============================================================================
 
 
-PROFILES: Dict[str, Dict[str, Any]] = {
+PROFILES: dict[str, dict[str, Any]] = {
     "inorganic_crystal": INORGANIC_CRYSTAL_PROFILE,
     "polymer": POLYMER_PROFILE,
     "nano": NANO_PROFILE,
@@ -507,7 +507,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
 # ============================================================================
 
 
-def get_profile(domain: str) -> Dict[str, Any]:
+def get_profile(domain: str) -> dict[str, Any]:
     """获取指定域的完整 profile
 
     Args:
@@ -546,21 +546,21 @@ def get_lit_backend(domain: str) -> str:
     return get_profile(domain)["lit_backend"]
 
 
-def get_unit_cost_table(domain: str) -> Dict[str, float]:
+def get_unit_cost_table(domain: str) -> dict[str, float]:
     """获取指定域的单价表(W14 mat-cost 路由)"""
     return dict(get_profile(domain)["unit_cost"])
 
 
 __all__ = [
     "INORGANIC_CRYSTAL_PROFILE",
-    "POLYMER_PROFILE",
-    "NANO_PROFILE",
     "METAL_ALLOY_PROFILE",
+    "NANO_PROFILE",
+    "POLYMER_PROFILE",
     "PROFILES",
-    "get_profile",
     "get_gen_backend",
-    "get_sim_backend",
     "get_hpc_engine",
     "get_lit_backend",
+    "get_profile",
+    "get_sim_backend",
     "get_unit_cost_table",
 ]

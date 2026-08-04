@@ -22,8 +22,8 @@ import logging
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class MaterialsProjectReference:
     crystal_system: str = ""
     url: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "mp_id": self.mp_id,
             "formula": self.formula,
@@ -91,7 +91,7 @@ def is_materials_project_available() -> bool:
         return False
 
 
-def _build_mp_query(formula_or_keywords: str, *, domain: Optional[str] = None) -> str:
+def _build_mp_query(formula_or_keywords: str, *, domain: str | None = None) -> str:
     """构造 MP query(类似 arxiv _build_query)
 
     MP summary API 接收 formula= 或 elements= 参数
@@ -123,7 +123,7 @@ def _build_mp_query(formula_or_keywords: str, *, domain: Optional[str] = None) -
     return text or ""
 
 
-def _parse_mp_response(data: List[Dict[str, Any]]) -> List[MaterialsProjectReference]:
+def _parse_mp_response(data: list[dict[str, Any]]) -> list[MaterialsProjectReference]:
     """解析 MP API JSON 响应 → List[MaterialsProjectReference]"""
     refs = []
     for item in data:
@@ -147,7 +147,7 @@ def _parse_mp_response(data: List[Dict[str, Any]]) -> List[MaterialsProjectRefer
     return refs
 
 
-def _mock_mp_response(query: str, *, n: int = 5) -> List[MaterialsProjectReference]:
+def _mock_mp_response(query: str, *, n: int = 5) -> list[MaterialsProjectReference]:
     """W17-C mock 数据(Stage 1 fallback 路径)
 
     给已知化学式伪造 1 组稳定结构数据,跟 arxiv mock 模式一致
@@ -250,9 +250,9 @@ class MaterialsProjectClient:
         self,
         user_intent: str,
         *,
-        max_results: Optional[int] = None,
-        domain: Optional[str] = None,
-    ) -> Tuple[List[MaterialsProjectReference], bool]:
+        max_results: int | None = None,
+        domain: str | None = None,
+    ) -> tuple[list[MaterialsProjectReference], bool]:
         """查 Materials Project API
 
         Args:
@@ -310,8 +310,8 @@ def search_materials_project(
     user_intent: str,
     *,
     max_results: int = 5,
-    domain: Optional[str] = None,
-) -> Tuple[List[MaterialsProjectReference], bool]:
+    domain: str | None = None,
+) -> tuple[list[MaterialsProjectReference], bool]:
     """便捷函数(同 arxiv_client.search_arxiv)
 
     Returns:

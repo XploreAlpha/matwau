@@ -24,9 +24,8 @@ from __future__ import annotations
 
 import os
 import threading
-from dataclasses import dataclass, field
-from typing import Any, Optional
-
+from dataclasses import dataclass
+from typing import Any
 
 # ============================================================================
 # 默认 / 环境变量常量
@@ -126,7 +125,7 @@ class MatWAUSettings:
 # 从环境变量读 settings(单例缓存)
 # ============================================================================
 
-_settings_cache: Optional[MatWAUSettings] = None
+_settings_cache: MatWAUSettings | None = None
 _settings_lock = threading.Lock()
 
 
@@ -199,7 +198,7 @@ def reset_settings_cache() -> None:
 
 
 _store_cache: Any = None  # LineageStore / None
-_store_cache_settings_hash: Optional[int] = None  # 缓存时的 settings hash(检测变化)
+_store_cache_settings_hash: int | None = None  # 缓存时的 settings hash(检测变化)
 _store_lock = threading.Lock()
 
 
@@ -213,7 +212,7 @@ def _settings_hash(settings: MatWAUSettings) -> int:
     ))
 
 
-def get_lineage_store(backend: Optional[Any] = None, *, force_recreate: bool = False):
+def get_lineage_store(backend: Any | None = None, *, force_recreate: bool = False):
     """获取默认 LineageStore(单例,但 settings 变化时自动重建)
 
     Args:
@@ -253,8 +252,8 @@ def get_lineage_store(backend: Optional[Any] = None, *, force_recreate: bool = F
 
         from agents.lineage_store_backend import (
             InMemoryBackend,
-            SQLiteBackend,
             PostgresBackend,
+            SQLiteBackend,
         )
         from agents.mat_data_lineage_agent import LineageStore
 
@@ -304,22 +303,22 @@ def get_orchestrator(*, with_lineage: bool = True, **kwargs):
 
 
 __all__ = [
-    "MatWAUSettings",
-    "get_default_settings",
-    "reset_settings_cache",
-    "get_lineage_store",
-    "get_orchestrator",
-    "DEFAULT_PG_DSN",
-    "DEFAULT_SQLITE_PATH",
+    "BACKEND_MEMORY",
     "BACKEND_POSTGRES",
     "BACKEND_SQLITE",
-    "BACKEND_MEMORY",
+    "DEFAULT_JARVIS_API_BASE",
+    "DEFAULT_JARVIS_TOKEN",
     # W33
     "DEFAULT_LLM_BASE_URL",
     "DEFAULT_LLM_MODEL",
     # M3 NEW
     "DEFAULT_NOMAD_API_BASE",
-    "DEFAULT_JARVIS_API_BASE",
     "DEFAULT_NOMAD_TOKEN",
-    "DEFAULT_JARVIS_TOKEN",
+    "DEFAULT_PG_DSN",
+    "DEFAULT_SQLITE_PATH",
+    "MatWAUSettings",
+    "get_default_settings",
+    "get_lineage_store",
+    "get_orchestrator",
+    "reset_settings_cache",
 ]

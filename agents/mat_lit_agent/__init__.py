@@ -14,10 +14,10 @@ Stage 2: 接 arXiv + Materials Project + ICSD + PubChem 真 API
 per MatWAU-开发计划 §七 W14
 """
 from .lit_engine import (
+    MATERIAL_ALIASES,
     LitQuery,
     LitReference,
     LitReview,
-    MATERIAL_ALIASES,
     parse_lit_query,
     review_literature,
     search_literature,
@@ -29,13 +29,13 @@ from .mat_lit_agent import (
 )
 
 __all__ = [
-    "MatLitAgent",
+    "MATERIAL_ALIASES",
     "LitConfig",
     "LitQuery",
     "LitReference",
     "LitReview",
+    "MatLitAgent",
     "create_default_agent",
-    "MATERIAL_ALIASES",
     "parse_lit_query",
     "review_literature",
     "search_literature",

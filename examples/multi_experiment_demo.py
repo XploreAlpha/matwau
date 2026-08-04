@@ -25,7 +25,7 @@ _EXAMPLE_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _EXAMPLE_DIR.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from agents.mat_orchestrator import (  # noqa: E402
+from agents.mat_orchestrator import (
     MatOrchestrator,
     get_multi_experiment_default_batch,
 )
@@ -42,19 +42,19 @@ def main():
     # 2. 准备默认批次(Inconel 718 + PMMA + TiO2)
     experiments = get_multi_experiment_default_batch()
 
-    print(f"\n📋 默认批次(覆盖 3 个 material domain):")
+    print("\n📋 默认批次(覆盖 3 个 material domain):")
     for i, t in enumerate(experiments, 1):
         print(f"   {i}. {t.target_sample}({t.domain},{len(t.robot_steps)} robot steps)")
 
-    print(f"\n⚙️  并行模式:ThreadPoolExecutor max_workers=3")
-    print(f"\n⏳ 跑 3 个实验并行 + critic L4 复核...")
+    print("\n⚙️  并行模式:ThreadPoolExecutor max_workers=3")
+    print("\n⏳ 跑 3 个实验并行 + critic L4 复核...")
 
     # 3. 跑 run_batch
     batch = orch.run_batch(experiments, parallel=True, max_workers=3)
 
     # 4. 打印结果
     print(f"\n{'=' * 60}")
-    print(f"📊 BatchWorkflowResult")
+    print("📊 BatchWorkflowResult")
     print(f"{'=' * 60}")
     print(f"  N total : {batch.n_total}")
     print(f"  N passed: {batch.n_passed}")
@@ -66,7 +66,7 @@ def main():
     print(f"  Total duration: {batch.total_duration_seconds:.2f}s")
     print(f"  Parallel: {batch.parallel}, max_workers={batch.max_workers}")
 
-    print(f"\n📦 Per-experiment 详情:")
+    print("\n📦 Per-experiment 详情:")
     for r in batch.experiment_results:
         print(f"\n  - {r.target_sample}:")
         print(f"    verdict: {r.verdict.upper()}")

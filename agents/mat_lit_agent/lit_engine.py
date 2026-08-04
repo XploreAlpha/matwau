@@ -15,8 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any
 
 # ============================================================================
 # 数据结构
@@ -28,16 +27,16 @@ class LitReference:
     """1 篇文献引用"""
 
     title: str
-    authors: List[str] = field(default_factory=list)
+    authors: list[str] = field(default_factory=list)
     year: int = 2024
     source: str = "arXiv"                # arXiv / Materials Project / ICSD / PubChem
-    doi: Optional[str] = None
-    url: Optional[str] = None
+    doi: str | None = None
+    url: str | None = None
     abstract: str = ""
     relevance: float = 0.5               # 0-1 跟 query 的相关度
     impact: str = "medium"               # high / medium / low
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "title": self.title,
             "authors": self.authors,
@@ -56,15 +55,15 @@ class LitReview:
     """完整文献综述输出"""
 
     query: str
-    references: List[LitReference] = field(default_factory=list)
+    references: list[LitReference] = field(default_factory=list)
     background: str = ""                # 背景介绍
     state_of_art: str = ""              # 国内外现状
-    gaps: List[str] = field(default_factory=list)        # 研究空白
-    suggestions: List[str] = field(default_factory=list)  # 给用户的建议
+    gaps: list[str] = field(default_factory=list)        # 研究空白
+    suggestions: list[str] = field(default_factory=list)  # 给用户的建议
     confidence: float = 0.7             # 综述质量分
-    sources_queried: List[str] = field(default_factory=list)  # 用了哪些数据库
+    sources_queried: list[str] = field(default_factory=list)  # 用了哪些数据库
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "query": self.query,
             "references": [r.to_dict() for r in self.references],
@@ -94,7 +93,7 @@ ELEMENT_POOL = [
 
 # 已知材料/化合物别名(LLZO / LFP / NMC 等)
 # W15: 按 domain 分组,默认 inorganic_crystal
-_MATERIAL_ALIASES_BY_DOMAIN: Dict[str, Dict[str, str]] = {
+_MATERIAL_ALIASES_BY_DOMAIN: dict[str, dict[str, str]] = {
     "inorganic_crystal": {
         "LLZO": "Li7La3Zr2O12",
         "LFP": "LiFePO4",
@@ -204,7 +203,7 @@ _MATERIAL_ALIASES_BY_DOMAIN: Dict[str, Dict[str, str]] = {
 }
 
 
-def _get_aliases_for_domain(domain: str) -> Dict[str, str]:
+def _get_aliases_for_domain(domain: str) -> dict[str, str]:
     """获取指定域的别名表(向后兼容:不传 domain → 用 inorganic_crystal)"""
     from agents.material_domain_router import DEFAULT_DOMAIN
 
@@ -271,18 +270,18 @@ class LitQuery:
     """从 user_intent 解析出的查询"""
 
     raw_query: str
-    formulas: List[str] = field(default_factory=list)       # 化学式列表
-    material_names: List[str] = field(default_factory=list) # 材料别名(LLZO 等)
-    properties: List[str] = field(default_factory=list)     # 属性词
-    domains: List[str] = field(default_factory=list)        # 应用领域
-    keywords: List[str] = field(default_factory=list)        # 综合关键词
+    formulas: list[str] = field(default_factory=list)       # 化学式列表
+    material_names: list[str] = field(default_factory=list) # 材料别名(LLZO 等)
+    properties: list[str] = field(default_factory=list)     # 属性词
+    domains: list[str] = field(default_factory=list)        # 应用领域
+    keywords: list[str] = field(default_factory=list)        # 综合关键词
     domain: str = "inorganic_crystal"                        # W15: 材料域
 
     def has_match(self) -> bool:
         """是否有任何可查询的内容"""
         return bool(self.formulas or self.material_names or self.properties or self.domains)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "raw_query": self.raw_query,
             "formulas": self.formulas,
@@ -294,7 +293,7 @@ class LitQuery:
         }
 
 
-def extract_formulas(text: str) -> List[str]:
+def extract_formulas(text: str) -> list[str]:
     """从文本提取化学式(per 元素池)
 
     简化:找包含 1-2 个大写字母开头 + 数字的 token
@@ -333,7 +332,7 @@ def extract_formulas(text: str) -> List[str]:
     return formulas
 
 
-def extract_material_aliases(text: str, *, domain: Optional[str] = None) -> List[str]:
+def extract_material_aliases(text: str, *, domain: str | None = None) -> list[str]:
     """从文本提取材料别名(LLZO / LFP / NMC 等,W15: per domain 词库)
 
     Args:
@@ -353,7 +352,7 @@ def extract_material_aliases(text: str, *, domain: Optional[str] = None) -> List
     return found
 
 
-def extract_properties(text: str, *, domain: Optional[str] = None) -> List[str]:
+def extract_properties(text: str, *, domain: str | None = None) -> list[str]:
     """从文本提取属性关键词(W15: per domain 词库)"""
     from agents.material_domain_router import DEFAULT_DOMAIN, get_property_keywords
 
@@ -366,7 +365,7 @@ def extract_properties(text: str, *, domain: Optional[str] = None) -> List[str]:
     return list(set(found))
 
 
-def extract_domains(text: str, *, domain: Optional[str] = None) -> List[str]:
+def extract_domains(text: str, *, domain: str | None = None) -> list[str]:
     """从文本提取应用领域(W15: per domain 词库)"""
     from agents.material_domain_router import DEFAULT_DOMAIN, get_domain_keywords
 
@@ -379,14 +378,14 @@ def extract_domains(text: str, *, domain: Optional[str] = None) -> List[str]:
     return list(set(found))
 
 
-def parse_lit_query(user_intent: str, *, domain: Optional[str] = None) -> LitQuery:
+def parse_lit_query(user_intent: str, *, domain: str | None = None) -> LitQuery:
     """从 user_intent 解析查询(W15: 支持 domain 参数)
 
     Args:
         user_intent: 用户原始意图
         domain: 材料域(None → 默认 inorganic_crystal,向后兼容 W14)
     """
-    from agents.material_domain_router import DEFAULT_DOMAIN, detect_domain
+    from agents.material_domain_router import DEFAULT_DOMAIN
 
     if domain is None or domain == "auto":
         domain = DEFAULT_DOMAIN  # 默认无机晶体
@@ -589,8 +588,8 @@ TOPIC_MOCK_DB = {
 def search_literature(
     query: LitQuery,
     n_results: int = 5,
-    sources: Optional[List[str]] = None,
-) -> List[LitReference]:
+    sources: list[str] | None = None,
+) -> list[LitReference]:
     """检索文献(Stage 1 mock)
 
     Args:
@@ -604,7 +603,7 @@ def search_literature(
     if sources is None:
         sources = ["arXiv", "Materials Project", "ICSD", "PubChem"]
 
-    results: List[LitReference] = []
+    results: list[LitReference] = []
     seen_titles = set()
 
     # 1. 按化学式检索
@@ -657,7 +656,7 @@ def search_literature(
 # ============================================================================
 
 
-def _arxiv_search_real(query: LitQuery, n_results: int = 5) -> Tuple[List[LitReference], bool]:
+def _arxiv_search_real(query: LitQuery, n_results: int = 5) -> tuple[list[LitReference], bool]:
     """W16: 真查 arXiv(per agents.arxiv_client)
 
     Returns:
@@ -682,7 +681,7 @@ def _arxiv_search_real(query: LitQuery, n_results: int = 5) -> Tuple[List[LitRef
     if not is_real or not arxiv_refs:
         return [], False
 
-    results: List[LitReference] = []
+    results: list[LitReference] = []
     for r in arxiv_refs:
         results.append(LitReference(
             title=r.title,
@@ -701,8 +700,8 @@ def _arxiv_search_real(query: LitQuery, n_results: int = 5) -> Tuple[List[LitRef
 def search_literature_with_arxiv_priority(
     query: LitQuery,
     n_results: int = 5,
-    sources: Optional[List[str]] = None,
-) -> List[LitReference]:
+    sources: list[str] | None = None,
+) -> list[LitReference]:
     """W16: 真 arXiv 优先 + mock fallback
 
     Args:
@@ -716,7 +715,7 @@ def search_literature_with_arxiv_priority(
     if sources is None:
         sources = ["arXiv", "Materials Project", "ICSD", "PubChem"]
 
-    results: List[LitReference] = []
+    results: list[LitReference] = []
     seen_titles = set()
 
     # 1. 真 arXiv 优先
@@ -744,7 +743,7 @@ def search_literature_with_arxiv_priority(
 # ============================================================================
 
 
-def _format_background(query: LitQuery, refs: List[LitReference]) -> str:
+def _format_background(query: LitQuery, refs: list[LitReference]) -> str:
     """生成背景介绍(2-3 段)"""
     parts = []
     parts.append(f"用户查询:{query.raw_query}")
@@ -766,13 +765,13 @@ def _format_background(query: LitQuery, refs: List[LitReference]) -> str:
     return " | ".join(parts)
 
 
-def _format_state_of_art(query: LitQuery, refs: List[LitReference]) -> str:
+def _format_state_of_art(query: LitQuery, refs: list[LitReference]) -> str:
     """生成国内外现状(2-3 段)"""
     if not refs:
         return "无相关文献,建议扩展检索关键词或查询具体材料名/化学式。"
 
     # 按 source 分组
-    by_source: Dict[str, List[LitReference]] = {}
+    by_source: dict[str, list[LitReference]] = {}
     for r in refs:
         by_source.setdefault(r.source, []).append(r)
 
@@ -787,7 +786,7 @@ def _format_state_of_art(query: LitQuery, refs: List[LitReference]) -> str:
     return "\n".join(parts)
 
 
-def _identify_gaps(query: LitQuery, refs: List[LitReference]) -> List[str]:
+def _identify_gaps(query: LitQuery, refs: list[LitReference]) -> list[str]:
     """识别研究空白"""
     gaps = []
 
@@ -823,7 +822,7 @@ def _identify_gaps(query: LitQuery, refs: List[LitReference]) -> List[str]:
     return gaps
 
 
-def _generate_suggestions(query: LitQuery, refs: List[LitReference]) -> List[str]:
+def _generate_suggestions(query: LitQuery, refs: list[LitReference]) -> list[str]:
     """给用户的建议(2-3 条)"""
     suggestions = []
 
@@ -856,7 +855,7 @@ def _generate_suggestions(query: LitQuery, refs: List[LitReference]) -> List[str
     return suggestions[:3]
 
 
-def _calc_confidence(query: LitQuery, refs: List[LitReference]) -> float:
+def _calc_confidence(query: LitQuery, refs: list[LitReference]) -> float:
     """算综述质量分 0-1"""
     base = 0.5
 
@@ -884,9 +883,9 @@ def _calc_confidence(query: LitQuery, refs: List[LitReference]) -> float:
 def review_literature(
     user_intent: str,
     n_results: int = 5,
-    sources: Optional[List[str]] = None,
+    sources: list[str] | None = None,
     *,
-    domain: Optional[str] = None,
+    domain: str | None = None,
     use_real_arxiv: bool = False,
     use_real_mp: bool = False,
 ) -> LitReview:
@@ -949,13 +948,13 @@ def review_literature(
 
 
 def search_literature_with_real_sources(
-    query: "LitQuery",
+    query: LitQuery,
     n_results: int = 5,
-    sources: Optional[List[str]] = None,
+    sources: list[str] | None = None,
     *,
     use_real_arxiv: bool = False,
     use_real_mp: bool = False,
-) -> List[LitReference]:
+) -> list[LitReference]:
     """W17-C: 多源真查(arXiv + Materials Project 任选)+ mock 兜底
 
     Args:
@@ -972,7 +971,7 @@ def search_literature_with_real_sources(
     raw_user_intent = query.raw_query
     domain = query.domain or DEFAULT_DOMAIN
 
-    combined: List[LitReference] = []
+    combined: list[LitReference] = []
 
     # A. arXiv 真查 + fallback
     if use_real_arxiv:
@@ -1026,11 +1025,11 @@ def search_literature_with_real_sources(
 
 
 __all__ = [
+    "MATERIAL_ALIASES",
+    "LitQuery",
     "LitReference",
     "LitReview",
-    "LitQuery",
-    "MATERIAL_ALIASES",
     "parse_lit_query",
-    "search_literature",
     "review_literature",
+    "search_literature",
 ]

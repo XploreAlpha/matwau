@@ -12,7 +12,7 @@
 per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M2 第 7-8 项
 """
 
-from .mat_nomad_agent import (  # noqa: F401
+from .mat_nomad_agent import (
     MatNomadAgent,
     NomadConfig,
     create_default_agent,

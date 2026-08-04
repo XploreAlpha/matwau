@@ -21,8 +21,6 @@ import hashlib
 import random
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
-
 
 # ============================================================================
 # 数据类
@@ -40,7 +38,7 @@ class HPCJobResult:
     walltime_hours: float
     n_nodes: int
     n_cores_per_node: int
-    vasp_inputs: Dict[str, str] = field(default_factory=dict)  # INCAR/KPOINTS/POSCAR/POTCAR
+    vasp_inputs: dict[str, str] = field(default_factory=dict)  # INCAR/KPOINTS/POSCAR/POTCAR
     slurm_script: str = ""  # Slurm 提交脚本
     cluster: str = "mock-cluster"  # Stage 1 mock / Stage 2 真实集群
 
@@ -52,7 +50,7 @@ class HPCRuntimeConstraints:
     formula: str = ""
     n_candidates: int = 1
     calculation_type: str = "relax"  # "relax" / "static" / "dos" / "band"
-    budget: Optional[float] = None
+    budget: float | None = None
 
 
 # ============================================================================
@@ -76,7 +74,7 @@ ELEMENT_POTCAR = {
 # ============================================================================
 
 
-def _extract_elements(formula: str) -> List[str]:
+def _extract_elements(formula: str) -> list[str]:
     """从化学式提取元素列表(去重保序)"""
     tokens = re.findall(r"([A-Z][a-z]?)", formula)
     seen = set()
@@ -95,7 +93,7 @@ def _count_atoms(formula: str) -> int:
     """
     total = 0
     for match in re.finditer(r"([A-Z][a-z]?)(\d*)", formula):
-        elem = match.group(1)
+        match.group(1)
         count_str = match.group(2)
         count = int(count_str) if count_str else 1
         total += count
@@ -206,7 +204,7 @@ def generate_potcar(formula: str) -> str:
     return "\n".join(potcar_spec_lines)
 
 
-def generate_vasp_inputs(formula: str, cif: str = "", calc_type: str = "relax") -> Dict[str, str]:
+def generate_vasp_inputs(formula: str, cif: str = "", calc_type: str = "relax") -> dict[str, str]:
     """生成 VASP 4 件套"""
     return {
         "INCAR": generate_incar(formula, calc_type),
@@ -259,7 +257,7 @@ echo "Job finished at $(date)"
 def estimate_resources(
     formula: str,
     calc_type: str = "relax",
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """估算 HPC 资源(nodes / cores / walltime)
 
     简化模型(per VASP 经验):
@@ -401,12 +399,12 @@ def submit_job(
 
 
 def submit_batch(
-    candidates: List,
+    candidates: list,
     calc_type: str = "relax",
     cost_per_node_hour: float = 10.0,
     cost_threshold: float = 1000.0,
     seed_base: int = 0,
-) -> List[HPCJobResult]:
+) -> list[HPCJobResult]:
     """批量提交 HPC job
 
     Args:
@@ -476,7 +474,7 @@ def parse_constraints(user_message: str) -> HPCRuntimeConstraints:
     )
 
 
-def stats(results: List[HPCJobResult]) -> Dict[str, int]:
+def stats(results: list[HPCJobResult]) -> dict[str, int]:
     """统计 HPC 作业"""
     return {
         "total": len(results),
@@ -490,20 +488,20 @@ def stats(results: List[HPCJobResult]) -> Dict[str, int]:
 
 
 __all__ = [
+    "ELEMENT_POTCAR",
     "HPCJobResult",
     "HPCRuntimeConstraints",
+    "estimate_cost",
+    "estimate_resources",
     "generate_incar",
+    "generate_job_id",
     "generate_kpoints",
     "generate_poscar",
     "generate_potcar",
-    "generate_vasp_inputs",
     "generate_slurm_script",
-    "estimate_resources",
-    "estimate_cost",
-    "generate_job_id",
-    "submit_job",
-    "submit_batch",
+    "generate_vasp_inputs",
     "parse_constraints",
     "stats",
-    "ELEMENT_POTCAR",
+    "submit_batch",
+    "submit_job",
 ]

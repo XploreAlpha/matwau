@@ -16,27 +16,23 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from matwau.core.agent_base import (  # noqa: E402
+from agents.oqmd_client import (
+    OqmdClient,
+    OqmdReference,
+)
+from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
     MatWAUAgentBase,
 )
-from matwau.harness.context_manager import ContextManager  # noqa: E402
-from matwau.harness.safety_guard import SafetyGuard  # noqa: E402
-
-from agents.oqmd_client import (  # noqa: E402
-    OqmdClient,
-    OqmdReference,
-    is_oqmd_available,
-    search_oqmd,
-)
-
+from matwau.harness.context_manager import ContextManager
+from matwau.harness.safety_guard import SafetyGuard
 
 # ============================================================================
 # 配置
@@ -51,7 +47,7 @@ class OqmdConfig:
     include_canonical: bool = True
 
     @classmethod
-    def from_dict(cls, d: Optional[Dict[str, Any]]) -> "OqmdConfig":
+    def from_dict(cls, d: dict[str, Any] | None) -> OqmdConfig:
         if not d:
             return cls()
         return cls(
@@ -66,7 +62,7 @@ class OqmdConfig:
 
 
 def _results_to_response(
-    refs: List[OqmdReference],
+    refs: list[OqmdReference],
     is_real: bool,
     config: OqmdConfig,
     user_intent: str,
@@ -109,7 +105,7 @@ def _results_to_response(
                 f"V={r.volume:.1f} Å³ | n={r.n_atoms}"
             )
     if canonical_keys:
-        unique_canonical = set(str(k) for k in canonical_keys if k.reduced_formula)
+        unique_canonical = {str(k) for k in canonical_keys if k.reduced_formula}
         lines.append(f"\n🔑 Canonical key 归一化: {len(unique_canonical)} 个唯一物相")
 
     reply = "\n".join(lines)
@@ -163,7 +159,7 @@ class MatOqmdAgent(MatWAUAgentBase):
         default_n_results: int = 5,
         cost_per_query: float = 0.05,
         use_real_oqmd: bool = True,
-        client: Optional[OqmdClient] = None,
+        client: OqmdClient | None = None,
         **kwargs,
     ) -> None:
         """构造
@@ -209,7 +205,7 @@ class MatOqmdAgent(MatWAUAgentBase):
 - 0 行 UI 代码
 """
 
-    def act(self, ctx: Dict[str, Any], tools: List[str]) -> AgentResponse:
+    def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
         """Inner Loop 第 3 步:OQMD 查询"""
         user_message = ctx.get("user_message") or ctx.get("message") or ""
         config: OqmdConfig = ctx.get("_input_config") or OqmdConfig()
@@ -242,7 +238,7 @@ class MatOqmdAgent(MatWAUAgentBase):
 
         return response
 
-    def perceive(self, req: AgentRequest) -> Dict[str, Any]:
+    def perceive(self, req: AgentRequest) -> dict[str, Any]:
         """步骤 1 重写:抽取 user_message + config"""
         ctx = super().perceive(req)
         ctx["user_message"] = req.message
@@ -275,7 +271,7 @@ class MatOqmdAgent(MatWAUAgentBase):
 
 def _mock_search_safe(user_intent: str, n: int) -> tuple:
     """mock 模式快捷调用"""
-    from agents.oqmd_client.client import _mock_oqmd_response, _build_oqmd_query
+    from agents.oqmd_client.client import _build_oqmd_query, _mock_oqmd_response
     formula = _build_oqmd_query(user_intent)
     refs = _mock_oqmd_response(formula, n=n)
     return refs, False

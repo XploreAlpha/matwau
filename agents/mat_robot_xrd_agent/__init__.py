@@ -18,48 +18,48 @@ W20 增量:
 
 per MatWAU-开发计划 §8 W18 + W20 真接
 """
-from .mat_robot_xrd_agent import MatRobotXrdAgent  # noqa: F401
-from .bruker_real_sdk import (  # noqa: F401
+from .bruker_real_sdk import (
+    PDF_CARDS_DB,
     BrukerProtocolBuilder,
     BrukerRealSDK,
-    PDF_CARDS_DB,
     compare_to_pdf_card,
     get_bruker_sdk_list,
     is_bruker_raw_available,
     lookup_pdf_card,
     scan_to_peaks,
 )
-from .xrd_engine import (  # noqa: F401
-    XRDSafetyGuard,
-    XRDProcedure,
-    XRDResult,
-    XRDStep,
-    BrukerMockSDK,
+from .mat_robot_xrd_agent import MatRobotXrdAgent
+from .xrd_engine import (
     HAZARD_XRD_DOOR_OPEN,
     HAZARD_XRD_NO_APRON,
     RADIATION_DECOMPOSE_MATERIALS,
+    BrukerMockSDK,
+    XRDProcedure,
+    XRDResult,
+    XRDSafetyGuard,
+    XRDStep,
     estimate_xrd_cost,
     get_default_xrd_procedure,
 )
 
 __all__ = [
-    "MatRobotXrdAgent",
-    "XRDSafetyGuard",
-    "XRDProcedure",
-    "XRDResult",
-    "XRDStep",
-    "BrukerMockSDK",
-    "BrukerRealSDK",              # W20 Stage 2 真接
-    "BrukerProtocolBuilder",      # W20 .brml XML 生成
-    "PDF_CARDS_DB",               # W20 内置 PDF 卡片数据库
-    "lookup_pdf_card",            # W20 PDF 卡片查询
-    "compare_to_pdf_card",        # W20 峰比对
-    "scan_to_peaks",              # W20 扫描 → Bragg 峰
-    "is_bruker_raw_available",    # W20 SDK 检测
-    "get_bruker_sdk_list",        # W20 Bruker 库列表
     "HAZARD_XRD_DOOR_OPEN",
     "HAZARD_XRD_NO_APRON",
+    "PDF_CARDS_DB",               # W20 内置 PDF 卡片数据库
     "RADIATION_DECOMPOSE_MATERIALS",
+    "BrukerMockSDK",
+    "BrukerProtocolBuilder",      # W20 .brml XML 生成
+    "BrukerRealSDK",              # W20 Stage 2 真接
+    "MatRobotXrdAgent",
+    "XRDProcedure",
+    "XRDResult",
+    "XRDSafetyGuard",
+    "XRDStep",
+    "compare_to_pdf_card",        # W20 峰比对
     "estimate_xrd_cost",
+    "get_bruker_sdk_list",        # W20 Bruker 库列表
     "get_default_xrd_procedure",
+    "is_bruker_raw_available",    # W20 SDK 检测
+    "lookup_pdf_card",            # W20 PDF 卡片查询
+    "scan_to_peaks",              # W20 扫描 → Bragg 峰
 ]
