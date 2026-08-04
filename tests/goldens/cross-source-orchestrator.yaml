@@ -1,0 +1,159 @@
+# MatWAU Goldens 测试集 — cross-source-orchestrator(20 case)
+# 写于:2026-08-04(v1.3-Academic M3)
+# 用途:验证 MatOrchestrator cross_source workflow 端到端(intent 路由 + DAG 执行 + 4 data agent + critic L5)
+# per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M3 第 16 项
+# 跑分目标:pass-rate ≥ 80%
+
+# ============================================================================
+# Intent 路由(6 case)
+# ============================================================================
+
+- id: O001
+  category: intent
+  intent: "查 Inconel 718 已知结构"
+  expected:
+    routed_subclass: "external_db_query"
+    workflow_name: "cross_source_lookup"
+
+- id: O002
+  category: intent
+  intent: "OQMD 查询 LLZO"
+  expected:
+    routed_subclass: "external_db_query"
+    workflow_name: "cross_source_lookup"
+
+- id: O003
+  category: intent
+  intent: "查 COD TiO2 已知结构"
+  expected:
+    routed_subclass: "external_db_query"
+
+- id: O004
+  category: intent
+  intent: "跨数据源对比 LiCoO2"
+  expected:
+    routed_subclass: "cross_source_validation"
+    workflow_name: "cross_source_property"
+
+- id: O005
+  category: intent
+  intent: "4 库对比 Inconel 718"
+  expected:
+    routed_subclass: "cross_source_validation"
+    workflow_name: "cross_source_property"
+
+- id: O006
+  category: intent
+  intent: "跨数据源对比 LiCoO2 形成能"
+  expected:
+    routed_subclass: "cross_source_validation"
+
+# ============================================================================
+# DAG 节点(4 case) — 验证 5 节点结构
+# ============================================================================
+
+- id: O007
+  category: dag
+  intent: "cross_source_lookup_workflow 5 节点"
+  expected:
+    n_nodes: 5
+    node_ids: ["oqmd", "cod", "nomad", "jarvis", "critic_l5"]
+
+- id: O008
+  category: dag
+  intent: "cross_source_property_workflow 5 节点"
+  expected:
+    n_nodes: 5
+    agent_names_first4: ["mat-oqmd-agent", "mat-cod-agent", "mat-nomad-agent", "mat-jarvis-agent"]
+
+- id: O009
+  category: dag
+  intent: "critic_l5 节点 inputs 含 outputs.cross_source_records"
+  expected:
+    node_id: "critic_l5"
+    use_cross_source_value: "true"
+
+- id: O010
+  category: dag
+  intent: "DAGExecutor 解析 outputs.X"
+  expected:
+    src_key_format: "outputs.X"
+    resolved_via: "global_outputs_dict"
+
+# ============================================================================
+# Settings(4 case) — 4 个 env var
+# ============================================================================
+
+- id: O011
+  category: settings
+  intent: "MATWAU_NOMAD_API_BASE override"
+  expected:
+    env_var: "MATWAU_NOMAD_API_BASE"
+    field: "nomad_api_base"
+
+- id: O012
+  category: settings
+  intent: "MATWAU_NOMAD_TOKEN override"
+  expected:
+    env_var: "MATWAU_NOMAD_TOKEN"
+    field: "nomad_token"
+
+- id: O013
+  category: settings
+  intent: "MATWAU_JARVIS_API_BASE override"
+  expected:
+    env_var: "MATWAU_JARVIS_API_BASE"
+    field: "jarvis_api_base"
+
+- id: O014
+  category: settings
+  intent: "MATWAU_JARVIS_TOKEN override"
+  expected:
+    env_var: "MATWAU_JARVIS_TOKEN"
+    field: "jarvis_token"
+
+# ============================================================================
+# 端到端(6 case)
+# ============================================================================
+
+- id: O015
+  category: e2e
+  intent: "端到端 cross_source_lookup 跑通"
+  expected:
+    workflow: "cross_source_lookup"
+    success: true
+    n_nodes_success: 5
+
+- id: O016
+  category: e2e
+  intent: "端到端 cross_source_property 跑通"
+  expected:
+    workflow: "cross_source_property"
+    success: true
+
+- id: O017
+  category: e2e
+  intent: "critic_l5 verdict 含 L5 字段"
+  expected:
+    has_l5_score: true
+    has_l5_consensus_rate: true
+
+- id: O018
+  category: e2e
+  intent: "旧 workflow 不破"
+  expected:
+    experiment_planning_works: true
+    literature_review_works: true
+
+- id: O019
+  category: e2e
+  intent: "CriticOutput dataclass 加 l5 字段不破现有 60 case"
+  expected:
+    existing_fields_unchanged: true
+    new_l5_fields_added: 3
+
+- id: O020
+  category: e2e
+  intent: "5-way 加权总分仍合理(0-1 区间)"
+  expected:
+    overall_score_in_range: true

@@ -87,6 +87,10 @@ class MatOrchestrator:
         exp_agent=None,
         critic_agent=None,
         lit_agent=None,
+        oqmd_agent=None,               # M3 NEW
+        cod_agent=None,                # M3 NEW
+        nomad_agent=None,              # M3 NEW
+        jarvis_agent=None,             # M3 NEW
         lineage_store=None,            # W32 — LineageStore 实例(默认 None → 不打 lineage)
         lineage_recorder=None,         # W32 — LineageRecorder 实例(默认 None → 不打 lineage)
         enable_lineage: bool = True,   # W32 — False → 关闭 lineage(测试用)
@@ -101,6 +105,8 @@ class MatOrchestrator:
         - lineage_store: 显式注入 LineageStore(None → 默认从 get_lineage_store() 拿)
         - lineage_recorder: 显式注入 LineageRecorder(优先于 lineage_store)
         - enable_lineage: False → 关闭 lineage hook(测试 / CI 友好)
+
+        M3 新增:4 个数据源 wrapper agent(injectable,默认懒加载)
         """
         # 懒加载
         if gen_agent is None or sim_agent is None or hpc_agent is None or exp_agent is None:
@@ -133,6 +139,20 @@ class MatOrchestrator:
 
             lit_agent = create_lit()
 
+        # M3 懒加载 4 data agent
+        if oqmd_agent is None:
+            from agents.mat_oqmd_agent.mat_oqmd_agent import create_default_agent as create_oqmd
+            oqmd_agent = create_oqmd()
+        if cod_agent is None:
+            from agents.mat_cod_agent.mat_cod_agent import create_default_agent as create_cod
+            cod_agent = create_cod()
+        if nomad_agent is None:
+            from agents.mat_nomad_agent.mat_nomad_agent import create_default_agent as create_nomad
+            nomad_agent = create_nomad()
+        if jarvis_agent is None:
+            from agents.mat_jarvis_agent.mat_jarvis_agent import create_default_agent as create_jarvis
+            jarvis_agent = create_jarvis()
+
         self.intent_agent = intent_agent
         self.gen_agent = gen_agent
         self.sim_agent = sim_agent
@@ -140,10 +160,16 @@ class MatOrchestrator:
         self.exp_agent = exp_agent
         self.critic_agent = critic_agent
         self.lit_agent = lit_agent
+        # M3 NEW
+        self.oqmd_agent = oqmd_agent
+        self.cod_agent = cod_agent
+        self.nomad_agent = nomad_agent
+        self.jarvis_agent = jarvis_agent
 
         # Agent registry
         # W12: mat-critic-agent 替换原 mat-critic-stub
         # W14: mat-lit-agent 替换原 mat-lit-stub
+        # M3: 4 个 data agent
         self.agent_registry = {
             "mat-gen-agent": gen_agent,
             "mat-sim-agent": sim_agent,
@@ -151,6 +177,11 @@ class MatOrchestrator:
             "mat-exp-agent": exp_agent,
             "mat-critic-agent": critic_agent,
             "mat-lit-agent": lit_agent,
+            # M3 NEW
+            "mat-oqmd-agent": oqmd_agent,
+            "mat-cod-agent": cod_agent,
+            "mat-nomad-agent": nomad_agent,
+            "mat-jarvis-agent": jarvis_agent,
         }
 
         # DAG executor

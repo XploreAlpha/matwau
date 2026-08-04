@@ -1,0 +1,240 @@
+# MatWAU Goldens 测试集 — cross-source-critic(30 case)
+# 写于:2026-08-04(v1.3-Academic M3)
+# 用途:验证 mat_critic L5 跨数据源一致率规则(per cross_source_resolver)
+# per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M3 第 15 项
+# 跑分目标:pass-rate ≥ 80%
+
+# 字段约定(per tests/goldens/mat-oqmd.yaml 风格):
+#   id: X001-X030
+#   category: aggregator / conflict / energy / bandgap / rule / integration
+#   intent: 用户 1 句话意图
+#   expected:
+#     n_platforms_hit_min: 至少多少个平台命中
+#     consensus_rate_min: 共识率至少
+#     rule_passed: 应 pass 的规则名
+#     rule_failed: 应 fail 的规则名
+#     n_conflicts: 冲突数
+#     n_clusters_min: 簇数至少
+
+# ============================================================================
+# Aggregator(5 case) — 验证 resolve_cross_source 基础聚合
+# ============================================================================
+
+- id: X001
+  category: aggregator
+  intent: "4 源都命中 1 个化合物"
+  expected:
+    n_platforms_hit_min: 4
+    n_clusters_min: 1
+    consensus_rate_min: 0.0
+
+- id: X002
+  category: aggregator
+  intent: "3 源命中,1 源空"
+  expected:
+    n_platforms_hit_min: 3
+    n_clusters_min: 1
+
+- id: X003
+  category: aggregator
+  intent: "仅 OQMD 命中"
+  expected:
+    n_platforms_hit: 1
+    consensus_rate: 0.0
+    rule_failed: "R6_cross_source_consensus_rate"
+
+- id: X004
+  category: aggregator
+  intent: "仅 NOMAD + JARVIS 命中"
+  expected:
+    n_platforms_hit: 2
+    consensus_rate_min: 0.0
+
+- id: X005
+  category: aggregator
+  intent: "全部空 records"
+  expected:
+    n_platforms_hit: 0
+    n_clusters: 0
+    total_records: 0
+
+# ============================================================================
+# Conflict(5 case) — 验证冲突检测
+# ============================================================================
+
+- id: X006
+  category: conflict
+  intent: "仅 1 源命中"
+  expected:
+    conflict_type: "only_one_source"
+    n_conflicts_min: 1
+
+- id: X007
+  category: conflict
+  intent: "形成能偏差 > 0.5 eV"
+  expected:
+    conflict_type: "energy_mismatch"
+    rule_failed: "R7_cross_source_formation_energy_consistency"
+
+- id: X008
+  category: conflict
+  intent: "带隙偏差 > 0.3 eV"
+  expected:
+    conflict_type: "band_gap_mismatch"
+    rule_failed: "R8_cross_source_band_gap_consistency"
+
+- id: X009
+  category: conflict
+  intent: "混合冲突(only + energy)"
+  expected:
+    n_conflicts_min: 2
+
+- id: X010
+  category: conflict
+  intent: "无冲突(4 源全对齐)"
+  expected:
+    n_conflicts: 0
+    rule_passed: "R7_cross_source_formation_energy_consistency"
+
+# ============================================================================
+# Energy(5 case) — 形成能一致性
+# ============================================================================
+
+- id: X011
+  category: energy
+  intent: "形成能 4 源全一致"
+  expected:
+    rule_passed: "R7_cross_source_formation_energy_consistency"
+    energy_range_max: 0.1
+
+- id: X012
+  category: energy
+  intent: "形成能偏差 0.3 eV(< threshold 0.5)"
+  expected:
+    rule_passed: "R7_cross_source_formation_energy_consistency"
+
+- id: X013
+  category: energy
+  intent: "形成能偏差 0.8 eV(> threshold)"
+  expected:
+    rule_failed: "R7_cross_source_formation_energy_consistency"
+
+- id: X014
+  category: energy
+  intent: "形成能字段缺失(COD)"
+  expected:
+    rule_passed_or_skipped: "R7_cross_source_formation_energy_consistency"
+
+- id: X015
+  category: energy
+  intent: "形成能跨源差异大但同 formula"
+  expected:
+    n_clusters: 1
+    rule_failed: "R7_cross_source_formation_energy_consistency"
+
+# ============================================================================
+# BandGap(5 case) — 带隙一致性
+# ============================================================================
+
+- id: X016
+  category: bandgap
+  intent: "带隙 4 源全一致"
+  expected:
+    rule_passed: "R8_cross_source_band_gap_consistency"
+
+- id: X017
+  category: bandgap
+  intent: "带隙偏差 0.2 eV(< 0.3)"
+  expected:
+    rule_passed: "R8_cross_source_band_gap_consistency"
+
+- id: X018
+  category: bandgap
+  intent: "带隙偏差 1.0 eV(> 0.3)"
+  expected:
+    rule_failed: "R8_cross_source_band_gap_consistency"
+
+- id: X019
+  category: bandgap
+  intent: "带隙字段缺失"
+  expected:
+    rule_passed_or_skipped: "R8_cross_source_band_gap_consistency"
+
+- id: X020
+  category: bandgap
+  intent: "DFT PBE vs 实验带隙 0.8 eV 偏差"
+  expected:
+    rule_failed: "R8_cross_source_band_gap_consistency"
+
+# ============================================================================
+# Rule(5 case) — R6/R7/R8 单规则
+# ============================================================================
+
+- id: X021
+  category: rule
+  intent: "R6 consensus_rate 通过(>= 0.5)"
+  expected:
+    rule_passed: "R6_cross_source_consensus_rate"
+
+- id: X022
+  category: rule
+  intent: "R6 consensus_rate 失败(< 0.5)"
+  expected:
+    rule_failed: "R6_cross_source_consensus_rate"
+
+- id: X023
+  category: rule
+  intent: "L5 权重 = 0.1"
+  expected:
+    weight_value: 0.1
+
+- id: X024
+  category: rule
+  intent: "evaluate_with_cross_source 不破 3 路 baseline"
+  expected:
+    cross_source_field_set: true
+    backward_compat: true
+
+- id: X025
+  category: rule
+  intent: "5-way 加权总分 ≤ 1.0"
+  expected:
+    overall_score_max: 1.0
+
+# ============================================================================
+# Integration(5 case) — orchestrator 端到端
+# ============================================================================
+
+- id: X026
+  category: integration
+  intent: "external_db_query 路由到 cross_source_lookup"
+  expected:
+    workflow_name: "cross_source_lookup"
+    n_nodes: 5
+
+- id: X027
+  category: integration
+  intent: "cross_source_validation 路由到 cross_source_property"
+  expected:
+    workflow_name: "cross_source_property"
+    n_nodes: 5
+
+- id: X028
+  category: integration
+  intent: "critic_l5 节点 use_cross_source=true"
+  expected:
+    node_id: "critic_l5"
+    use_cross_source: "true"
+
+- id: X029
+  category: integration
+  intent: "critic L5 节点 CriticOutput 含 l5_cross_source_score 字段"
+  expected:
+    field: "l5_cross_source_score"
+    field_type: "float"
+
+- id: X030
+  category: integration
+  intent: "4 个 data agent 都成功"
+  expected:
+    n_data_agents_success: 4

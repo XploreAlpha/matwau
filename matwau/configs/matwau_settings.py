@@ -56,6 +56,19 @@ DEFAULT_LLM_MODEL = "deepseek-v4-flash"
 
 
 # ============================================================================
+# M3 — 4 个数据源 env var 常量
+# ============================================================================
+
+# 默认 API URL(per M2 设计)
+DEFAULT_NOMAD_API_BASE = "https://nomad-lab.eu/prod/v1/api/v1"
+DEFAULT_JARVIS_API_BASE = "https://jarvis.nist.gov/api"
+
+# 默认 token(空字符串 = 不带 Bearer;NOMAD / JARVIS 是可选认证)
+DEFAULT_NOMAD_TOKEN = ""
+DEFAULT_JARVIS_TOKEN = ""
+
+
+# ============================================================================
 # MatWAUSettings dataclass — 不可变配置快照
 # ============================================================================
 
@@ -75,6 +88,9 @@ class MatWAUSettings:
       - llm_base_url: LLM API base URL(默认 DeepSeek)
       - llm_model: model 名(默认 deepseek-v4-flash)
       - llm_enabled: 是否启用 LLM review(默认 False — 需显式开)
+    - M3 NEW — 4 个数据源 env vars:
+      - nomad_api_base / jarvis_api_base: API URL 覆盖
+      - nomad_token / jarvis_token: Bearer token(可选)
     """
     lineage_backend: str = BACKEND_MEMORY
     lineage_pg_dsn: str = DEFAULT_PG_DSN
@@ -86,6 +102,11 @@ class MatWAUSettings:
     llm_base_url: str = DEFAULT_LLM_BASE_URL
     llm_model: str = DEFAULT_LLM_MODEL
     llm_enabled: bool = False
+    # M3 NEW — 4 数据源配置
+    nomad_api_base: str = DEFAULT_NOMAD_API_BASE
+    jarvis_api_base: str = DEFAULT_JARVIS_API_BASE
+    nomad_token: str = DEFAULT_NOMAD_TOKEN
+    jarvis_token: str = DEFAULT_JARVIS_TOKEN
 
     @property
     def use_postgres(self) -> bool:
@@ -154,6 +175,11 @@ def get_default_settings() -> MatWAUSettings:
             llm_base_url=llm_base_url,
             llm_model=llm_model,
             llm_enabled=llm_enabled,
+            # M3 NEW
+            nomad_api_base=os.environ.get("MATWAU_NOMAD_API_BASE", DEFAULT_NOMAD_API_BASE).strip() or DEFAULT_NOMAD_API_BASE,
+            jarvis_api_base=os.environ.get("MATWAU_JARVIS_API_BASE", DEFAULT_JARVIS_API_BASE).strip() or DEFAULT_JARVIS_API_BASE,
+            nomad_token=os.environ.get("MATWAU_NOMAD_TOKEN", DEFAULT_NOMAD_TOKEN).strip(),
+            jarvis_token=os.environ.get("MATWAU_JARVIS_TOKEN", DEFAULT_JARVIS_TOKEN).strip(),
         )
         # 直接设(锁内)
         globals()["_settings_cache"] = settings
@@ -291,4 +317,9 @@ __all__ = [
     # W33
     "DEFAULT_LLM_BASE_URL",
     "DEFAULT_LLM_MODEL",
+    # M3 NEW
+    "DEFAULT_NOMAD_API_BASE",
+    "DEFAULT_JARVIS_API_BASE",
+    "DEFAULT_NOMAD_TOKEN",
+    "DEFAULT_JARVIS_TOKEN",
 ]

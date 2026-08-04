@@ -60,11 +60,14 @@ GOLDENS_PATH = str(_PROJECT_ROOT / "tests" / "goldens" / "mat-intent.yaml")
 class TestIntentConstants:
     """常量定义测试"""
 
-    def test_subclasses_5(self):
-        """5 子类"""
-        assert len(SUBCLASSES) == 5
+    def test_subclasses_7(self):
+        """5 + M3 2 个 = 7 子类"""
+        assert len(SUBCLASSES) == 7
         assert "experiment_planning" in SUBCLASSES
         assert "design_new_material" in SUBCLASSES
+        # M3 NEW
+        assert "external_db_query" in SUBCLASSES
+        assert "cross_source_validation" in SUBCLASSES
 
     def test_material_systems_11(self):
         """11 material_system"""

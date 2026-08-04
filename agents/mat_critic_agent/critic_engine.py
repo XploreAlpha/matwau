@@ -98,6 +98,30 @@ RULE_R5_XRD_PEAK_COUNT = "R5_xrd_peak_count_for_crystallinity"
 
 
 # ============================================================================
+# M3 - L5 cross_source 跨数据源一致率
+# ============================================================================
+
+# M3 新增 - 跨数据源失败 code
+FAIL_CROSS_SOURCE_LOW_CONSENSUS = "cross_source_low_consensus"
+FAIL_CROSS_SOURCE_ENERGY_MISMATCH = "cross_source_energy_mismatch"
+FAIL_CROSS_SOURCE_BAND_GAP_MISMATCH = "cross_source_band_gap_mismatch"
+
+# M3 新增 - 跨数据源规则名
+RULE_R6_CROSS_SOURCE_CONSENSUS = "R6_cross_source_consensus_rate"
+RULE_R7_CROSS_SOURCE_ENERGY = "R7_cross_source_formation_energy_consistency"
+RULE_R8_CROSS_SOURCE_BAND_GAP = "R8_cross_source_band_gap_consistency"
+
+# M3 L5 权重(per dev-plan 风险:不破坏 L4 cross_robot)
+# 现有 L1/L2/L3/L4 权重不变;L5 是可选 5th 路(默认 0.1)
+WEIGHT_L5_CROSS_SOURCE = 0.1
+# 启用 L5 时,L1/L2/L3/L4 权重重平衡(总和 = 1.0)
+WEIGHT_L1_PHYSICAL_5WAY = 0.27
+WEIGHT_L2_SYNTHESIS_5WAY = 0.27
+WEIGHT_L3_SAFETY_5WAY = 0.18
+WEIGHT_L4_CROSS_ROBOT_5WAY = 0.18
+
+
+# ============================================================================
 # 数据结构
 # ============================================================================
 
@@ -160,6 +184,7 @@ class CriticVerdict:
     l2: CriticScore                     # 实验可行性
     l3: CriticScore                     # 安全规则
     cross_robot: CrossRobotScore = field(default_factory=CrossRobotScore)  # W30 NEW
+    cross_source: Optional["CrossSourceScore"] = None  # M3 NEW (L5 optional)
     failures: List[FailureType] = field(default_factory=list)
     top_suggestions: List[str] = field(default_factory=list)
 
@@ -190,6 +215,9 @@ class CriticVerdict:
                 "rules_passed": self.cross_robot.rules_passed,
                 "rules_failed": self.cross_robot.rules_failed,
             },
+            "l5_cross_source": (  # M3 NEW
+                self.cross_source.to_dict() if self.cross_source is not None else None
+            ),
             "failures": [
                 {
                     "code": f.code,
@@ -1185,6 +1213,249 @@ def explain_failure(
     return verdict
 
 
+# ============================================================================
+# M3 — L5 跨数据源一致性打分(per dev-plan M3)
+# ============================================================================
+
+
+@dataclass
+class CrossSourceScore:
+    """L5 跨数据源一致性打分(M3 NEW)
+
+    吃 cross_source_resolver.resolve_cross_source() 的 ConsensusReport,
+    按 3 条规则跑:
+    - R6 consensus_rate(共识簇数 / 总簇数)
+    - R7 formation_energy 偏差
+    - R8 band_gap 偏差
+
+    注:不复用 CriticScore(语义不同 — L5 是跨数据源,L4 是跨机器人),
+    独立 dataclass,但保持 fields 语义类似,CriticVerdict.to_dict() 统一处理
+    """
+
+    name: str = "L5_cross_source"
+    score: float = 0.0
+    weight: float = WEIGHT_L5_CROSS_SOURCE
+    issues: List[str] = field(default_factory=list)
+    suggestions: List[str] = field(default_factory=list)
+    consensus_rate: float = 0.0
+    n_clusters: int = 0
+    n_consensus_clusters: int = 0
+    n_conflicts: int = 0
+    rules_passed: List[str] = field(default_factory=list)
+    rules_failed: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "score": round(self.score, 3),
+            "weight": self.weight,
+            "issues": self.issues,
+            "consensus_rate": round(self.consensus_rate, 3),
+            "n_clusters": self.n_clusters,
+            "n_consensus_clusters": self.n_consensus_clusters,
+            "n_conflicts": self.n_conflicts,
+            "rules_passed": self.rules_passed,
+            "rules_failed": self.rules_failed,
+        }
+
+
+def evaluate_cross_source_consistency(
+    records_by_platform: Dict[str, List[Any]],
+    *,
+    consensus_rate_threshold: float = 0.5,
+) -> CrossSourceScore:
+    """L5 跨数据源一致性打分(纯规则,无 LLM)
+
+    Args:
+        records_by_platform: {"OQMD": [...], "COD": [...], "NOMAD": [...], "JARVIS": [...]}
+            每条 record 可以是 dataclass 或 dict(per agents/*_client)
+        consensus_rate_threshold: consensus_rate 低于此值 → R6 fail(默认 0.5)
+
+    Returns:
+        CrossSourceScore
+    """
+    # 1. 调 cross_source_resolver
+    from agents.data_canonical.cross_source_resolver import resolve_cross_source
+    report = resolve_cross_source(records_by_platform)
+
+    # 2. 跑 3 条规则
+    rules_passed: List[str] = []
+    rules_failed: List[str] = []
+    issues: List[str] = []
+    suggestions: List[str] = []
+
+    # R6 — consensus_rate
+    if report.consensus_rate >= consensus_rate_threshold:
+        rules_passed.append(RULE_R6_CROSS_SOURCE_CONSENSUS)
+    else:
+        rules_failed.append(RULE_R6_CROSS_SOURCE_CONSENSUS)
+        issues.append(
+            f"跨数据源 consensus_rate={report.consensus_rate:.3f} "
+            f"(< {consensus_rate_threshold},目标 ≥)"
+        )
+        suggestions.append(
+            f"建议补充查询:{'/'.join(p for p, c in report.platform_hit_counts.items() if c == 0)}"
+        )
+
+    # R7 — formation_energy 一致性(per cluster;偏差 > resolver 阈值已在 conflicts 标了)
+    energy_conflicts = [
+        c for c in report.conflicts if c.conflict_type == "energy_mismatch"
+    ]
+    if energy_conflicts:
+        rules_failed.append(RULE_R7_CROSS_SOURCE_ENERGY)
+        for cf in energy_conflicts[:3]:
+            issues.append(cf.detail)
+            suggestions.append("复核形成能:不同 DFT 泛函(PBE vs SCAN vs HSE06)可能造成差异")
+    else:
+        rules_passed.append(RULE_R7_CROSS_SOURCE_ENERGY)
+
+    # R8 — band_gap 一致性
+    bg_conflicts = [
+        c for c in report.conflicts if c.conflict_type == "band_gap_mismatch"
+    ]
+    if bg_conflicts:
+        rules_failed.append(RULE_R8_CROSS_SOURCE_BAND_GAP)
+        for cf in bg_conflicts[:3]:
+            issues.append(cf.detail)
+            suggestions.append("复核带隙:实验 vs DFT 差异显著;考虑用 HSE06 / GW 重算")
+    else:
+        rules_passed.append(RULE_R8_CROSS_SOURCE_BAND_GAP)
+
+    # 3. 综合分(0-1)
+    n_total = len(rules_passed) + len(rules_failed)
+    if n_total == 0:
+        score = 0.7  # 默认(无数据可评估)
+    else:
+        score = len(rules_passed) / n_total
+
+    return CrossSourceScore(
+        score=round(score, 3),
+        weight=WEIGHT_L5_CROSS_SOURCE,
+        issues=issues,
+        suggestions=suggestions,
+        consensus_rate=report.consensus_rate,
+        n_clusters=len(report.clusters),
+        n_consensus_clusters=sum(1 for c in report.clusters if c.is_consensus),
+        n_conflicts=len(report.conflicts),
+        rules_passed=rules_passed,
+        rules_failed=rules_failed,
+    )
+
+
+def _cross_source_to_failures(cs_score: CrossSourceScore) -> List[FailureType]:
+    """CrossSourceScore → FailureType 列表(M3 新增 3 个 code)"""
+    failures: List[FailureType] = []
+
+    if RULE_R6_CROSS_SOURCE_CONSENSUS in cs_score.rules_failed:
+        failures.append(FailureType(
+            code=FAIL_CROSS_SOURCE_LOW_CONSENSUS,
+            severity="warning",  # 跨源不足 → warning(可补充查询)
+            confidence=0.75,
+            evidence=cs_score.issues[:3],
+            fix_suggestions=cs_score.suggestions[:3],
+        ))
+
+    if RULE_R7_CROSS_SOURCE_ENERGY in cs_score.rules_failed:
+        failures.append(FailureType(
+            code=FAIL_CROSS_SOURCE_ENERGY_MISMATCH,
+            severity="warning",
+            confidence=0.8,
+            evidence=[i for i in cs_score.issues if "形成能" in i or "energy" in i.lower()][:3],
+            fix_suggestions=[
+                "检查不同 DFT 泛函(PBE vs SCAN vs HSE06)造成差异",
+                "确认各库 entry 来自同一相(避免 anatase vs rutile 误比)",
+            ],
+        ))
+
+    if RULE_R8_CROSS_SOURCE_BAND_GAP in cs_score.rules_failed:
+        failures.append(FailureType(
+            code=FAIL_CROSS_SOURCE_BAND_GAP_MISMATCH,
+            severity="warning",
+            confidence=0.75,
+            evidence=[i for i in cs_score.issues if "带隙" in i or "band gap" in i.lower()][:3],
+            fix_suggestions=[
+                "实验带隙与 DFT(PBE) 通常差 0.5-1.5 eV,属正常",
+                "若偏差 > 2 eV,可能是相不同(anatase vs rutile)",
+            ],
+        ))
+
+    return failures
+
+
+def evaluate_with_cross_source(
+    candidates: List[Any],
+    records_by_platform: Dict[str, List[Any]],
+    *,
+    user_intent: str = "",
+    consensus_rate_threshold: float = 0.5,
+    prior_failures: List[FailureType] = None,
+) -> CriticVerdict:
+    """M3 NEW - L1-L4 + L5 (5 路)打分入口
+
+    在 evaluate_candidates() (3 路) 或 evaluate_chemist_report() (4 路) 之后,
+    追加 L5 cross_source 一致率打分。返回的 CriticVerdict.cross_source 字段填充。
+
+    5 路加权:
+    - L1 physical: 0.27
+    - L2 synthesis: 0.27
+    - L3 safety: 0.18
+    - L4 cross_robot: 0.18(若适用)
+    - L5 cross_source: 0.10
+
+    Args:
+        candidates: 候选列表(传给 evaluate_candidates)
+        records_by_platform: 4 数据源 records
+        user_intent: 用户原始意图
+        consensus_rate_threshold: R6 阈值
+        prior_failures: 上游失败
+
+    Returns:
+        CriticVerdict(包含 cross_source 字段)
+    """
+    # 1. 先跑 3 路(L1/L2/L3)
+    verdict = evaluate_candidates(candidates, user_intent=user_intent, prior_failures=prior_failures)
+
+    # 2. 跑 L5
+    cs_score = evaluate_cross_source_consistency(
+        records_by_platform,
+        consensus_rate_threshold=consensus_rate_threshold,
+    )
+
+    # 3. 5 路加权(per weights)
+    overall = (
+        verdict.l1.score * WEIGHT_L1_PHYSICAL_5WAY
+        + verdict.l2.score * WEIGHT_L2_SYNTHESIS_5WAY
+        + verdict.l3.score * WEIGHT_L3_SAFETY_5WAY
+        + cs_score.score * WEIGHT_L5_CROSS_SOURCE
+    )
+    # 注意:如果 verdict.l4(即 cross_robot)有内容(从 evaluate_chemist_report 来的),
+    # 需要再乘 L4 weight。但 evaluate_candidates 不填 L4 → cross_robot.score = 0
+    if verdict.cross_robot.score > 0:
+        overall += verdict.cross_robot.score * WEIGHT_L4_CROSS_ROBOT_5WAY
+
+    overall = min(1.0, overall)
+
+    # 4. failures 扩展(L5 → 3 个新 code)
+    cs_failures = _cross_source_to_failures(cs_score)
+    verdict.failures.extend(cs_failures)
+
+    # 5. 判定 verdict(L5 不会改 critical / warning 阈值,per dev-plan)
+    # 但如果有 L5 critical failure → 也应 fail(per FAIL_CROSS_SOURCE_* 默认 warning,不触发 critical)
+    if verdict.verdict == "pass" and cs_failures:
+        verdict.verdict = "warn"
+
+    # 6. 填 cross_source + overall_score
+    verdict.cross_source = cs_score
+    verdict.overall_score = round(overall, 3)
+
+    # 7. top_suggestions 扩展
+    for sug in cs_score.suggestions:
+        if sug not in verdict.top_suggestions:
+            verdict.top_suggestions.append(sug)
+    verdict.top_suggestions = verdict.top_suggestions[:5]
+
+    return verdict
+
+
 __all__ = [
     "CriticScore",
     "CrossRobotScore",
@@ -1211,4 +1482,19 @@ __all__ = [
     "RULE_R3_DSC_CLASS",
     "RULE_R4_COST_SANITY",
     "RULE_R5_XRD_PEAK_COUNT",
+    # M3 NEW - L5 cross_source
+    "CrossSourceScore",
+    "evaluate_cross_source_consistency",
+    "evaluate_with_cross_source",
+    "WEIGHT_L5_CROSS_SOURCE",
+    "WEIGHT_L1_PHYSICAL_5WAY",
+    "WEIGHT_L2_SYNTHESIS_5WAY",
+    "WEIGHT_L3_SAFETY_5WAY",
+    "WEIGHT_L4_CROSS_ROBOT_5WAY",
+    "FAIL_CROSS_SOURCE_LOW_CONSENSUS",
+    "FAIL_CROSS_SOURCE_ENERGY_MISMATCH",
+    "FAIL_CROSS_SOURCE_BAND_GAP_MISMATCH",
+    "RULE_R6_CROSS_SOURCE_CONSENSUS",
+    "RULE_R7_CROSS_SOURCE_ENERGY",
+    "RULE_R8_CROSS_SOURCE_BAND_GAP",
 ]

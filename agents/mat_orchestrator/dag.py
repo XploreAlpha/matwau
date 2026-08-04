@@ -157,11 +157,18 @@ class DAGExecutor:
                 # 拼装 agent request
                 agent_inputs = {}
                 for input_key, src_key in node.inputs.items():
-                    # src_key 可能是 "initial.xxx" / "node_id.output_key" / 字面值
+                    # src_key 可能是 "initial.xxx" / "outputs.X" / "node_id.output_key" / 字面值
                     if src_key.startswith("initial."):
                         actual_key = src_key[len("initial."):]
                         if actual_key in initial_inputs:
                             agent_inputs[input_key] = initial_inputs[actual_key]
+                        continue
+
+                    # M3 NEW: "outputs.X" 形式 — 引用全局 outputs dict
+                    if src_key.startswith("outputs."):
+                        actual_key = src_key[len("outputs."):]
+                        if actual_key in outputs:
+                            agent_inputs[input_key] = outputs[actual_key]
                         continue
 
                     if "." in src_key:
@@ -214,6 +221,32 @@ class DAGExecutor:
                 if response.artifacts:
                     for k, v in response.artifacts.items():
                         node_output[k] = v
+
+                # M3 NEW: 聚合 cross_source_records 给 critic_l5 节点用
+                # 4 个 client 的 response.artifacts.records 聚合成 dict[platform] = records
+                if node.agent_name in (
+                    "mat-oqmd-agent",
+                    "mat-cod-agent",
+                    "mat-nomad-agent",
+                    "mat-jarvis-agent",
+                ):
+                    plat_map = {
+                        "mat-oqmd-agent": "OQMD",
+                        "mat-cod-agent": "COD",
+                        "mat-nomad-agent": "NOMAD",
+                        "mat-jarvis-agent": "JARVIS",
+                    }
+                    plat = plat_map[node.agent_name]
+                    # 收集到目前为止所有 records
+                    cross_source_records = outputs.get("cross_source_records", {})
+                    # 这条 response 的 records
+                    recs = response.artifacts.get("records", []) if response.artifacts else []
+                    # 同时存 records + artifacts(完整给 critic)
+                    existing = cross_source_records.get(plat, {})
+                    existing["records"] = recs
+                    existing["artifacts"] = response.artifacts
+                    cross_source_records[plat] = existing
+                    node_output["cross_source_records"] = cross_source_records
 
                 node_result = NodeResult(
                     node_id=node.node_id,
@@ -407,6 +440,117 @@ def literature_review_workflow() -> DAG:
     )
 
 
+# ============================================================================
+# M3 NEW — cross_source_lookup + cross_source_property workflow
+# ============================================================================
+
+
+def cross_source_lookup_workflow() -> DAG:
+    """M3 cross_source_lookup: 4 数据源并行查化合物已知结构
+
+    顺序 DAG 形式(Stage 1 不强制并行,真实 4 个 client 内部 cache + mock fallback):
+    mat-oqmd-agent → mat-cod-agent → mat-nomad-agent → mat-jarvis-agent
+    → mat-critic-agent (L5 cross_source_consistency_rule)
+
+    输出:records_by_platform dict + consensus_rate + 一致性 verdict
+    """
+    return DAG(
+        name="cross_source_lookup",
+        nodes=[
+            DAGNode(
+                node_id="oqmd",
+                agent_name="mat-oqmd-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="oqmd_response",
+                description="OQMD DFT 数据(M1)",
+            ),
+            DAGNode(
+                node_id="cod",
+                agent_name="mat-cod-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="cod_response",
+                description="COD 实验晶体结构(M1)",
+            ),
+            DAGNode(
+                node_id="nomad",
+                agent_name="mat-nomad-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="nomad_response",
+                description="NOMAD archive 综合数据(M2)",
+            ),
+            DAGNode(
+                node_id="jarvis",
+                agent_name="mat-jarvis-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="jarvis_response",
+                description="JARVIS 综合性质(M2)",
+            ),
+            DAGNode(
+                node_id="critic_l5",
+                agent_name="mat-critic-agent",
+                inputs={
+                    "message": "initial.user_intent",
+                    "records_by_platform": "outputs.cross_source_records",
+                    "use_cross_source": "true",
+                },
+                output_key="critic_response",
+                description="mat-critic L5 跨数据源一致率(M3)",
+            ),
+        ],
+    )
+
+
+def cross_source_property_workflow() -> DAG:
+    """M3 cross_source_property: 4 数据源 + critic L5(同 lookup,但 message 不同 — 表征性质对比)
+
+    用同一套 5 节点 DAG,但 message 模板不同(强调"对比形成焓/带隙"等属性)。
+    """
+    return DAG(
+        name="cross_source_property",
+        nodes=[
+            DAGNode(
+                node_id="oqmd",
+                agent_name="mat-oqmd-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="oqmd_response",
+                description="OQMD DFT 形成焓 + 凸包距离",
+            ),
+            DAGNode(
+                node_id="cod",
+                agent_name="mat-cod-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="cod_response",
+                description="COD 实验晶格常数",
+            ),
+            DAGNode(
+                node_id="nomad",
+                agent_name="mat-nomad-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="nomad_response",
+                description="NOMAD archive + band_gap/formation_energy",
+            ),
+            DAGNode(
+                node_id="jarvis",
+                agent_name="mat-jarvis-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="jarvis_response",
+                description="JARVIS Eg + bulk modulus",
+            ),
+            DAGNode(
+                node_id="critic_l5",
+                agent_name="mat-critic-agent",
+                inputs={
+                    "message": "initial.user_intent",
+                    "records_by_platform": "outputs.cross_source_records",
+                    "use_cross_source": "true",
+                },
+                output_key="critic_response",
+                description="mat-critic L5 形成能/带隙跨源一致性",
+            ),
+        ],
+    )
+
+
 # 子类 → workflow 映射
 WORKFLOW_BY_SUBCLASS = {
     "experiment_planning": experiment_planning_workflow,
@@ -414,6 +558,11 @@ WORKFLOW_BY_SUBCLASS = {
     "optimize_existing": optimize_existing_workflow,
     "explain_failure": explain_failure_workflow,
     "literature_review": literature_review_workflow,
+    # M3 NEW
+    "cross_source_lookup": cross_source_lookup_workflow,
+    "cross_source_property": cross_source_property_workflow,
+    "external_db_query": cross_source_lookup_workflow,         # alias to lookup
+    "cross_source_validation": cross_source_property_workflow, # alias to property
 }
 
 
@@ -610,4 +759,7 @@ __all__ = [
     "get_workflow_for_subclass",
     "ExperimentResult",                             # W31 NEW
     "BatchWorkflowResult",                          # W31 NEW
+    # M3 NEW
+    "cross_source_lookup_workflow",
+    "cross_source_property_workflow",
 ]

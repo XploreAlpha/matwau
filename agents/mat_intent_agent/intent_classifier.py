@@ -25,6 +25,9 @@ SUBCLASSES = [
     "explain_failure",           # 解释失败(XRD 不对 / 合成失败 / ...)
     "literature_review",         # 文献综述
     "experiment_planning",       # 实验规划(默认走 4 段管线)
+    # M3 NEW — 跨数据源 2 个子类
+    "external_db_query",         # 单源查询(OQMD / COD / NOMAD / JARVIS 任选)
+    "cross_source_validation",   # 多源交叉验证(4 个数据源对比)
 ]
 
 # 9 个 material_system(per W7 demo + W6 exp categories)
@@ -114,6 +117,19 @@ SUBCLASS_PATTERNS = {
         r"文献", r"综述", r"最新进展", r"研究现状", r"调研",
         r"literature", r"review", r"survey", r"recent progress",
         r"相关工作", r"related work",
+    ],
+    # M3 NEW — 跨数据源子类
+    "external_db_query": [
+        r"查.*OQMD", r"查.*COD", r"查.*NOMAD", r"查.*JARVIS",
+        r"OQMD.*查询", r"COD.*查询", r"NOMAD.*查询", r"JARVIS.*查询",
+        r"数据库.*查", r"external.*db", r"data.*platform",
+        r"已知结构.*查", r"查.*已知结构",
+    ],
+    "cross_source_validation": [
+        r"跨.*数据源", r"跨源", r"4.*库", r"四.*库",
+        r"交叉验证", r"多源.*对比", r"cross.*source", r"multi.*source",
+        r"OQMD.*COD.*NOMAD.*JARVIS", r"对比.*OQMD.*COD",
+        r"形成焓.*对比", r"形成能.*对比", r"带隙.*对比",
     ],
 }
 

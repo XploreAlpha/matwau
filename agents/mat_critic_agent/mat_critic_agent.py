@@ -83,6 +83,9 @@ class CriticOutput:
     l2_score: float                              # 实验可行性
     l3_score: float                              # 安全规则
     l4_cross_robot_score: float = 0.0            # W30 NEW - 跨机器人一致性
+    l5_cross_source_score: float = 0.0           # M3 NEW - 跨数据源一致率
+    l5_cross_source_consensus_rate: float = 0.0  # M3 NEW
+    l5_cross_source_n_clusters: int = 0          # M3 NEW
     failures: List[FailureType] = None            # type: ignore
     top_suggestions: List[str] = None             # type: ignore
     confidence: float = 0.85
@@ -106,6 +109,9 @@ class CriticOutput:
             "l2_score": round(self.l2_score, 3),
             "l3_score": round(self.l3_score, 3),
             "l4_cross_robot_score": round(self.l4_cross_robot_score, 3),  # W30
+            "l5_cross_source_score": round(self.l5_cross_source_score, 3),  # M3 NEW
+            "l5_cross_source_consensus_rate": round(self.l5_cross_source_consensus_rate, 3),
+            "l5_cross_source_n_clusters": self.l5_cross_source_n_clusters,
             "failures": [
                 {"code": f.code, "severity": f.severity, "confidence": f.confidence}
                 for f in self.failures
@@ -121,6 +127,12 @@ class CriticOutput:
 
 def _verdict_to_output(verdict: CriticVerdict) -> CriticOutput:
     """CriticVerdict → CriticOutput(对外稳定格式)"""
+    # M3 — cross_source(L5) 可能为 None(没启用 L5 时)
+    cs = getattr(verdict, "cross_source", None)
+    cs_score = cs.score if cs is not None else 0.0
+    cs_consensus_rate = cs.consensus_rate if cs is not None else 0.0
+    cs_n_clusters = cs.n_clusters if cs is not None else 0
+
     return CriticOutput(
         verdict=verdict.verdict,
         overall_score=verdict.overall_score,
@@ -128,6 +140,10 @@ def _verdict_to_output(verdict: CriticVerdict) -> CriticOutput:
         l2_score=verdict.l2.score,
         l3_score=verdict.l3.score,
         l4_cross_robot_score=verdict.cross_robot.score,  # W30
+        # M3 NEW
+        l5_cross_source_score=cs_score,
+        l5_cross_source_consensus_rate=cs_consensus_rate,
+        l5_cross_source_n_clusters=cs_n_clusters,
         failures=verdict.failures,
         top_suggestions=verdict.top_suggestions,
     )
@@ -238,13 +254,30 @@ verdict 阈值:
         if not candidates:
             candidates = ctx.get("candidates") or []
 
-        if not candidates:
+        # M3 NEW - Mode 5 优先:cross_source_records 在前(L5 不需要 candidates)
+        use_cross_source = ctx.get("use_cross_source") or artifacts_ctx.get("use_cross_source")
+        records_by_platform = ctx.get("records_by_platform") or artifacts_ctx.get("records_by_platform")
+        cross_source_priority = (
+            (use_cross_source or str(use_cross_source).lower() == "true")
+            and records_by_platform
+        )
+
+        # 1. 跑打分(W30 - 4 mode auto-detect, M3 加 Mode 5)
+        if not cross_source_priority and not candidates:
             return self._empty_response("上游未传 candidates / report")
 
-        # 1. 跑打分(W30 - 4 mode auto-detect)
         try:
+            # M3 NEW - Mode 5: cross_source_records(L5 跨数据源一致率)
+            if cross_source_priority:
+                from agents.mat_critic_agent.critic_engine import evaluate_with_cross_source
+                # L5 入口(candidates 仍然传,fallback 用)
+                verdict = evaluate_with_cross_source(
+                    candidates if candidates else [{"formula": user_message}],
+                    records_by_platform,
+                    user_intent=user_message,
+                )
             # W30 - Mode 1: ChemistReport dataclass / dict
-            if candidates == ["__chemist_report__"]:
+            elif candidates == ["__chemist_report__"]:
                 report = artifacts_ctx.get("report")
                 verdict = evaluate_chemist_report(report, user_intent=user_message)
 
