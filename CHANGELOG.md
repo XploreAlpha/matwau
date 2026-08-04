@@ -5,9 +5,123 @@
 
 ---
 
-## [Unreleased] — 7 个服务器部署 bug 修复(2026-07-28)
+## [v1.3-Academic] - 2026-08-04 — 4 平台数据接入 + critic L5 跨源验证
 
-> 等待下次 v1.1.2-Academic tag 一起发布
+### Added(新增)
+
+- **M1 — OQMD + COD 客户端(M1 + W24-W26)**:
+  - `agents/oqmd_client.py` (~870 行) — DFT 形成能 + 相图查询,LRU cache
+  - `agents/cod_client.py` (~620 行) — 实验晶体结构查询,LRU cache
+  - `agents/mat_oqmd_agent.py` + `agents/mat_cod_agent.py` — 2 个 wrapper agent
+  - `agents/data_canonical/canonical_key.py` — CanonicalKey 跨源物相对齐(reduced_formula + pearson_symbol + spacegroup_number)
+  - `tests/unit/test_oqmd_client.py` + `test_cod_client.py` + `test_canonical_key.py` + `test_mat_oqmd_agent.py` + `test_mat_cod_agent.py` — 89 unit tests
+  - 累计测试:1297 → **1386**(+89)
+- **M2 — NOMAD + JARVIS 客户端(M2 + W27-W29)**:
+  - `agents/nomad_client.py` (~720 行) — NOMAD metainfo,~35 映射路径,LRU cache,Token 可选
+  - `agents/jarvis_client.py` (~830 行) — JARVIS REST + jarvis-tools Python 包双驱动,LRU cache
+  - `agents/mat_nomad_agent.py` + `agents/mat_jarvis_agent.py` — 2 个 wrapper agent
+  - `tests/unit/test_nomad_client.py` + `test_jarvis_client.py` + `test_mat_nomad_agent.py` + `test_mat_jarvis_agent.py` — 93 unit tests
+  - 累计测试:1386 → **1479**(+93)
+- **M3 — cross_source_resolver + critic L5 + orchestrator workflow(M3 + W30-W33)**:
+  - `agents/data_canonical/cross_source_resolver.py` (388 行) — 4 record → ConsensusReport + consensus_rate + Conflict 列表
+  - `mat_critic_agent/critic_engine.py` — 新增 `CrossSourceScore` dataclass + `evaluate_cross_source_consistency()` + `evaluate_with_cross_source()` 5-way 加权入口
+  - 3 个新规则:R6 cross_source_consensus_rate / R7 formation_energy_consistency / R8 band_gap_consistency
+  - `mat_intent_agent/intent_classifier.py` — SUBCLASSES 5→7,新增 `external_db_query` + `cross_source_validation`
+  - `mat_orchestrator/dag.py` — 新增 `cross_source_lookup_workflow` + `cross_source_property_workflow`(各 5 节点)+ DAGExecutor 支持 `outputs.X` src_key 解析
+  - `matwau/configs/matwau_settings.py` — 新增 4 env vars(`MATWAU_NOMAD_API_BASE` / `MATWAU_NOMAD_TOKEN` / `MATWAU_JARVIS_API_BASE` / `MATWAU_JARVIS_TOKEN`)
+  - `tests/unit/test_cross_source_resolver.py` + `test_mat_critic_cross_source.py` + `test_mat_orchestrator_cross_source.py` + `test_mat_intent_agent_external_db.py` + `test_matwau_settings_cross_source.py` + `test_dag_outputs_x_resolution.py` — 66 unit tests
+  - 累计测试:1479 → **1545**(+66)
+- **M4 — 发版 + 教学 + 验收**:
+  - `~/WAU-develop/develop-log/MatWAU/v1.3/MatWAU-v1.3-Academic-RELEASE-NOTES.md` (本节配套)
+  - `docs/teaching_manual/teaching-manual-v1.3-extra.md` — W4 demo L1-L5 升级 + W4.5 新周(跨数据源验证)
+  - `~/WAU-develop/develop-log/MatWAU/test/run-acceptance.sh` `--mode=v1.3-academic` — 4 库 + L5 + cross_source e2e 验收
+  - `~/WAU-develop/develop-log/MatWAU/v1.3/acceptance/` — 3 件 M4 closure doc
+
+### Changed(变更)
+
+- **`mat_intent_agent.SUBCLASSES`**:5 → 7(新增 `external_db_query` + `cross_source_validation`)
+- **`mat_critic_agent.CriticOutput`**:加 3 个 L5 字段(向后兼容,默认 0.0)
+- **`mat_critic_agent.CriticVerdict`**:加 `cross_source` 字段(向后兼容,3 路入口默认 None)
+- **`mat_orchestrator.MatOrchestrator.__init__`**:接受 4 个新可选 kwarg — `oqmd_agent` / `cod_agent` / `nomad_agent` / `jarvis_agent`(测试可注入 stub)
+- **`mat_orchestrator.dag.DAGExecutor.execute()`**:新增 `outputs.X` src_key 解析路径(优先级最高,先于 node_id 解析)
+- **`VERSION` 文件**:`v1.1.3-Academic` → **v1.3-Academic**
+- **5-way critic 加权**:`L1(0.27) + L2(0.27) + L3(0.18) + L4(0.18) + L5(0.10)` — 旧 3-way 加权 `L1(0.30) + L2(0.30) + L3(0.20)` 仍保留向后兼容
+
+### Deprecated(弃用)
+
+- 无
+
+### Removed(移除)
+
+- 无(完全向后兼容 v1.1.3-Academic)
+
+### Fixed(修复)
+
+- 无(M1+M2+M3 均为新功能,0 bug 修复)
+
+### Security(安全)
+
+- API key / token 走 `~/.matwau/secrets.env` chmod 600(per `feedback-api-key-leak-2026-07-30.md`)
+- NOMAD / JARVIS token 默认不读,公开数据无需
+- `MATWAU_NOMAD_TOKEN` / `MATWAU_JARVIS_TOKEN` 仅在显式设置时启用
+
+### Stats
+
+- **3 commits**(per 学院版 commit history):`1656eed`(M1) + `a475f22`(M2) + `d674f83`(M3)+ 待补 `VERSION` bump commit
+- **测试基线**:1297 → **1545 passed**(累计 +248,0 回归,2 skipped)
+- **新文件 ~30**:4 client + 4 wrapper + canonical_key + cross_source_resolver + 9 test files + 2 goldens + 4 doc
+- **修改文件 ~10**:mat_intent_agent / mat_critic_agent / mat_orchestrator / matwau_settings / VERSION / CHANGELOG / dag.py / __init__.py 等
+- **总代码行 +5,791**(46,069 → 51,860)
+- **本地 git tag**:`v1.3-Academic`(annotated,2026-08-04 待打)
+- **学院方验收**:`bash ~/WAU-develop/develop-log/MatWAU/test/run-acceptance.sh --mode=v1.3-academic`(M4 新增 mode)
+
+### 完整发版说明
+
+- `~/WAU-develop/develop-log/MatWAU/v1.3/MatWAU-v1.3-Academic-RELEASE-NOTES.md` (~470 行,12 章)
+- 需求分析:`~/WAU-develop/develop-log/MatWAU/v1.3/MatWAU-v1.3-Academic-requirements-20260804.md` (~494 行)
+- 开发计划:`~/WAU-develop/develop-log/MatWAU/v1.3/MatWAU-v1.3-Academic-dev-plan-20260804.md` (~425 行)
+
+### 已知非阻塞问题
+
+- **KB-2026-08-04-01**:NOMAD 国内可达性差,学院 IT 需镜像或 VPN(中,网络)— v1.3.1 patch
+- **KB-2026-08-04-02**:JARVIS 国内可达性差,默认 mock(低)— v1.3.1 patch
+- **KB-2026-08-04-03**:L5 阈值(consensus_rate / energy / band_gap)硬编码(低)— v1.4 暴露 settings
+- **KB-2026-08-04-04**:cross_source_records 4 库并行未启用 asyncio(低,~3-5s)— v1.4 异步化
+- **KB-2026-08-04-05**:NOMAD metainfo 35 路径,缺失路径走默认空(中,数据完整度)— v1.3.1 扩到 60
+
+---
+
+## [v1.1.3-Academic] - 2026-07-29 — /wau/dispatch 适配 WorkflowResult 真实字段
+
+### Fixed(修复)
+
+- **HIGH: `agents/wau_protocol_adapter/wau_client.py`** — 适配 `WorkflowResult` 真实字段(无 `reply` / `cost` / `artifacts`)。修复前 `/wau/dispatch` 调用 `MatOrchestrator.run()` 后访问不存在的字段 → KeyError → 500。
+
+### Stats
+
+- **1 file / +13 / -7**
+- **Commit**:`99cc8d3`
+- **Patch notes**:`~/WAU-develop/develop-log/MatWAU/20260729/MatWAU-20260729-homerail-dispatch-closure.md`
+- **Tag**:`v1.1.3-Academic`(annotated)
+
+---
+
+## [v1.1.2-Academic] - 2026-07-29 — /wau/dispatch 修复 MatOrchestrator.run() 调用错误
+
+### Fixed(修复)
+
+- **HIGH: `agents/wau_protocol_adapter/wau_client.py`** — 修复 `MatOrchestrator.run()` 调用错误(应传 keyword-only arg `user_intent=`)。修复前 `/wau/dispatch` 调用 → TypeError → 500。
+
+### Stats
+
+- **1 file / +5 / -2**
+- **Commit**:`d047fa0`
+
+---
+
+## [Unreleased] — 7 个服务器部署 bug 修复(2026-07-28)→ 已并入 v1.1.3-Academic
+
+> **本段已并入 v1.1.3-Academic**(2026-07-29 `/wau/dispatch` 修复发布后,这些服务器部署 bug fix 与 `/wau/dispatch` 适配合为同一发版线 v1.1.3-Academic)
 > 完整 closure doc:[~/WAU-develop/develop-log/MatWAU/20260728/MatWAU-20260728-server-deployment-closure.md](~/WAU-develop/develop-log/MatWAU/20260728/MatWAU-20260728-server-deployment-closure.md)
 
 ### Fixed(修复 7 个真实 bug)

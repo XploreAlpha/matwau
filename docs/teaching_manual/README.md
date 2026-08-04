@@ -1,10 +1,11 @@
 # MatWAU 学院版 — 8 周教学手册
 
 > **目标读者**: 学院老师 / 助教 / 本科生 / 研究生
-> **课程时长**: 8 周(每周 3 学时,共 24 学时)
+> **课程时长**: 8 周(每周 3 学时,共 24 学时)+ **W4.5 跨数据源验证(v1.3-Academic 新增可选周)**
 > **难度**: 入门(有 Python 基础即可,无需 AI/材料学背景)
-> **配套代码**: MatWAU v1.0-Academic(17 agent, 1298 PASSED)
+> **配套代码**: MatWAU v1.3-Academic(21 agent, 1545 PASSED, +248 vs v1.0)
 > **License**: Apache 2.0(配合 MatWAU 主 license)
+> **v1.3-Academic 增量**: 4 平台数据接入(OQMD/COD/NOMAD/JARVIS)+ critic L5 跨源一致率 + 2 个新 workflow + 2 个新 intent subclass
 
 ---
 
@@ -14,8 +15,9 @@
 |---|---|---|
 | **[01_overview.md](./01_overview.md)** | 概览 + 4 步上手 | 学生第 1 次课前阅读 |
 | **[02_8week_curriculum.md](./02_8week_curriculum.md)** | 8 周详细大纲 + 每周作业 | 老师备课用 |
-| **[03_demo_scripts/](./03_demo_scripts/)** | 4 个课堂演示脚本(可直接拷贝运行)| 课堂演示 + 学生上机 |
+| **[03_demo_scripts/](./03_demo_scripts/)** | 6 个课堂演示脚本(可直接拷贝运行,含 v1.3 新增 W4.5/W5)| 课堂演示 + 学生上机 |
 | **[04_grading_rubric.md](./04_grading_rubric.md)** | 评分标准 + 期末项目要求 | 老师评分用 |
+| **[teaching-manual-v1.3-extra.md](./teaching-manual-v1.3-extra.md)** | **v1.3-Academic 增量章节(W4 L1-L5 + W4.5 跨源 + W5 4 平台)** | v1.3 用户必读 |
 
 ---
 
@@ -26,8 +28,9 @@
 | **W1** | 入门 + 单 agent | mat-intent-agent | 跑通 3 个 intent 类别 |
 | **W2** | 模拟 + 实验 | mat-sim-agent + mat-exp-agent | 写 1 个 XRD 解谱脚本 |
 | **W3** | 主动学习 | mat-bayesian | 跑 TPE 优化 1 个函数 |
-| **W4** | 裁决与安全 | mat-critic-agent | 解释 critic L1-L4 |
-| **W5** | 多实验编排 | mat-orchestrator run_batch | 编排 2 个并行实验 |
+| **W4** | 裁决与安全 | **mat-critic-agent L1-L5** | 解释 critic L1-L5(5-way 加权)|
+| **W4.5** | **跨数据源验证(v1.3 新)** | **cross_source_resolver + 4 库** | 解释 L5 R6/R7/R8 + consensus_rate |
+| **W5** | 多实验编排 + **4 平台(v1.3 升级)** | mat-orchestrator run_batch + 4 库 workflow | 编排 2 个并行实验 + **跑 1 个 cross_source_lookup** |
 | **W6** | 血缘与可观测 | mat-data-lineage | 查 lineage + 写报告 |
 | **W7** | LLM 二次复核(可选)| mat-critic-agent + LLM | 接入 DeepSeek 跑 1 个 case |
 | **W8** | 期末项目 | 自选 | 设计 + 实现 + 答辩 |
@@ -65,8 +68,12 @@ teaching_manual/
 │   ├── W1_intent_classification.py
 │   ├── W2_xrd_peak_decode.py
 │   ├── W3_bayesian_optimize.py
-│   └── W4_critic_L1L4.py
-└── 04_grading_rubric.md       ← 评分标准
+│   ├── W4_critic_L1L4.py             ← 旧 L1-L4 demo(v1.0-v1.2,保留)
+│   ├── W4_critic_L1L5.py             ← **v1.3 新 L1-L5 demo**
+│   ├── W4.5_cross_source_validation.py  ← **v1.3 新 W4.5 跨源 demo**
+│   └── W5_orchestrator_4platforms.py  ← **v1.3 新 W5 4 平台 e2e demo**
+├── 04_grading_rubric.md       ← 评分标准
+└── teaching-manual-v1.3-extra.md    ← **v1.3-Academic 增量章节**
 ```
 
 ---
