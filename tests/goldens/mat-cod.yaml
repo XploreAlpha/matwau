@@ -1,0 +1,240 @@
+# MatWAU Goldens 测试集 — mat-cod(25 case)
+# 写于:2026-08-04(v1.3-Academic M1)
+# 用途:验证 COD 实验晶体结构查询 agent 的化学式提取 + record 结构 + canonical key
+# per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M1 第 16 项
+# 跑分目标:pass-rate ≥ 80%
+
+# 字段约定(同 mat-oqmd.yaml)
+
+# ============================================================================
+# Query 解析(5 case)
+# ============================================================================
+
+- id: C001
+  category: query
+  intent: "查 Si 已知实验结构"
+  expected:
+    formula_extracted: "Si"
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C002
+  category: query
+  intent: "TiO2 标准结构"
+  expected:
+    formula_extracted: "TiO2"
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C003
+  category: query
+  intent: "LiCoO2 实验结构"
+  expected:
+    formula_extracted: "LiCoO2"
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C004
+  category: query
+  intent: "查 Inconel 718 实验结构"
+  expected:
+    formula_extracted: "Inconel 718"
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C005
+  category: query
+  intent: "Fe bcc 晶格常数"
+  expected:
+    formula_extracted: "Fe"
+    min_n_results: 1
+    source_platform: "COD"
+
+# ============================================================================
+# Record 字段验证(5 case)
+# ============================================================================
+
+- id: C006
+  category: extraction
+  intent: "查 Si 结构"
+  expected:
+    formula_extracted: "Si"
+    min_n_results: 1
+    source_platform: "COD"
+    record_has_fields: ["cod_id", "formula", "spacegroup_h_m", "spacegroup_number", "a", "volume"]
+
+- id: C007
+  category: extraction
+  intent: "查 Fe bcc 晶格"
+  expected:
+    formula_extracted: "Fe"
+    min_n_results: 1
+    source_platform: "COD"
+    record_has_fields: ["cod_id", "spacegroup_h_m", "a", "b", "c"]
+
+- id: C008
+  category: extraction
+  intent: "查 TiO2 rutile"
+  expected:
+    formula_extracted: "TiO2"
+    min_n_results: 1
+    source_platform: "COD"
+    record_has_fields: ["spacegroup_h_m", "a", "c"]
+
+- id: C009
+  category: extraction
+  intent: "查 LiCoO2 晶格常数"
+  expected:
+    formula_extracted: "LiCoO2"
+    min_n_results: 1
+    source_platform: "COD"
+    record_has_fields: ["spacegroup_h_m", "a", "c"]
+
+- id: C010
+  category: extraction
+  intent: "查 Inconel 718 晶格"
+  expected:
+    formula_extracted: "Inconel 718"
+    min_n_results: 1
+    source_platform: "COD"
+    record_has_fields: ["cod_id", "spacegroup_h_m", "volume"]
+
+# ============================================================================
+# Canonical Key 归一化(10 case)
+# ============================================================================
+
+- id: C011
+  category: canonical
+  intent: "Si COD 结构"
+  expected:
+    canonical_reduced_formula: "Si"
+    canonical_pearson: "cF8"
+    canonical_spacegroup_number: 227
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C012
+  category: canonical
+  intent: "Fe COD"
+  expected:
+    canonical_reduced_formula: "Fe"
+    canonical_pearson: "cI2"
+    canonical_spacegroup_number: 229
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C013
+  category: canonical
+  intent: "TiO2 COD rutile"
+  expected:
+    canonical_reduced_formula: "O2Ti"
+    canonical_pearson: "tP4"
+    canonical_spacegroup_number: 136
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C014
+  category: canonical
+  intent: "LiCoO2 COD"
+  expected:
+    canonical_reduced_formula: "CoLiO2"
+    canonical_pearson: "hR1"
+    canonical_spacegroup_number: 166
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C015
+  category: canonical
+  intent: "Ni3Cr2Fe2Mo COD 实验"
+  expected:
+    canonical_reduced_formula: "CrFeMoNi"
+    canonical_pearson: "cF4"
+    canonical_spacegroup_number: 225
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C016
+  category: canonical
+  intent: "Cu COD"
+  expected:
+    canonical_reduced_formula: "Cu"
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C017
+  category: canonical
+  intent: "Al COD"
+  expected:
+    canonical_reduced_formula: "Al"
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C018
+  category: canonical
+  intent: "Ni COD"
+  expected:
+    canonical_reduced_formula: "Ni"
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C019
+  category: canonical
+  intent: "Ag COD"
+  expected:
+    canonical_reduced_formula: "Ag"
+    min_n_results: 1
+    source_platform: "COD"
+
+- id: C020
+  category: canonical
+  intent: "Au COD"
+  expected:
+    canonical_reduced_formula: "Au"
+    min_n_results: 1
+    source_platform: "COD"
+
+# ============================================================================
+# 端到端 + 来源 citation(5 case)
+# ============================================================================
+
+- id: C021
+  category: e2e
+  intent: "查 Si 已知实验结构"
+  expected:
+    min_n_results: 1
+    source_platform: "COD"
+    source_doi_contains: "10.1107"
+    citation_contains: "Gražulis"
+
+- id: C022
+  category: e2e
+  intent: "TiO2 标准结构(rutile)"
+  expected:
+    min_n_results: 1
+    source_platform: "COD"
+    source_doi_contains: "10.1107"
+    citation_contains: "Nucleic Acids"
+
+- id: C023
+  category: e2e
+  intent: "查 LiCoO2 实验结构"
+  expected:
+    min_n_results: 1
+    source_platform: "COD"
+    canonical_reduced_formula: "CoLiO2"
+
+- id: C024
+  category: e2e
+  intent: "Inconel 718 实验结构"
+  expected:
+    min_n_results: 1
+    source_platform: "COD"
+    canonical_pearson: "cF4"
+
+- id: C025
+  category: e2e
+  intent: "Fe bcc 晶格常数"
+  expected:
+    min_n_results: 1
+    source_platform: "COD"
+    canonical_spacegroup_number: 229

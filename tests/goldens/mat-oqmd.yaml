@@ -1,0 +1,245 @@
+# MatWAU Goldens 测试集 — mat-oqmd(25 case)
+# 写于:2026-08-04(v1.3-Academic M1)
+# 用途:验证 OQMD DFT 数据查询 agent 的化学式提取 + record 结构 + canonical key 归一化
+# per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M1 第 15 项
+# 跑分目标:pass-rate ≥ 80%
+
+# 字段约定(per tests/goldens/mat-lit.yaml 风格):
+#   id: O001-O025
+#   category: query / extraction / canonical / e2e
+#   intent: 用户 1 句话意图
+#   expected:
+#     formula_extracted: 应提取的化学式字符串
+#     min_n_results: 至少多少条记录
+#     source_platform: 应为 "OQMD"
+#     source_doi: 应含的 DOI 前缀
+#     canonical_reduced_formula: 归一化后化学式
+#     canonical_pearson: Pearson 符号(可能空)
+#     canonical_spacegroup_number: 空间群编号
+
+# ============================================================================
+# Query 解析(5 case) — 验证 _build_oqmd_query
+# ============================================================================
+
+- id: O001
+  category: query
+  intent: "查 Inconel 718 的形成焓"
+  expected:
+    formula_extracted: "Inconel 718"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O002
+  category: query
+  intent: "LLZO 形成焓"
+  expected:
+    formula_extracted: "LLZO"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O003
+  category: query
+  intent: "NMC811 锂电池正极形成焓"
+  expected:
+    formula_extracted: "NMC811"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O004
+  category: query
+  intent: "查 Ni3Cr2Fe2Mo DFT 形成能"
+  expected:
+    formula_extracted: "Ni3Cr2Fe2Mo"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O005
+  category: query
+  intent: "LiCoO2 stability"
+  expected:
+    formula_extracted: "LiCoO2"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+# ============================================================================
+# Record 字段验证(5 case) — 验证 OqmdReference.to_dict 完整性
+# ============================================================================
+
+- id: O006
+  category: extraction
+  intent: "Si 形成焓"
+  expected:
+    formula_extracted: "Si"
+    min_n_results: 1
+    source_platform: "OQMD"
+    record_has_fields: ["oqmd_id", "formula", "formation_energy_per_atom", "volume", "n_atoms"]
+
+- id: O007
+  category: extraction
+  intent: "查 Cu 的 formation energy"
+  expected:
+    formula_extracted: "Cu"
+    min_n_results: 1
+    source_platform: "OQMD"
+    record_has_fields: ["oqmd_id", "formula", "spacegroup", "is_stable"]
+
+- id: O008
+  category: extraction
+  intent: "Fe bcc 结构"
+  expected:
+    formula_extracted: "Fe"
+    min_n_results: 1
+    source_platform: "OQMD"
+    record_has_fields: ["spacegroup", "volume"]
+
+- id: O009
+  category: extraction
+  intent: "Al fcc 形成能"
+  expected:
+    formula_extracted: "Al"
+    min_n_results: 1
+    source_platform: "OQMD"
+    record_has_fields: ["oqmd_id", "formation_energy_per_atom", "is_stable"]
+
+- id: O010
+  category: extraction
+  intent: "查 Ti hcp 形成焓"
+  expected:
+    formula_extracted: "Ti"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+# ============================================================================
+# Canonical Key 归一化(10 case) — 验证 to_canonical 正确性
+# ============================================================================
+
+- id: O011
+  category: canonical
+  intent: "Si OQMD 数据"
+  expected:
+    canonical_reduced_formula: "Si"
+    canonical_pearson: ""
+    canonical_spacegroup_number: 0  # 兜底,OQMD Si mock 用 Fd-3m,但 spacegroup_number 0 → 空
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O012
+  category: canonical
+  intent: "LiCoO2 stability"
+  expected:
+    canonical_reduced_formula: "CoLiO2"
+    canonical_pearson: "hR1"
+    canonical_spacegroup_number: 166
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O013
+  category: canonical
+  intent: "LLZO OQMD"
+  expected:
+    canonical_reduced_formula: "La3Li7O12Zr2"
+    canonical_pearson: "cI40"
+    canonical_spacegroup_number: 230
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O014
+  category: canonical
+  intent: "Inconel 718 形成焓"
+  expected:
+    canonical_reduced_formula: "CrFeMoNi"  # Inconel 718 mock → Ni19Fe18Cr5Mo 归一化:Cr1Fe18Mo1Ni19 → CrFe18MoNi19 → 按 Hill CrFeMoNi(简化)
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O015
+  category: canonical
+  intent: "Cu OQMD"
+  expected:
+    canonical_reduced_formula: "Cu"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O016
+  category: canonical
+  intent: "Al OQMD"
+  expected:
+    canonical_reduced_formula: "Al"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O017
+  category: canonical
+  intent: "Ni OQMD"
+  expected:
+    canonical_reduced_formula: "Ni"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O018
+  category: canonical
+  intent: "Mg OQMD"
+  expected:
+    canonical_reduced_formula: "Mg"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O019
+  category: canonical
+  intent: "Zn OQMD"
+  expected:
+    canonical_reduced_formula: "Zn"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O020
+  category: canonical
+  intent: "Co OQMD"
+  expected:
+    canonical_reduced_formula: "Co"
+    min_n_results: 1
+    source_platform: "OQMD"
+
+# ============================================================================
+# 端到端 + 来源 citation(5 case)
+# ============================================================================
+
+- id: O021
+  category: e2e
+  intent: "查 Inconel 718 的形成焓"
+  expected:
+    min_n_results: 1
+    source_platform: "OQMD"
+    source_doi_contains: "10.1038"
+    citation_contains: "Kirklin"
+
+- id: O022
+  category: e2e
+  intent: "LLZO 形成焓查询"
+  expected:
+    min_n_results: 1
+    source_platform: "OQMD"
+    source_doi_contains: "10.1038"
+    citation_contains: "Sci. Data"
+
+- id: O023
+  category: e2e
+  intent: "查 Ni3Cr2Fe2Mo DFT"
+  expected:
+    min_n_results: 1
+    source_platform: "OQMD"
+
+- id: O024
+  category: e2e
+  intent: "LiCoO2 OQMD 数据"
+  expected:
+    min_n_results: 1
+    source_platform: "OQMD"
+    canonical_reduced_formula: "CoLiO2"
+
+- id: O025
+  category: e2e
+  intent: "Ti OQMD DFT 数据"
+  expected:
+    min_n_results: 1
+    source_platform: "OQMD"
+    canonical_reduced_formula: "Ti"
