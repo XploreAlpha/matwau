@@ -1,0 +1,236 @@
+# MatWAU Goldens 测试集 — mat-jarvis(25 case)
+# 写于:2026-08-04(v1.3-Academic M2)
+# 用途:验证 JARVIS 综合性质查询 agent 的化学式提取 + record 结构 + canonical key + 2D/3D 标记 + jarvis-tools 探测
+# per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M2 第 15 项
+# 跑分目标:pass-rate ≥ 80%
+
+# 字段约定(per tests/goldens/mat-oqmd.yaml 风格):
+#   id: J001-J025
+#   category: query / extraction / dimensionality / canonical / e2e
+#   intent: 用户 1 句话意图
+#   expected:
+#     formula_extracted: 应提取的化学式字符串
+#     min_n_results: 至少多少条记录
+#     source_platform: 应为 "JARVIS"
+#     source_doi: 应含的 DOI 前缀
+#     canonical_reduced_formula: 归一化后化学式
+#     canonical_pearson: Pearson 符号
+#     canonical_spacegroup_number: 空间群编号
+#     dimensionality: 2D / 3D
+
+# ============================================================================
+# Query 解析(5 case) — 验证 _build_jarvis_query
+# ============================================================================
+
+- id: J001
+  category: query
+  intent: "查 MoS2 JARVIS 2D 带隙"
+  expected:
+    formula_extracted: "MoS2"
+    min_n_results: 1
+    source_platform: "JARVIS"
+
+- id: J002
+  category: query
+  intent: "LiCoO2 JARVIS bulk modulus"
+  expected:
+    formula_extracted: "LiCoO2"
+    min_n_results: 1
+    source_platform: "JARVIS"
+
+- id: J003
+  category: query
+  intent: "Inconel 718 JARVIS"
+  expected:
+    formula_extracted: "Inconel 718"
+    min_n_results: 1
+    source_platform: "JARVIS"
+
+- id: J004
+  category: query
+  intent: "GaN JARVIS"
+  expected:
+    formula_extracted: "GaN"
+    min_n_results: 1
+    source_platform: "JARVIS"
+
+- id: J005
+  category: query
+  intent: "LLZO JARVIS"
+  expected:
+    formula_extracted: "LLZO"
+    min_n_results: 1
+    source_platform: "JARVIS"
+
+# ============================================================================
+# Extraction 解析(5 case) — 验证 JarvClient.search 返回结构
+# ============================================================================
+
+- id: J006
+  category: extraction
+  intent: "查 MoS2 JARVIS"
+  expected:
+    min_n_results: 1
+    source_platform: "JARVIS"
+    source_doi: "10.1038/s41597-020-00673-3"
+
+- id: J007
+  category: extraction
+  intent: "Si JARVIS"
+  expected:
+    min_n_results: 1
+    source_platform: "JARVIS"
+    citation_keywords: ["Choudhary"]
+
+- id: J008
+  category: extraction
+  intent: "TiO2 JARVIS"
+  expected:
+    min_n_results: 1
+    source_platform: "JARVIS"
+
+- id: J009
+  category: extraction
+  intent: "GaN bulk modulus"
+  expected:
+    min_n_results: 1
+    source_platform: "JARVIS"
+
+- id: J010
+  category: extraction
+  intent: "Ni3Cr2Fe2Mo JARVIS"
+  expected:
+    min_n_results: 1
+    source_platform: "JARVIS"
+
+# ============================================================================
+# Dimensionality(2D/3D)(5 case)
+# ============================================================================
+
+- id: J011
+  category: dimensionality
+  intent: "MoS2 是 2D 材料"
+  expected:
+    expected_is_2d: true
+    dimensionality: "2D"
+    source_platform: "JARVIS"
+
+- id: J012
+  category: dimensionality
+  intent: "GaN 是 3D 材料"
+  expected:
+    expected_is_2d: false
+    dimensionality: "3D"
+    source_platform: "JARVIS"
+
+- id: J013
+  category: dimensionality
+  intent: "JARVIS 2D filter"
+  expected:
+    filter_key: "include_2d_only"
+    filter_behavior: "exclude_3d_records"
+    source_platform: "JARVIS"
+
+- id: J014
+  category: dimensionality
+  intent: "JARVIS artifacts 含 n_2d_records"
+  expected:
+    artifacts_field: "n_2d_records"
+    artifacts_field_type: "int"
+    source_platform: "JARVIS"
+
+- id: J015
+  category: dimensionality
+  intent: "JARVIS artifacts 含 n_3d_records"
+  expected:
+    artifacts_field: "n_3d_records"
+    artifacts_field_type: "int"
+    source_platform: "JARVIS"
+
+# ============================================================================
+# jarvis-tools 包探测(3 case)
+# ============================================================================
+
+- id: J016
+  category: tools
+  intent: "jarvis-tools 包探测"
+  expected:
+    field: "jarvis_tools_available"
+    field_type: "bool"
+    source_platform: "JARVIS"
+
+- id: J017
+  category: tools
+  intent: "jarvis-tools 未装时降级到 REST"
+  expected:
+    fallback_behavior: "pure_REST_mode"
+    source_platform: "JARVIS"
+
+- id: J018
+  category: tools
+  intent: "JARVIS env var URL 覆盖"
+  expected:
+    env_var: "MATWAU_JARVIS_API_BASE"
+    source_platform: "JARVIS"
+
+# ============================================================================
+# Canonical key(4 case)
+# ============================================================================
+
+- id: J019
+  category: canonical
+  intent: "MoS2 canonical key"
+  expected:
+    canonical_reduced_formula: "MoS2"
+    canonical_pearson: "hP2"
+    canonical_spacegroup_number: 194
+
+- id: J020
+  category: canonical
+  intent: "Si canonical key"
+  expected:
+    canonical_reduced_formula: "Si"
+    canonical_pearson: "cF8"
+    canonical_spacegroup_number: 227
+
+- id: J021
+  category: canonical
+  intent: "LiCoO2 canonical key"
+  expected:
+    canonical_reduced_formula: "CoLiO2"
+    canonical_pearson: "hR1"
+    canonical_spacegroup_number: 166
+
+- id: J022
+  category: canonical
+  intent: "GaN canonical key"
+  expected:
+    canonical_reduced_formula: "GaN"
+    canonical_pearson: "hP2"
+    canonical_spacegroup_number: 186
+
+# ============================================================================
+# 端到端(3 case)
+# ============================================================================
+
+- id: J023
+  category: e2e
+  intent: "JARVIS 端到端 run"
+  expected:
+    min_n_results: 1
+    source_platform: "JARVIS"
+    confidence_min: 0.5
+
+- id: J024
+  category: e2e
+  intent: "JARVIS 空消息处理"
+  expected:
+    expected_handling: "empty_message"
+    confidence_max: 0.5
+
+- id: J025
+  category: e2e
+  intent: "JARVIS n_results=1 限制"
+  expected:
+    max_n_results: 1
+    source_platform: "JARVIS"

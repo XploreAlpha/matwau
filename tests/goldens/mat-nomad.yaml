@@ -1,0 +1,190 @@
+# MatWAU Goldens 测试集 — mat-nomad(20 case)
+# 写于:2026-08-04(v1.3-Academic M2)
+# 用途:验证 NOMAD archive 综合数据查询 agent 的化学式提取 + record 结构 + canonical key + metainfo 映射
+# per MatWAU-v1.3-Academic-dev-plan-20260804.md §五 M2 第 14 项
+# 跑分目标:pass-rate ≥ 75%
+
+# 字段约定(per tests/goldens/mat-oqmd.yaml 风格):
+#   id: N001-N020
+#   category: query / extraction / metainfo / canonical / e2e
+#   intent: 用户 1 句话意图
+#   expected:
+#     formula_extracted: 应提取的化学式字符串
+#     min_n_results: 至少多少条记录
+#     source_platform: 应为 "NOMAD"
+#     source_doi: 应含的 DOI 前缀
+#     canonical_reduced_formula: 归一化后化学式
+#     canonical_pearson: Pearson 符号(可能空)
+#     canonical_spacegroup_number: 空间群编号
+
+# ============================================================================
+# Query 解析(4 case) — 验证 _build_nomad_query
+# ============================================================================
+
+- id: N001
+  category: query
+  intent: "查 LLZO 在 NOMAD 里的 bulk modulus"
+  expected:
+    formula_extracted: "LLZO"
+    min_n_results: 1
+    source_platform: "NOMAD"
+
+- id: N002
+  category: query
+  intent: "LiCoO2 formation energy NOMAD"
+  expected:
+    formula_extracted: "LiCoO2"
+    min_n_results: 1
+    source_platform: "NOMAD"
+
+- id: N003
+  category: query
+  intent: "Ni3Cr2Fe2Mo 综合性质 NOMAD"
+  expected:
+    formula_extracted: "Ni3Cr2Fe2Mo"
+    min_n_results: 1
+    source_platform: "NOMAD"
+
+- id: N004
+  category: query
+  intent: "Inconel 718 archive 数据"
+  expected:
+    formula_extracted: "Inconel 718"
+    min_n_results: 1
+    source_platform: "NOMAD"
+
+# ============================================================================
+# Extraction 解析(4 case) — 验证 NomadClient search 返回结构
+# ============================================================================
+
+- id: N005
+  category: extraction
+  intent: "查 LiCoO2 在 NOMAD"
+  expected:
+    min_n_results: 1
+    source_platform: "NOMAD"
+    source_doi: "10.1088/2515-7655/ab002a"
+
+- id: N006
+  category: extraction
+  intent: "Si NOMAD"
+  expected:
+    min_n_results: 1
+    source_platform: "NOMAD"
+    citation_keywords: ["Draxl", "Scheffler"]
+
+- id: N007
+  category: extraction
+  intent: "TiO2 NOMAD"
+  expected:
+    min_n_results: 1
+    source_platform: "NOMAD"
+
+- id: N008
+  category: extraction
+  intent: "MoS2 NOMAD"
+  expected:
+    min_n_results: 1
+    source_platform: "NOMAD"
+
+# ============================================================================
+# metainfo 映射(4 case) — 验证 metainfo_unmapped 字段
+# ============================================================================
+
+- id: N009
+  category: metainfo
+  intent: "查 LLZO metainfo"
+  expected:
+    metainfo_unmapped_field: "metainfo_unmapped"
+    metainfo_unmapped_is_list: true
+    source_platform: "NOMAD"
+
+- id: N010
+  category: metainfo
+  intent: "NOMAD metainfo mapping 验证"
+  expected:
+    mapped_paths_count_min: 30
+    source_platform: "NOMAD"
+
+- id: N011
+  category: metainfo
+  intent: "extract_nomad_record 完整 entry"
+  expected:
+    expected_field: "formula"
+    source_platform: "NOMAD"
+
+- id: N012
+  category: metainfo
+  intent: "NOMAD 部分字段(只有 symmetry)鲁棒性"
+  expected:
+    expect_symm_symbol_only: true
+    source_platform: "NOMAD"
+
+# ============================================================================
+# Canonical key(4 case) — 跨源归一化
+# ============================================================================
+
+- id: N013
+  category: canonical
+  intent: "LiCoO2 canonical key"
+  expected:
+    canonical_reduced_formula: "CoLiO2"
+    canonical_pearson: "hR1"
+    canonical_spacegroup_number: 166
+
+- id: N014
+  category: canonical
+  intent: "Si canonical key"
+  expected:
+    canonical_reduced_formula: "Si"
+    canonical_pearson: "cF8"
+    canonical_spacegroup_number: 227
+
+- id: N015
+  category: canonical
+  intent: "LLZO canonical key"
+  expected:
+    canonical_reduced_formula: "La3Li7O12Zr2"
+    canonical_pearson: "cI40"
+    canonical_spacegroup_number: 230
+
+- id: N016
+  category: canonical
+  intent: "TiO2 canonical key"
+  expected:
+    canonical_reduced_formula: "O2Ti"
+    canonical_pearson: "tP4"
+    canonical_spacegroup_number: 136
+
+# ============================================================================
+# 端到端(4 case)
+# ============================================================================
+
+- id: N017
+  category: e2e
+  intent: "NOMAD 端到端 run"
+  expected:
+    min_n_results: 1
+    source_platform: "NOMAD"
+    confidence_min: 0.5
+
+- id: N018
+  category: e2e
+  intent: "NOMAD 空消息处理"
+  expected:
+    expected_handling: "empty_message"
+    confidence_max: 0.5
+
+- id: N019
+  category: e2e
+  intent: "NOMAD cache 命中"
+  expected:
+    source_platform: "NOMAD"
+    cache_hit_indicator: "is_real_query=true on repeat"
+
+- id: N020
+  category: e2e
+  intent: "NOMAD env var URL 覆盖"
+  expected:
+    source_platform: "NOMAD"
+    env_override_field: "api_base"
