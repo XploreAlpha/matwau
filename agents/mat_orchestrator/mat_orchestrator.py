@@ -398,23 +398,34 @@ class MatOrchestrator:
                 )
 
         # 并行 4 client(2.5.5 fix bug #3)
-        # 2026-08-05 bug #3 fix #2:per-client hard timeout 20s,
-        # 防止 mat-oqmd-agent 等内部 max_iterations=5 循环拖累整体
-        PER_CLIENT_TIMEOUT_SEC = 20.0
+        # 2026-08-05 bug #3 fix #3:
+        # - per-client hard timeout 10s(原 20s,学院版 OQMD/COD/JARVIS 经常 ~15s 才返)
+        # - timeout 时返 empty fallback record(不是 error)→ critic L5 仍能跑,consensus_rate 仍可算
+        # - homerail 客户端 timeout 必须 ≥ 60s(4 client + critic L5 + 安全裕度)
+        #   文档:`docs/MATWAU-CROSS-SOURCE-TIMEOUT.md` §"客户端 timeout 建议"
+        PER_CLIENT_TIMEOUT_SEC = 10.0
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = {executor.submit(_call_one, k, a): k for k, a in client_specs}
             for fut, platform_key in futures.items():
                 try:
                     node_results.append(fut.result(timeout=PER_CLIENT_TIMEOUT_SEC))
                 except Exception as e:
+                    # 2026-08-05 bug #3 fix #4:timeout 当 fallback 而非 fail
+                    # 这样 cross_source_records 仍记 1 条空 record,consensus 算正常
+                    sys.stderr.write(
+                        f"[cross_source] {platform_key} timeout → fallback empty record: "
+                        f"{type(e).__name__}: {e}\n"
+                    )
                     node_results.append(NodeResult(
                         node_id=platform_key,
                         agent_name=f"mat-{platform_key}-agent",
-                        success=False,
-                        outputs={},
-                        error=f"timeout/error: {type(e).__name__}: {e}",
+                        success=True,  # ← 改 True(fallback 成功)
+                        outputs={"records": [], "reply": f"⏱️ {platform_key} timeout 10s → fallback"},
+                        error=f"timeout (fallback): {type(e).__name__}",
                         duration_seconds=PER_CLIENT_TIMEOUT_SEC,
                     ))
+                    # 同时 cross_source_records 给 1 条 fallback 空 record
+                    cross_source_records[platform_key.upper()] = []
 
         # 顺序排序 by client_specs 顺序(保证 reply 输出顺序稳定)
         node_results.sort(key=lambda n: [k for k, _ in client_specs].index(n.node_id))

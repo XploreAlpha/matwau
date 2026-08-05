@@ -157,7 +157,7 @@ _PLATFORM_BY_FIELD = {
 
 def _detect_platform(record: Any) -> str:
     """从 record 推断数据源平台名"""
-    # 1. class name
+    # 1. class name(dataclass 实例)
     cls_name = type(record).__name__
     if cls_name in _PLATFORM_BY_TYPE:
         return _PLATFORM_BY_TYPE[cls_name]
@@ -180,7 +180,12 @@ def _detect_platform(record: Any) -> str:
 
 def _extract_energy(record: Any) -> float:
     """从 record 抽形成能(eV/atom)"""
-    # OQMD / NOMAD / JARVIS 都用 formation_energy_per_atom
+    # 2026-08-05 bug fix #4:同时支持 dataclass 和 dict
+    def _get(name: str) -> Any:
+        if isinstance(record, dict):
+            return record.get(name)
+        return getattr(record, name, None)
+
     candidates = [
         ("formation_energy_per_atom", "formation_energy_per_atom_eV"),
         ("formation_energy", None),
@@ -191,9 +196,7 @@ def _extract_energy(record: Any) -> float:
         for attr in attrs:
             if attr is None:
                 continue
-            v = getattr(record, attr, None)
-            if v is None and isinstance(record, dict):
-                v = record.get(attr)
+            v = _get(attr)
             if v is not None and v != 0.0:
                 try:
                     return float(v)
@@ -204,13 +207,17 @@ def _extract_energy(record: Any) -> float:
 
 def _extract_band_gap(record: Any) -> float:
     """从 record 抽带隙(eV)"""
+    # 2026-08-05 bug fix #4:同时支持 dataclass 和 dict
+    def _get(name: str) -> Any:
+        if isinstance(record, dict):
+            return record.get(name)
+        return getattr(record, name, None)
+
     candidates = [
         "band_gap", "band_gap_eV", "gap",
     ]
     for attr in candidates:
-        v = getattr(record, attr, None)
-        if v is None and isinstance(record, dict):
-            v = record.get(attr)
+        v = _get(attr)
         if v is not None and v != 0.0:
             try:
                 return float(v)

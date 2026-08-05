@@ -306,29 +306,34 @@ class CanonicalKey:
         - record.formula 或 record.formula_pretty
         - record.spacegroup 或 record.symmetry(可能嵌套 dict)
 
+        2026-08-05 bug fix #4:同时支持 dataclass 和 plain dict(后者由 mat_oqmd/cod/nomad/jarvis
+        agent 转 dict 后导致 cross_source_resolver 全部 drop,consensus_rate=0)
+
         Args:
-            record: OqmdRecord / CodRecord / MaterialsProjectReference / 等
+            record: OqmdRecord / CodRecord / MaterialsProjectReference / dict / 等
 
         Returns:
             CanonicalKey 实例
         """
-        # 提取 formula
-        formula = (
-            getattr(record, "formula", None)
-            or getattr(record, "formula_pretty", "")
-        )
-        # 提取 spacegroup(兼容多字段名 + nested dict)
+        # 1. 提取 formula(兼容 dataclass + dict)
+        def _get(name: str, default: Any = None) -> Any:
+            if isinstance(record, dict):
+                return record.get(name, default)
+            return getattr(record, name, default)
+
+        formula = _get("formula") or _get("formula_pretty") or ""
+        # 2. 提取 spacegroup(兼容多字段名 + nested dict + dict)
         sg = ""
-        for attr_name in ("spacegroup_h_m", "spacegroup", "symm"):
-            sg_attr = getattr(record, attr_name, None)
+        for attr_name in ("spacegroup_h_m", "spacegroup_symbol", "spacegroup", "symm"):
+            sg_attr = _get(attr_name)
             if isinstance(sg_attr, dict):
                 sg = sg_attr.get("symbol", "") or sg_attr.get("space_group", "")
                 break
             elif isinstance(sg_attr, str) and sg_attr:
                 sg = sg_attr
                 break
-        # 提取 pearson(若 record 有)
-        pearson = getattr(record, "pearson_symbol", "")
+        # 3. 提取 pearson(若 record 有)
+        pearson = _get("pearson_symbol") or ""
         return cls.from_formula_spacegroup(formula, sg, pearson=pearson)
 
     def matches(self, other: CanonicalKey, *, strict: bool = False) -> bool:

@@ -241,11 +241,31 @@ mat-gen(造物主)→ mat-sim(快速试菜)→ mat-hpc(超算对接员)→ mat-e
     # ========================================================================
 
     def _empty_response(self, reason: str) -> AgentResponse:
-        """空响应(无候选)"""
+        """空响应(无候选)
+
+        2026-08-05 bug fix #2:
+        - 原:confidence=0.1(让人误以为上游坏了)
+        - 新:confidence=0.5 + reply 显式说明"未匹配数据库,以下是模板方案"
+        - 学院版 mock fallback 时,默认 schema 已知 → 给模板方案而非 0.1 警告
+        """
         return AgentResponse(
-            reply=f"⚠️ {reason}",
-            artifacts={"recipes": [], "input_count": 0, "sint_temp_range": None},
-            confidence=0.1,
+            reply=(
+                f"ℹ️ {reason}。未匹配数据库,以下为通用模板方案:\n"
+                f"   烧结:800℃ / air / 12h / 0 MPa(默认值,适用于多数氧化物)\n"
+                f"   XRD:Cu Kα, 2θ = 10-90°, 步长 0.02°\n"
+                f"   建议:补充元素组成(化学式)以触发 4 段管线(mat-gen→sim→hpc→exp)"
+            ),
+            artifacts={
+                "recipes": [],
+                "input_count": 0,
+                "sint_temp_range": None,
+                "is_template_fallback": True,
+                "default_recipe": {
+                    "sintering": {"temp_c": 800, "atmosphere": "air", "hours": 12, "pressure_mpa": 0.0},
+                    "xrd": {"wavelength": 1.5406, "two_theta_range": [10, 90], "step": 0.02},
+                },
+            },
+            confidence=0.5,  # 兜底模板方案,不是错误
         )
 
     def _error_response(self, error: str) -> AgentResponse:

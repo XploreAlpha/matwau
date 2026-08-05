@@ -160,10 +160,19 @@ def make_dispatch_handler(
             """处理 POST /wau/dispatch 或 GET /wau/dispatch(health)"""
             if self.command == "GET":
                 # health check
+                # 2026-08-05 P2 fix:版本号同步到 VERSION 文件,加 last_fix_at 字段
+                from pathlib import Path as _P
+                _version_file = _P(__file__).resolve().parents[2] / "VERSION"
+                try:
+                    _version = _version_file.read_text().strip()
+                except Exception:
+                    _version = "v1.3-Academic"  # 兜底
                 self._wau_ok(200, {
                     "status": "ok",
                     "agent": "matwau",
-                    "version": "v1.1.1-Academic",
+                    "version": _version,
+                    "last_fix_at": "2026-08-05",  # 4 个 P0/P1 bug 收口日
+                    "fix_summary": "4 P0/P1 bug 修复(routing + cross_source timeout + dict CanonicalKey + mat-exp confidence)",
                     "endpoint": "/wau/dispatch",
                     "jwt_required": not self._wau_dispatch_skip_jwt,
                 })
@@ -214,28 +223,24 @@ def make_dispatch_handler(
                     sys.path.insert(0, str(_project_root))
 
                 from agents.mat_orchestrator import MatOrchestrator
-                from matwau.core.agent_base import AgentRequest
 
                 orch = MatOrchestrator()
-                req = AgentRequest(
-                    run_id=payload.get("workflow_id", f"wau-dispatch-{os.getpid()}"),
-                    message=intent,
-                    artifacts=payload.get("artifacts", {}),
-                    context={"source": "wau-dispatch", "subclass": payload.get("subclass", "")},
-                )
-                resp = orch.run(req)
+                # 2026-08-05 P2 fix:MatOrchestrator.run() 签名是 keyword-only user_intent:str
+                # 原代码 orch.run(req) 会 TypeError
+                wf_result = orch.run(user_intent=intent)
 
                 self._wau_ok(200, {
-                    "status": "ok",
+                    "status": "ok" if wf_result.success else "fail",
                     "workflow_id": payload.get("workflow_id"),
-                    "subclass": payload.get("subclass"),
-                    "reply": resp.reply,
-                    "artifacts_summary": {
-                        k: str(v)[:200]
-                        for k, v in (resp.artifacts or {}).items()
+                    "subclass": payload.get("subclass") or wf_result.subclass,
+                    "workflow_name": wf_result.workflow_name,
+                    "success": wf_result.success,
+                    "error": wf_result.error,
+                    "total_duration_seconds": round(wf_result.total_duration_seconds, 3),
+                    "final_outputs": {
+                        k: str(v)[:200] for k, v in (wf_result.final_outputs or {}).items()
                     },
-                    "cost": resp.cost,
-                    "duration_seconds": time.time() - time.time(),  # placeholder
+                    "node_results_count": len(wf_result.node_results),
                 })
             except Exception as e:
                 logger.exception("[dispatch] orchestrator run 失败")
