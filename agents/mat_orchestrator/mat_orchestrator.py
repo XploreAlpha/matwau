@@ -452,9 +452,20 @@ class MatOrchestrator:
                     duration_seconds=_time.time() - critic_t0,
                 )
                 node_results.append(critic_result)
-                verdict = critic_resp.artifacts.get("verdict", "warn")
-                consensus_rate = critic_resp.artifacts.get("consensus_rate", 0.0)
-                overall_score = critic_resp.artifacts.get("overall_score", 0.0)
+                # 2026-08-05 bug fix #5:outer consensus_rate/verdict/overall_score 字段映射修
+                # critic 返回 artifacts["verdict"] = CriticOutput 对象,
+                # CriticOutput.to_dict() 用 l5_cross_source_consensus_rate(非 consensus_rate)
+                # 修法:从 critic_output 对象直接读字段,不再用 .get("consensus_rate")
+                critic_output = critic_resp.artifacts.get("verdict")
+                if hasattr(critic_output, "verdict"):
+                    verdict = critic_output.verdict
+                    consensus_rate = getattr(critic_output, "l5_cross_source_consensus_rate", 0.0)
+                    overall_score = getattr(critic_output, "overall_score", 0.0)
+                else:
+                    # 兜底(老格式 dict)
+                    verdict = critic_resp.artifacts.get("verdict", "warn")
+                    consensus_rate = critic_resp.artifacts.get("consensus_rate", 0.0)
+                    overall_score = critic_resp.artifacts.get("overall_score", 0.0)
             else:
                 verdict = "skip"
                 consensus_rate = 0.0
