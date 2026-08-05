@@ -18,7 +18,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/academic/Dockerfile
-    image: matwau/academic:v1.3-Academic
+    image: matwau/academic:v1.3.1-Academic  # 2026-08-05 patch: 4 P0/P1 + 1 P2 + 1 隐含 + Bug #5
     container_name: matwau-academic-app
     restart: unless-stopped
     ports:

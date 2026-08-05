@@ -36,7 +36,7 @@ def _version_string() -> str:
     version_file = _PROJECT_ROOT / "VERSION"
     if version_file.exists():
         return version_file.read_text().strip()
-    return "v1.3-Academic"
+    return "v1.3.1-Academic"  # 2026-08-05 patch(4 P0/P1 + 1 P2 + 1 隐含 + Bug #5)
 
 
 def _ok(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:

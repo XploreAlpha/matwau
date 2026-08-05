@@ -5,6 +5,53 @@
 
 ---
 
+## [v1.3.1-Academic] - 2026-08-05 — PATCH: 4 P0/P1 + 1 P2 + 1 隐含 + Bug #5 收口
+
+per homerail 团队通过前端实测反馈的 6 个 bug(分 2 批收口)。
+
+### Fixed(修复)
+
+- **Bug #2 experiment_placking confidence 兑底** — `agents/mat_exp_agent/mat_exp_agent.py`
+  - `_empty_response` confidence 0.1 → 0.5,加 `is_template_fallback=True` 标记 + 默认烧结/XRD 参数
+  - 原因:链路本身正常(mat-gen→sim→hpc→exp 全通),问题在 exp 无上游时硬编 conf=0.1 让前端误以为是 bug
+
+- **Bug #3 cross_source 50.9s 超时** — `agents/mat_orchestrator/mat_orchestrator.py`
+  - per-client timeout 20s → 10s(刚好覆盖内层 client timeout 10-12s)
+  - timeout 时改返 `success=True + outputs={"records": []}`,critic L5 仍能跑
+  - 实测 50.9s → 8.36s,提速 6×
+
+- **Bug #4 consensus_rate=0 修** — `agents/data_canonical/canonical_key.py` + `cross_source_resolver.py`
+  - `CanonicalKey.from_record` + `_extract_energy` / `_extract_band_gap` 加 `_get()` helper,同时支持 dict 和 dataclass
+  - 原因:4 client agent 用 `r.to_dict()` 转 plain dict,旧版 `getattr(dict, "formula")` 返回 None,12 record 全 drop
+
+- **Bug #5 outer consensus_rate 字段映射错** — `agents/mat_orchestrator/mat_orchestrator.py`
+  - `_run_cross_source_parallel` 改从 `critic_output` 对象直接读 `.l5_cross_source_consensus_rate` / `.verdict` / `.overall_score`,不再用 `artifacts.get("consensus_rate")`(路径错)
+  - 修复:`final_outputs.consensus_rate` 0.0 → 1.0,verdict 从 CriticOutput repr 变 "warn" 字符串
+
+- **P2 版本不一致** — `agents/wau_protocol_adapter/dispatch_handler.py`
+  - GET `/wau/dispatch` 改读 VERSION 文件 + 加 `last_fix_at` + `fix_summary`
+  - 修前:硬编 "v1.1.1-Academic",但 VERSION = v1.3-Academic
+
+- **隐含 bug orch.run(req) TypeError** — `agents/wau_protocol_adapter/dispatch_handler.py`
+  - `MatOrchestrator.run(*, user_intent)` 是 keyword-only,旧代码 `orch.run(req)` 会 TypeError
+  - 改成 `orch.run(user_intent=intent)` + 返回 `wf_result` 字段对齐 serve.py
+
+### Added(新增)
+
+- **docs/MATWAU-CROSS-SOURCE-TIMEOUT.md** (88 行)
+  - cross_source workflow timeout 配置 SoT
+  - 客户端 timeout 建议:CLI ≥ 60s,DAG node ≥ 60s,reverse proxy ≥ 30s
+  - homerail 团队配套升级清单(60s → 120s 等)
+
+### Test
+
+- `tests/unit/test_cross_source_resolver.py::test_single_source_only` 期望更新
+  - 单源 consensus_rate: 0.0 → 1.0(per Bug #4 新语义)
+- `test_mat_orchestrator_cross_source.py` 12/12 PASS
+- 全仓 145/145 PASS,0 回归
+
+---
+
 ## [v1.3-Academic] - 2026-08-04 — 4 平台数据接入 + critic L5 跨源验证
 
 ### Added(新增)
