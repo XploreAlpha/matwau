@@ -268,8 +268,15 @@ class MatOrchestrator:
             "domain": run_domain,  # W15: 域路由透传到下游 agent
         }
 
-        # Stage 3: 跑 DAG
-        result = self.executor.execute(workflow, initial_inputs=initial_inputs)
+        # Stage 2.5: 2026-08-05 bug fix —
+        # cross_source_lookup + cross_source_property 用 ThreadPoolExecutor 并行跑 4 client,
+        # 避免 4 client 串行 ~40s 默认超时。原生 DAG executor 不支持节点级并行,
+        # 所以这里检测 cross_source subclass 并走并行路径。
+        if mi.subclass in ("cross_source_validation", "external_db_query"):
+            result = self._run_cross_source_parallel(mi, user_intent, run_domain)
+        else:
+            # Stage 3: 跑 DAG(原有逻辑)
+            result = self.executor.execute(workflow, initial_inputs=initial_inputs)
 
         # W32 — Lineage hook:workflow 终点记录
         if self._lineage_recorder is not None:
@@ -316,6 +323,162 @@ class MatOrchestrator:
             self._lineage_recorder.record_workflow_result(
                 workflow_name=result.workflow_name,
                 subclass=mat_intent.subclass,
+                result=result,
+            )
+
+        return result
+
+    def _run_cross_source_parallel(self, mi, user_intent: str, run_domain: str):
+        """2026-08-05 bug fix — cross_source_lookup / cross_source_property 并行跑 4 client
+
+        原 DAG executor 串行跑 4 节点,总耗时 ≈ sum(4 client delay) ≈ 40s+
+        改用 ThreadPoolExecutor 并行 → 总耗时 ≈ max(4 client delay) ≈ 12s
+
+        Returns:
+            WorkflowResult(node_results 含 5 节点,final_outputs 含 cross_source_records + verdict)
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import time as _time
+
+        from matwau.core.agent_base import AgentRequest
+        from agents.mat_orchestrator.dag import NodeResult, WorkflowResult
+
+        # workflow_name 区分(external_db_query 走 lookup;cross_source_validation 走 property)
+        workflow_name = "cross_source_property" if mi.subclass == "cross_source_validation" else "cross_source_lookup"
+        start = _time.time()
+
+        # 4 个并行 client
+        client_specs = [
+            ("oqmd",  "mat-oqmd-agent"),
+            ("cod",   "mat-cod-agent"),
+            ("nomad", "mat-nomad-agent"),
+            ("jarvis", "mat-jarvis-agent"),
+        ]
+
+        node_results: list[NodeResult] = []
+        cross_source_records: dict[str, list[Any]] = {"OQMD": [], "COD": [], "NOMAD": [], "JARVIS": []}
+
+        def _call_one(platform_key: str, agent_name: str) -> NodeResult:
+            t0 = _time.time()
+            try:
+                agent = self.agent_registry.get(agent_name)
+                if agent is None:
+                    return NodeResult(
+                        node_id=platform_key,
+                        agent_name=agent_name,
+                        success=False,
+                        outputs={},
+                        error=f"{agent_name} not in registry",
+                        duration_seconds=_time.time() - t0,
+                    )
+                req = AgentRequest(
+                    run_id=f"cross-{platform_key}",
+                    message=user_intent,
+                    context={"domain": run_domain},
+                )
+                resp = agent.run(req)
+                # 把 records 抽出来放到 cross_source_records
+                refs = resp.artifacts.get("records") or resp.artifacts.get("references") or []
+                cross_source_records[platform_key.upper()] = list(refs)
+                return NodeResult(
+                    node_id=platform_key,
+                    agent_name=agent_name,
+                    success=resp.artifacts.get("success", True),
+                    outputs={"records": refs, "reply": resp.reply},
+                    duration_seconds=_time.time() - t0,
+                )
+            except Exception as e:
+                return NodeResult(
+                    node_id=platform_key,
+                    agent_name=agent_name,
+                    success=False,
+                    outputs={},
+                    error=str(e),
+                    duration_seconds=_time.time() - t0,
+                )
+
+        # 并行 4 client(2.5.5 fix bug #3)
+        # 2026-08-05 bug #3 fix #2:per-client hard timeout 20s,
+        # 防止 mat-oqmd-agent 等内部 max_iterations=5 循环拖累整体
+        PER_CLIENT_TIMEOUT_SEC = 20.0
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(_call_one, k, a): k for k, a in client_specs}
+            for fut, platform_key in futures.items():
+                try:
+                    node_results.append(fut.result(timeout=PER_CLIENT_TIMEOUT_SEC))
+                except Exception as e:
+                    node_results.append(NodeResult(
+                        node_id=platform_key,
+                        agent_name=f"mat-{platform_key}-agent",
+                        success=False,
+                        outputs={},
+                        error=f"timeout/error: {type(e).__name__}: {e}",
+                        duration_seconds=PER_CLIENT_TIMEOUT_SEC,
+                    ))
+
+        # 顺序排序 by client_specs 顺序(保证 reply 输出顺序稳定)
+        node_results.sort(key=lambda n: [k for k, _ in client_specs].index(n.node_id))
+
+        # Step 5: critic L5(基于 4 client 结果)
+        try:
+            critic_t0 = _time.time()
+            critic = self.agent_registry.get("mat-critic-agent")
+            if critic is not None:
+                critic_req = AgentRequest(
+                    run_id="cross-critic-l5",
+                    message=user_intent,
+                    artifacts={
+                        "records_by_platform": cross_source_records,
+                        "use_cross_source": True,
+                    },
+                )
+                critic_resp = critic.run(critic_req)
+                critic_result = NodeResult(
+                    node_id="critic_l5",
+                    agent_name="mat-critic-agent",
+                    success=critic_resp.artifacts.get("success", True),
+                    outputs=critic_resp.artifacts,
+                    duration_seconds=_time.time() - critic_t0,
+                )
+                node_results.append(critic_result)
+                verdict = critic_resp.artifacts.get("verdict", "warn")
+                consensus_rate = critic_resp.artifacts.get("consensus_rate", 0.0)
+                overall_score = critic_resp.artifacts.get("overall_score", 0.0)
+            else:
+                verdict = "skip"
+                consensus_rate = 0.0
+                overall_score = 0.0
+        except Exception as e:
+            verdict = f"critic_fail: {e}"
+            consensus_rate = 0.0
+            overall_score = 0.0
+
+        duration = _time.time() - start
+
+        # final_outputs 兼容 serve.py / 测试
+        final_outputs = {
+            "cross_source_records": {k: len(v) for k, v in cross_source_records.items()},
+            "consensus_rate": consensus_rate,
+            "verdict": verdict,
+            "overall_score": overall_score,
+            "reply": f"📊 cross_source({mi.subclass}): {sum(len(v) for v in cross_source_records.values())} records, consensus_rate={consensus_rate:.3f}, verdict={verdict}",
+        }
+
+        result = WorkflowResult(
+            workflow_name=workflow_name,
+            subclass=mi.subclass,
+            node_results=node_results,
+            total_duration_seconds=duration,
+            success=all(n.success for n in node_results),
+            error=None if all(n.success for n in node_results) else "some nodes failed",
+            final_outputs=final_outputs,
+        )
+
+        # W32 — Lineage hook
+        if self._lineage_recorder is not None:
+            self._lineage_recorder.record_workflow_result(
+                workflow_name=result.workflow_name,
+                subclass=mi.subclass,
                 result=result,
             )
 

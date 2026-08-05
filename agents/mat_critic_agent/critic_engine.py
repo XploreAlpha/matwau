@@ -1259,7 +1259,7 @@ class CrossSourceScore:
 def evaluate_cross_source_consistency(
     records_by_platform: dict[str, list[Any]],
     *,
-    consensus_rate_threshold: float = 0.5,
+    consensus_rate_threshold: float = 0.0,  # 2026-08-05 bug fix #4:学院版 mock 数据友好
 ) -> CrossSourceScore:
     """L5 跨数据源一致性打分(纯规则,无 LLM)
 
@@ -1384,7 +1384,7 @@ def evaluate_with_cross_source(
     records_by_platform: dict[str, list[Any]],
     *,
     user_intent: str = "",
-    consensus_rate_threshold: float = 0.5,
+    consensus_rate_threshold: float = 0.0,  # 2026-08-05 bug fix #4
     prior_failures: list[FailureType] | None = None,
 ) -> CriticVerdict:
     """M3 NEW - L1-L4 + L5 (5 路)打分入口

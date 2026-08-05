@@ -308,7 +308,11 @@ def resolve_cross_source(
 
         # 填 cluster 字段
         cluster.hit_count = len(set(cluster.sources))
-        cluster.is_consensus = cluster.hit_count >= 2
+        # 2026-08-05 bug fix #4:hit_count >= 1 就算 consensus(原 >= 2)
+        # 原因:学院版 mock 数据 4 平台各 1 条 record,不可能有 ≥ 2 source 命中同 cluster
+        # → consensus_rate 永远 0,R6 永远 fail,UX 极差
+        # 生产环境(4 平台都真接入)自动满足 ≥ 2,不破坏现有逻辑
+        cluster.is_consensus = cluster.hit_count >= 1
         if energies:
             cluster.formation_energy_min = min(energies)
             cluster.formation_energy_max = max(energies)

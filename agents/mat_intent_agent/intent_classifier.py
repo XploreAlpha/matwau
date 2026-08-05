@@ -119,16 +119,29 @@ SUBCLASS_PATTERNS = {
     ],
     # M3 NEW — 跨数据源子类
     "external_db_query": [
-        r"查.*OQMD", r"查.*COD", r"查.*NOMAD", r"查.*JARVIS",
-        r"OQMD.*查询", r"COD.*查询", r"NOMAD.*查询", r"JARVIS.*查询",
-        r"数据库.*查", r"external.*db", r"data.*platform",
+        # 双向匹配(中文"查 X" / "X 查" 顺序都可能)
+        r"查.*OQMD", r"OQMD.*查", r"OQMD.*查询", r"查询.*OQMD",
+        r"查.*COD", r"COD.*查", r"COD.*查询", r"查询.*COD",
+        r"查.*NOMAD", r"NOMAD.*查", r"NOMAD.*查询", r"查询.*NOMAD",
+        r"查.*JARVIS", r"JARVIS.*查", r"JARVIS.*查询", r"查询.*JARVIS",
+        # 数据库/平台查询
+        r"数据库.*查", r"查.*数据库", r"external.*db", r"data.*platform",
         r"已知结构.*查", r"查.*已知结构",
+        # 介词变体(从/在/到 + 平台)
+        r"从.*OQMD", r"从.*COD", r"从.*NOMAD", r"从.*JARVIS",
+        r"在.*OQMD.*查", r"在.*COD.*查", r"在.*NOMAD.*查", r"在.*JARVIS.*查",
+        r"用.*OQMD.*查", r"用.*NOMAD.*查",
     ],
     "cross_source_validation": [
         r"跨.*数据源", r"跨源", r"4.*库", r"四.*库",
         r"交叉验证", r"多源.*对比", r"cross.*source", r"multi.*source",
         r"OQMD.*COD.*NOMAD.*JARVIS", r"对比.*OQMD.*COD",
         r"形成焓.*对比", r"形成能.*对比", r"带隙.*对比",
+        # M3.1 扩展(2026-08-05 bug fix):中文自然语序
+        r"对比.*4.*库", r"比较.*4.*库",
+        r"对比.*OQMD", r"对比.*COD", r"对比.*NOMAD", r"对比.*JARVIS",
+        r"在.*4.*库.*对比", r"4.*数据源.*对比", r"多源.*验证",
+        r"求同.*存异", r"三方.*对比", r"三方.*验证",
     ],
 }
 

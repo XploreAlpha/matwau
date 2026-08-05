@@ -25,6 +25,7 @@ class GenConstraints:
     n_samples: int = 10
     target_property: str | None = None  # "ionic_conductivity" / "energy_density" / None
     forbidden_elements: list[str] = field(default_factory=list)
+    user_message: str = ""  # 2026-08-05 bug fix:用于 seed 唯一性,避免不同 query 返同样占位
 
 
 @dataclass
@@ -140,6 +141,7 @@ def parse_constraints(user_message: str, context: dict[str, Any] | None = None) 
         n_samples=n_samples,
         target_property=target_prop,
         forbidden_elements=forbidden,
+        user_message=user_message,  # 2026-08-05 bug fix
     )
 
 
@@ -189,10 +191,19 @@ def _estimate_confidence(energy: float) -> float:
 
 
 def generate(constraints: GenConstraints) -> list[GenCandidate]:
-    """MatterGen 模拟生成(per dev plan §5.2)"""
+    """MatterGen 模拟生成(per dev plan §5.2)
+
+    2026-08-05 bug fix: seed_base 现在同时考虑 user_message,
+    避免不同 query(尤其 elements=[] 时)返同样占位(Li2O3/O3LiCo)。
+    """
     candidates: list[GenCandidate] = []
     used_formulas = set()
-    seed_base = hash(tuple(sorted(constraints.elements)) + tuple(sorted(constraints.forbidden_elements)))
+    # 2026-08-05 bug fix: 加 user_message 进 seed,让 query 不同 → formula 不同
+    seed_base = (
+        hash(tuple(sorted(constraints.elements)))
+        + hash(tuple(sorted(constraints.forbidden_elements))) * 7
+        + hash(constraints.user_message or "") * 13
+    )
 
     for i in range(constraints.n_samples):
         seed = seed_base + i
