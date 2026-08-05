@@ -83,10 +83,14 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
             try:
                 from matwau.configs.matwau_settings import get_lineage_store
                 store = get_lineage_store()
-                records = store.list(limit=10)
+                # LineageStore 真实 API: to_list() 返回 list[dict],size() 返回 int
+                # 不支持 limit 参数,这里手工切前 10 条
+                all_records = store.to_list()
+                records = all_records[:10]
                 _ok(self, 200, {
-                    "n_records": len(records),
-                    "records": [r.to_dict() if hasattr(r, "to_dict") else r for r in records],
+                    "n_records": store.size(),
+                    "n_returned": len(records),
+                    "records": [r if isinstance(r, dict) else r.to_dict() for r in records],
                 })
             except Exception as e:
                 _ok(self, 500, {"error": str(e)})
