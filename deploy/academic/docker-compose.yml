@@ -18,7 +18,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/academic/Dockerfile
-    image: matwau/academic:v1.3.2-Academic  # 2026-08-06 patch: arxiv 真 API 默认启用
+    image: matwau/academic:v1.3.3-Academic  # 2026-08-06 patch: PubChem + CrossRef + /literature 端点
     container_name: matwau-academic-app
     restart: unless-stopped
     ports:

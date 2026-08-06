@@ -5,6 +5,80 @@
 
 ---
 
+## [v1.3.3-Academic] - 2026-08-06 — MINOR: PubChem + CrossRef + /literature 端点
+
+per v2.0 JARVIS 计划阶段 1 的第 2 步,与 v1.3.2 同一节奏。学院方/Homerail 一行 curl 查文献。
+配套 dev-plan:`~/WAU-develop/develop-log/MatWAU/v1.3.3/MatWAU-v1.3.3-Academic-dev-plan-20260806.md`
+
+### Added(新增)
+
+- **PubChem client + wrapper agent(`agents/pubchem_client/` + `agents/mat_pubchem_agent/`)** — 复用 v1.3.2 arxiv 模板(~500 行)
+  - `PubChemClient`:LRU cache + gzip + 硬上限 20(per v1.3.2 模板)
+  - 真查 PubChem REST API(无需 API key,NIH 公共数据,CC-BY 4.0)
+  - 查询字段:CID / MolecularFormula / MolecularWeight / IUPACName / CanonicalSMILES / IsomericSMILES / InChI / InChIKey
+  - 速率 5 req/sec(per PubChem docs)— LRU cache 复用
+  - `MatPubChemAgent` wrapper agent(对齐 mat_arxiv_agent 模式)
+  - confidence 启发式:0→0.3, 1→0.6, ≥2→0.8
+- **CrossRef client + wrapper agent(`agents/crossref_client/` + `agents/mat_crossref_agent/`)** — 复用模板(~500 行)
+  - `CrossRefClient`:`mailto=` query param 标识礼貌使用(per CrossRef etiquette)
+  - 真查 CrossRef works API(公共元数据,无需 API key)
+  - 查询字段:DOI / title / authors / journal / year / volume / issue / pages / publisher / type / citations_count / abstract(JATS XML stripped)
+  - `MatCrossRefAgent` wrapper agent(对齐模式)
+- **`POST /literature` 专用端点(`deploy/academic/serve.py`)** — v1.3.3 核心
+  - 学院方/Homerail 一行 curl 调 MatLitAgent
+  - 入参:`{message, n_results, domain}`
+  - 出参:`reply / is_real_query / n_results / sources_queried / references / background / state_of_art / gaps / suggestions / cost`
+  - 缺 message → 400;agent 抛错 → 500
+
+### Changed(变更)
+
+- **`mat_lit_agent.sources_queried`**:arXiv(per v1.3.2)+ **PubChem** + **CrossRef**(v1.3.3)
+  - Materials Project / ICSD 字符串占位保留(W17/M17-C 没真接)
+- **`serve.py` 默认 version**:v1.3.2-Academic → v1.3.3-Academic
+- **`deploy_academic.sh` MATWAU_VERSION**:同步
+
+### Tests(测试)
+
+- 新增 `tests/unit/test_pubchem_client.py` — 37 测试(LRU + gzip + fallback + cache + JATS + author + year)
+- 新增 `tests/unit/test_mat_pubchem_agent.py` — 23 测试(wrapper + confidence + safety)
+- 新增 `tests/unit/test_crossref_client.py` — 37 测试(LRU + gzip + fallback + cache + JATS strip)
+- 新增 `tests/unit/test_mat_crossref_agent.py` — 18 测试(wrapper + confidence + safety)
+- 新增 `tests/unit/test_serve_literature_endpoint.py` — 11 测试(端点 200/400/500/n_results/domain/sources_queried)
+
+总计:**126 个新测试项**,全 PASS
+
+### Compatibility(兼容性)
+
+- 公开 API 不变:`ArxivClient` / `MatLitAgent` / 4 平台 wrapper 不动
+- `mat_lit_agent(use_real_arxiv=False)` 仍可用
+- `/intent` / `/multi-exp` / `/wau/dispatch` 不破坏
+
+### Documentation(文档)
+
+- `~/WAU-develop/develop-log/MatWAU/v1.3.3/` 新建:
+  - `MatWAU-v1.3.3-Academic-requirements-20260806.md` 需求
+  - `MatWAU-v1.3.3-Academic-dev-plan-20260806.md` 开发 plan
+  - `closure-2026-08-06.md`(本批完成后写)
+- Docker image tag:`v1.3.2-Academic` → `v1.3.3-Academic`
+- `serve.py` 默认 version 同步
+- `deploy_academic.sh` MATWAU_VERSION 同步
+
+### Performance(性能)
+
+- PubChem 单查询:< 8s(timeout)
+- CrossRef 单查询:< 10s(timeout)
+- LRU cache 命中:< 1ms
+- Fallback 路径:< 100ms(本地 mock)
+
+### Risk(风险与缓解)
+
+- **学院网络封 PubChem/CrossRef**:默认 `enable_fallback=True`,acceptance.sh 场景 24/25 改 WARN 不 FAIL
+- **PubChem 5 req/s 限流**:LRU cache 复用 + 默认 n=5
+- **CrossRef `X-Rate-Limit-*`**:User-Agent + mailto(礼貌使用)
+- **CI 无外网**:unit 测试全 monkeypatch,真查只在学院服务器 acceptance 跑
+
+---
+
 ## [v1.3.2-Academic] - 2026-08-06 — PATCH: arxiv 真 API 默认启用
 
 per v2.0 JARVIS 计划阶段 1(M4 + 1 个月)的第 1 步,小步快跑节奏下的 v1.3 系列 patch。

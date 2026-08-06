@@ -603,7 +603,9 @@ def search_literature(
         List[LitReference],按 relevance 降序
     """
     if sources is None:
-        sources = ["arXiv", "Materials Project", "ICSD", "PubChem"]
+        # v1.3.3-Academic: sources 改为 [arXiv, PubChem, CrossRef](真接 3 源)
+        # Materials Project / ICSD 字符串占位保留但未真接
+        sources = ["arXiv", "PubChem", "CrossRef"]
 
     results: list[LitReference] = []
     seen_titles = set()
@@ -715,7 +717,9 @@ def search_literature_with_arxiv_priority(
         List[LitReference] — 真 arXiv 论文优先,不够时 mock 补
     """
     if sources is None:
-        sources = ["arXiv", "Materials Project", "ICSD", "PubChem"]
+        # v1.3.3-Academic: sources 改为 [arXiv, PubChem, CrossRef](真接 3 源)
+        # Materials Project / ICSD 字符串占位保留但未真接
+        sources = ["arXiv", "PubChem", "CrossRef"]
 
     results: list[LitReference] = []
     seen_titles = set()
@@ -907,7 +911,9 @@ def review_literature(
     from agents.material_domain_router import DEFAULT_DOMAIN, detect_domain
 
     if sources is None:
-        sources = ["arXiv", "Materials Project", "ICSD", "PubChem"]
+        # v1.3.3-Academic: sources 改为 [arXiv, PubChem, CrossRef](真接 3 源)
+        # Materials Project / ICSD 字符串占位保留但未真接
+        sources = ["arXiv", "PubChem", "CrossRef"]
 
     # W15: domain 解析(显式 > auto-detect > 默认)
     if domain is None or domain == "auto":

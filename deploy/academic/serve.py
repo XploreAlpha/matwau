@@ -1,13 +1,14 @@
 """serve.py — MatWAU 学院版 HTTP API 服务入口
 
-W37.4 + W37.12 — Docker 容器内启动的 HTTP API 服务
+W37.4 + W37.12 + v1.3.3 — Docker 容器内启动的 HTTP API 服务
 - 默认端口:8080
 - 端点:
   - GET  /             — 服务信息
   - GET  /health       — 健康检查(学院 IT 用于监控)
-  - GET  /version      — 版本信息(v1.3-Academic)
+  - GET  /version      — 版本信息(v1.3.3-Academic)
   - POST /intent       — 解析 1 句话材料意图
   - POST /multi-exp    — 跑多实验并行(Stage 3 JARVIS 雏形)
+  - POST /literature   — 专用文献综述(per v1.3.3-Academic,直接调 MatLitAgent)
   - GET  /lineage      — 查 lineage 记录
   - GET  /wau/dispatch — wau-edge 健康检查(V1 接公网 wau)
   - POST /wau/dispatch — wau-edge 路由到此,接 JWT 校验 + 转 orchestrator(V1 接公网 wau)
@@ -36,7 +37,7 @@ def _version_string() -> str:
     version_file = _PROJECT_ROOT / "VERSION"
     if version_file.exists():
         return version_file.read_text().strip()
-    return "v1.3.2-Academic"  # 2026-08-06 patch: arxiv 真 API 默认启用
+    return "v1.3.3-Academic"  # 2026-08-06 patch: PubChem + CrossRef + /literature 端点
 
 
 def _ok(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
@@ -133,6 +134,8 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
             self._handle_intent(payload)
         elif self.path == "/multi-exp":
             self._handle_multi_experiment(payload)
+        elif self.path == "/literature":
+            self._handle_literature(payload)
         else:
             _ok(self, 404, {"error": "not found", "path": self.path})
 
@@ -262,6 +265,65 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
                 ],
             })
         except Exception as e:
+            _ok(self, 500, {"error": str(e)})
+
+    def _handle_literature(self, payload: dict) -> None:
+        """v1.3.3-Academic — 专用 literature_review 端点
+
+        POST /literature
+        {
+          "message": "查 LiCoO2 锂离子电池文献",
+          "n_results": 5,             # 可选,默认 5
+          "domain": "inorganic_crystal"  # 可选
+        }
+        → 200
+        {
+          "reply": "📚 ...",
+          "is_real_query": true,
+          "n_results": 5,
+          "sources_queried": ["arXiv", "PubChem", "CrossRef"],
+          "references": [...],
+          "background": "...",
+          "state_of_art": "...",
+          "gaps": [...],
+          "suggestions": [...],
+          "cost": 0.1
+        }
+        """
+        message = payload.get("message", "").strip()
+        if not message:
+            _ok(self, 400, {"error": "missing 'message'"})
+            return
+
+        try:
+            from agents.mat_lit_agent import MatLitAgent
+            from matwau.core.agent_base import AgentRequest
+
+            agent = MatLitAgent()  # 默认 use_real_arxiv=True(v1.3.2)
+            req = AgentRequest(
+                run_id=f"literature-{os.getpid()}",
+                message=message,
+                artifacts={},
+                context={
+                    "n_results": int(payload.get("n_results", 5)),
+                    "domain": payload.get("domain"),
+                },
+            )
+            resp = agent.run(req)
+            _ok(self, 200, {
+                "reply": resp.reply,
+                "is_real_query": resp.artifacts.get("is_real_query"),
+                "n_results": resp.artifacts.get("n_results"),
+                "sources_queried": resp.artifacts.get("sources_queried"),
+                "references": resp.artifacts.get("references", []),
+                "background": resp.artifacts.get("background", ""),
+                "state_of_art": resp.artifacts.get("state_of_art", ""),
+                "gaps": resp.artifacts.get("gaps", []),
+                "suggestions": resp.artifacts.get("suggestions", []),
+                "cost": resp.cost,
+            })
+        except Exception as e:
+            sys.stderr.write(f"[matwau] literature endpoint fail: {e}\n")
             _ok(self, 500, {"error": str(e)})
 
 
