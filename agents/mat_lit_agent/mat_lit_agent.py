@@ -1,7 +1,7 @@
 """mat-lit-agent — 材料科学文献综述员(per dev plan §七 W14)
 
 Stage 1 / Phase 1:mock 文献库 + 关键词提取 + 模板生成
-Stage 2(WAU v1.0.0 GA 后):接 arXiv + Materials Project + ICSD + PubChem 真 API
+Stage 2(WAU v1.0.0 GA 后):接 arXiv + PubChem + CrossRef 真 API
 
 业务流程(per act() 实现):
 1. 解析 user_intent → LitQuery(formula + material + property + domain)
@@ -63,7 +63,9 @@ class LitConfig:
 
     def __post_init__(self) -> None:
         if self.sources is None:
-            self.sources = ["arXiv", "Materials Project", "ICSD", "PubChem"]
+            # v1.3.3-Academic: 真接 3 源(arXiv + PubChem + CrossRef)
+            # Materials Project / ICSD 字符串占位保留但未真接
+            self.sources = ["arXiv", "PubChem", "CrossRef"]
 
     @classmethod
     def from_dict(cls, d: dict[str, Any] | None) -> LitConfig:
@@ -71,7 +73,8 @@ class LitConfig:
             return cls()
         return cls(
             n_results=d.get("n_results", 5),
-            sources=d.get("sources", ["arXiv", "Materials Project", "ICSD", "PubChem"]),
+            # v1.3.3-Academic: 同步 lit_engine 默认 sources 列表
+            sources=d.get("sources", ["arXiv", "PubChem", "CrossRef"]),
             include_query_echo=d.get("include_query_echo", True),
         )
 
@@ -184,7 +187,7 @@ class MatLitAgent(MatWAUAgentBase):
 
 能力:
 1. 解析 user_intent → LitQuery(化学式 + 材料别名 + 属性 + 领域)
-2. 检索 mock 数据库(arXiv / Materials Project / ICSD / PubChem)
+2. 检索 mock + 真 API 数据库(arXiv / PubChem / CrossRef,v1.3.3-Academic 起真接 3 源)
 3. 算每篇文献的 relevance(0-1)按降序取 top-N
 4. 生成综述 4 部分:
    - background:背景介绍(查询要素 + 检索结果概览)

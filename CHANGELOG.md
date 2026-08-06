@@ -77,6 +77,20 @@ per v2.0 JARVIS 计划阶段 1 的第 2 步,与 v1.3.2 同一节奏。学院方/
 - **CrossRef `X-Rate-Limit-*`**:User-Agent + mailto(礼貌使用)
 - **CI 无外网**:unit 测试全 monkeypatch,真查只在学院服务器 acceptance 跑
 
+### Hotfix(v1.3.3-Academic post-GA,2026-08-06)
+
+**Bug**:`LitConfig` 默认 `sources=["arXiv", "Materials Project", "ICSD", "PubChem"]` 覆盖了 `lit_engine.py` v1.3.3 改的 `["arXiv", "PubChem", "CrossRef"]`。**所有走 MatLitAgent 的调用都拿老列表**(`/literature` 端点 `sources_queried` 字段返回 `["arXiv", "MP", "ICSD", "PubChem"]`,与 lit_engine 真接 3 源不符)。
+
+**根因**:v1.3.3 commit `d138ba4` 改了 `lit_engine.py:608/722/916` 三处默认值,**漏改** `mat_lit_agent.py:66/74` 的 `LitConfig.__post_init__` 和 `from_dict`。原 unit test `test_default` 只断言 `"arXiv" in cfg.sources` — 真假都过,漏抓。
+
+**Fix**:
+- `agents/mat_lit_agent/mat_lit_agent.py` 两处默认值同步 → `["arXiv", "PubChem", "CrossRef"]`
+- `system_prompt` + Stage 1 注释同步
+- 新增 5 个 regression test(`TestLitConfig.test_default_sources_match_v133` / `test_from_dict_default_sources_match_v133` / `test_from_dict_explicit_sources` + `test_literature_endpoint_real_agent_sources_v133`)
+- 测试结果:60 PASS(45 mat_lit_agent + 11 serve + 4 新),0 回归
+
+**影响**:v1.3.3-Academic 第一次 push 后立刻发现;**用户需 `--force-with-lease` 重推**(tag 不变 `v1.3.3-Academic`)
+
 ---
 
 ## [v1.3.2-Academic] - 2026-08-06 — PATCH: arxiv 真 API 默认启用
