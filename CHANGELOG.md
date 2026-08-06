@@ -5,6 +5,86 @@
 
 ---
 
+## [v1.3.4-Academic] - 2026-08-06 — MINOR: paper PDF parse + semantic search
+
+### 概述
+
+把 v1.3.3 拿到的"论文摘要(abstract)"扩展到"全文段落(paragraphs)" + "跨论文语义搜索",让学院方能做更细粒度的文献调研。
+
+### 新增
+
+- **`agents/pdf_parser/`** (~480 行):
+  - `PdfParserClient`(对齐 `ArxivClient` 模板):pdfplumber 真解析 → `PdfDocument` + `PdfParagraph[]`
+  - 三种入口:`parse_pdf`(本地路径)/ `parse_pdf_from_url`(HTTP 下载)/ `parse_pdf_from_bytes`(上传)
+  - LRU cache(默认 32)+ `__bool__ → True`(防空 cache `if cache:` 误判)
+  - 防御性 limit:`max_pages=50` + `min_paragraph_chars=20`
+  - 扫描版 PDF 检测(`parse_succeeded=false`,graceful 失败)
+  - 模块级 `parse_pdf` / `parse_pdf_from_url` / `parse_pdf_from_bytes` 便利函数
+  - `is_pdfplumber_available()` availability check
+- **`agents/mat_pdf_agent/`** (~330 行):
+  - `MatPdfAgent(MatWAUAgentBase)`:业务 wrapper,3 入口 + artifacts 透传
+  - `PdfAgentConfig` dataclass(`cache_size` / `max_pages` / `download_timeout` / `paper_id`)
+- **`agents/semantic_search/`** (~330 行):
+  - `SemanticSearchClient`:sklearn TF-IDF + cosine similarity,纯本地
+  - `SearchHit`(paper_id + paragraph_no + page_no + text + relevance)
+  - LRU query cache(默认 100)+ `__bool__ → True`
+  - 模块级 `search()` 便利函数 + `search_client` 全局 singleton(serve.py 用)
+  - `is_sklearn_available()` availability check
+- **`serve.py` 扩展**:
+  - `/literature` 加 `parse_full_text: bool = False` + `top_k: int = 3` 参数
+  - `/literature` 返回加 `full_text_sections[]` + `semantic_hits[]` + `parse_full_text_succeeded`
+  - 新端点 `POST /papers/upload`(multipart/form-data + JSON 两种入口)
+  - 新端点 `POST /papers/search`(JSON,query + top_k)
+  - 模块级 `_do_parse_full_text(references, message, top_k)` helper(arxiv /abs/ URL → /pdf/ 自动转)
+
+### 性能
+
+- PDF 解析:< 5s(20 页标准论文)
+- TF-IDF 索引构建:< 1s(100 篇 × 50 段)
+- 语义搜索:< 200ms
+- LRU cache 命中:< 1ms
+
+### 兼容性
+
+- ✅ v1.3.3 `/literature` 老调用者 0 改动(`parse_full_text` 默认 False)
+- ✅ 老 acceptance.sh 22 场景 0 回归
+- ✅ sklearn / pdfplumber 缺失 graceful 失败(返空 list,不抛异常)
+
+### Bug 修复(本次实施期间踩到)
+
+- **`_LruCache.__bool__` 修复**:空 cache 时 `bool(cache) = False`(因 `__len__ = 0`),`if cache: cache.put(...)` 永远不进 put 分支。修复:`__bool__ → return True`(模板从 v1.3.2 `ArxivClient._LruCache` 复制就有这 bug,本次顺手修了)。
+- **v1.3.3 `LitConfig` 默认值漏改**:commit `d138ba4` 改 `lit_engine.py` 但漏改 `mat_lit_agent.py:66/74`,学院服务器部署后 `/literature` `sources_queried` 还是老列表。已 hotfix `b217125` 修复。教训:defaults 改动必须 cross-check 所有 caller + 强断言。
+
+### 依赖
+
+新增 2 个:
+- `pdfplumber>=0.10.0`(pure Python / MIT / ~5MB)
+- `scikit-learn>=1.3.0`(BSD-3-Clause / ~30MB)
+
+### 配套 dev-plan
+
+- `~/WAU-develop/develop-log/MatWAU/v1.3.4/MatWAU-v1.3.4-Academic-requirements-20260806.md` 需求
+- `~/WAU-develop/develop-log/MatWAU/v1.3.4/MatWAU-v1.3.4-Academic-dev-plan-20260806.md` 开发 plan
+- `closure-2026-08-06.md`(本批完成后写)
+
+### 测试
+
+- `tests/unit/test_pdf_parser_client.py`:32 测试
+- `tests/unit/test_mat_pdf_agent.py`:19 测试
+- `tests/unit/test_semantic_search_client.py`:22 测试
+- `tests/unit/test_serve_papers_endpoint.py`:13 测试
+- **新测试总计:86**(全 PASS)
+- 老测试(`test_mat_lit_agent.py` + `test_serve_literature_endpoint.py`):60 PASS,0 回归
+- 总:**146 测试全 PASS,0 回归**
+
+### Docker / 部署
+
+- image tag:`v1.3.3-Academic` → `v1.3.4-Academic`
+- Dockerfile 自动装 pdfplumber + scikit-learn(per requirements.txt)
+- 学院服务器:`docker compose build --no-cache && up -d`(image 增 ~35MB)
+
+---
+
 ## [v1.3.3-Academic] - 2026-08-06 — MINOR: PubChem + CrossRef + /literature 端点
 
 per v2.0 JARVIS 计划阶段 1 的第 2 步,与 v1.3.2 同一节奏。学院方/Homerail 一行 curl 查文献。
