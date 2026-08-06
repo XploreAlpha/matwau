@@ -30,12 +30,13 @@ import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-# v1.3.4-Academic — module-level singletons(端点 + 测试都引用)
-from agents.semantic_search import search_client  # noqa: E402
-
 # 让 serve.py 能 import matwau 顶层模块
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
+
+# v1.3.4-Academic — module-level singletons(端点 + 测试都引用)
+# 必须在 sys.path 设置之后 import,否则容器内启动找不到 agents
+from agents.semantic_search import search_client  # noqa: E402
 
 
 def _version_string() -> str:
