@@ -199,11 +199,14 @@ def _build_arxiv_query(user_intent: str, *, domain: str | None = None) -> str:
     - 提取引号内容 / 大写 alias / 化学式 → 高优先级字段
     - 简化成 arXiv 兼容的 search_query
     - domain-specific 关键词加权(per W15 MaterialDomainRouter)
+    - v1.3.4-Academic hotfix: 中英混合 / 纯中文 query 自动翻译成英文关键词
+      (因为 arXiv API 对中文字符搜索命中率 ≈ 0,fallback 到 mock)
 
     Examples:
         "出 LiCoO2 实验方案" → ti:LiCoO2 OR abs:LiCoO2
         "算 PMMA 玻璃化转变温度" → ti:PMMA AND ti:glass
         "设计 CdSe 量子点" → ti:CdSe AND ti:quantum
+        "钙钛矿太阳能电池 长期稳定性" → ti:perovskite OR abs:perovskite OR ti:solar OR ...
     """
     msg = user_intent
 
@@ -239,6 +242,15 @@ def _build_arxiv_query(user_intent: str, *, domain: str | None = None) -> str:
         for kw in prop_keywords[:2]:
             parts.append(f'(ti:"{kw}" OR abs:"{kw}")')
 
+    # v1.3.4-Academic hotfix: 中→英关键词翻译
+    # arXiv API 对中文字符搜索命中率 ≈ 0,fallback 到 mock 让中文用户以为"假接 arxiv"
+    # 解法:检测到中文 → 查表转英文 → 加到 query 里
+    has_chinese = bool(re.search(r"[一-鿿]", msg))
+    if has_chinese:
+        chinese_translations = _extract_chinese_translations(msg)
+        for en in chinese_translations[:5]:  # 最多 5 个英文翻译
+            parts.append(f'(ti:"{en}" OR abs:"{en}")')
+
     # 兜底:用整句作为 abs 兜底搜索
     if not parts:
         # 用最关键的几个词
@@ -247,6 +259,168 @@ def _build_arxiv_query(user_intent: str, *, domain: str | None = None) -> str:
             parts.append(f'(abs:"{words[0]}")')
 
     return " OR ".join(parts) if parts else "all:" + msg[:50]
+
+
+# v1.3.4-Academic — 中→英关键词映射表(材料科学常用词)
+# 排序:长的在前,避免短词误匹配(如"电池"先匹配再匹配"锂电池")
+CHINESE_TO_ENGLISH_KEYWORDS = [
+    # ============ 化合物 / 材料(长词优先)============
+    ("固态电解质", "solid electrolyte"),
+    ("液态电解质", "liquid electrolyte"),
+    ("钙钛矿太阳能电池", "perovskite solar cell"),
+    ("钙钛矿", "perovskite"),
+    ("石墨烯", "graphene"),
+    ("碳纳米管", "carbon nanotube"),
+    ("硅碳负极", "silicon-carbon anode"),
+    ("硅基负极", "silicon anode"),
+    ("锂电池", "lithium-ion battery"),
+    ("固态电池", "solid state battery"),
+    ("钠电池", "sodium-ion battery"),
+    ("燃料电池", "fuel cell"),
+    ("硫化物", "sulfide"),
+    ("氧化物", "oxide"),
+    ("氮化物", "nitride"),
+    ("碳化物", "carbide"),
+    ("硼化物", "boride"),
+    ("硅酸盐", "silicate"),
+    ("磷酸盐", "phosphate"),
+    # ============ 元素 / 金属(短词)============
+    ("锂", "lithium"),
+    ("钠", "sodium"),
+    ("镁", "magnesium"),
+    ("锌", "zinc"),
+    ("铝", "aluminum"),
+    ("铜", "copper"),
+    ("铁", "iron"),
+    ("钴", "cobalt"),
+    ("镍", "nickel"),
+    ("锰", "manganese"),
+    ("硅", "silicon"),
+    # ============ 应用 / 器件 ============
+    ("太阳能电池", "solar cell"),
+    ("太阳能", "solar"),
+    ("电池", "battery"),
+    ("正极材料", "cathode material"),
+    ("正极", "cathode"),
+    ("负极材料", "anode material"),
+    ("负极", "anode"),
+    ("电解质", "electrolyte"),
+    ("隔膜", "separator"),
+    ("催化", "catalyst"),
+    ("催化剂", "catalyst"),
+    ("传感器", "sensor"),
+    ("存储", "storage"),
+    ("陶瓷", "ceramic"),
+    ("玻璃", "glass"),
+    ("合金", "alloy"),
+    ("半导体", "semiconductor"),
+    ("超导体", "superconductor"),
+    # ============ 属性 / 性能 ============
+    ("长期稳定性", "long-term stability"),
+    ("稳定性", "stability"),
+    ("形成能", "formation energy"),
+    ("带隙", "band gap"),
+    ("电导率", "conductivity"),
+    ("离子电导率", "ionic conductivity"),
+    ("能量密度", "energy density"),
+    ("比容量", "specific capacity"),
+    ("容量", "capacity"),
+    ("电压", "voltage"),
+    ("硬度", "hardness"),
+    ("磁性", "magnetic"),
+    ("超导", "superconducting"),
+    ("介电", "dielectric"),
+    ("压电", "piezoelectric"),
+    ("热导", "thermal conductivity"),
+    ("光学", "optical"),
+    ("吸附", "adsorption"),
+    ("扩散", "diffusion"),
+    ("弹性", "elastic"),
+    ("强度", "strength"),
+    # ============ 方法 / 表征 ============
+    ("第一性原理", "first-principles"),
+    ("分子动力学", "molecular dynamics"),
+    ("蒙特卡洛", "Monte Carlo"),
+    ("机器学习", "machine learning"),
+    ("深度学习", "deep learning"),
+    ("高通量", "high-throughput"),
+    ("材料基因组", "materials genome"),
+    ("表征", "characterization"),
+    ("实验", "experiment"),
+    ("模拟", "simulation"),
+    ("合成", "synthesis"),
+    ("制备", "fabrication"),
+    # ============ 文档类型 / 修饰 ============
+    ("综述", "review"),
+    ("进展", "progress"),
+    ("最新", "recent"),
+    ("研究", "research"),
+    ("论文", "paper"),
+    # ============ 结构 / 形貌 ============
+    ("界面", "interface"),
+    ("缺陷", "defect"),
+    ("掺杂", "doping"),
+    ("薄膜", "thin film"),
+    ("纳米", "nano"),
+    ("纳米结构", "nanostructure"),
+    ("微结构", "microstructure"),
+    ("异质结", "heterojunction"),
+    ("晶界", "grain boundary"),
+    ("晶体结构", "crystal structure"),
+    # ============ 其他 ============
+    ("高温", "high temperature"),
+    ("低温", "low temperature"),
+    ("高压", "high pressure"),
+    ("复合材料", "composite material"),
+    ("高分子", "polymer"),
+    ("聚合物", "polymer"),
+]
+
+
+def _extract_chinese_translations(msg: str) -> list[str]:
+    """从 msg 中匹配中文短语 → 翻译列表(去重 + 长词优先匹配)
+
+    去重策略:Chinese substring dedup — 如果一个中文短语的翻译已被更长的中文
+    短语覆盖,则跳过。例如 "钙钛矿太阳能电池" 翻译成 "perovskite solar cell"
+    后,"钙钛矿/太阳能/电池" 单独的翻译被丢弃(被长词覆盖)。
+
+    Args:
+        msg: 用户原始 query(含中文 + 英文)
+
+    Returns:
+        List[str]: 翻译出的英文短语(按 CHINESE_TO_ENGLISH_KEYWORDS 表的顺序,
+                  即长词优先),自动去重
+    """
+    matched_cn: list[str] = []  # 顺序记录匹配的中文短语(去重)
+    seen_cn: set[str] = set()
+    for cn, _en in CHINESE_TO_ENGLISH_KEYWORDS:
+        if cn in msg and cn not in seen_cn:
+            matched_cn.append(cn)
+            seen_cn.add(cn)
+
+    # 去重:短词如果已经被前面的长词包含,则跳过
+    # (per Chinese substring dedup,而非 English substring dedup)
+    final_cn: list[str] = []
+    for cn in matched_cn:
+        # 检查是否已有更长的 cn 包含当前 cn(中文 substring)
+        covered = any(
+            (other != cn) and (cn in other)
+            for other in matched_cn
+            if other in final_cn  # 已在 final 列表里(更长的)
+        )
+        if not covered:
+            final_cn.append(cn)
+
+    # 转英文 + dedup English
+    translations: list[str] = []
+    seen_en: set[str] = set()
+    for cn in final_cn:
+        for table_cn, en in CHINESE_TO_ENGLISH_KEYWORDS:
+            if table_cn == cn and en not in seen_en:
+                translations.append(en)
+                seen_en.add(en)
+                break
+    return translations
 
 
 @dataclass
