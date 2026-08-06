@@ -5,6 +5,83 @@
 
 ---
 
+## [v1.3.2-Academic] - 2026-08-06 — PATCH: arxiv 真 API 默认启用
+
+per v2.0 JARVIS 计划阶段 1(M4 + 1 个月)的第 1 步,小步快跑节奏下的 v1.3 系列 patch。
+配套 dev-plan:`~/WAU-develop/develop-log/MatWAU/v1.3.2/MatWAU-v1.3.2-Academic-dev-plan-20260806.md`
+
+### Added(新增)
+
+- **新 wrapper agent `agents/mat_arxiv_agent/`** — 对齐 OQMD/COD/NOMAD/JARVIS 4 平台模式(~300 行)
+  - 继承 `MatWAUAgentBase`,有 `system_prompt` / `act` / `perceive` / `_empty_response` / `_error_response`
+  - 包装 `ArxivClient.search` → 标准 `AgentResponse`(records + is_real_query + confidence + cost)
+  - `ArxivAgentConfig` dataclass + `from_dict` 工厂;`max_results_hard_cap=20` 截断保护
+  - confidence 启发式:0→0.3, 1-2→0.6, ≥3→0.8
+  - 默认 `use_real_arxiv=True`,失败 fallback mock(W14 向后兼容)
+  - SafetyGuard 集成(per mat_oqmd_agent 模式)
+
+- **`agents/arxiv_client/` LRU cache** — 复用 nomad_client 模式
+  - `_LruCache` 类,OrderedDict + move_to_end,默认容量 128
+  - `ArxivClient` 加 `cache_size` / `enable_cache` 字段,`__post_init__` 初始化
+  - `clear_cache()` 方法(测试 / 显式 invalidate 用)
+  - 同 query < 1ms 命中(LRU hit 标记 `is_real_query=True`)
+  - capacity 必须 ≥ 1(`ValueError` 保护)
+
+- **`agents/arxiv_client/` gzip 压缩支持** — 仿 arxiv 文档建议
+  - `enable_gzip=True`(默认)发 `Accept-Encoding: gzip`
+  - 响应头 `Content-Encoding: gzip` 时 `gzip.decompress()` 解压
+  - 解压失败时 graceful fallback(用 raw bytes decode)
+  - 大响应省 70% 流量(per arxiv API 文档建议)
+
+- **`agents/mat_lit_agent/` 默认 `use_real_arxiv=True`** — 主开关打开
+  - `lit_engine.py:review_literature` / `search_literature_with_real_sources` 默认参数 False → True
+  - `mat_lit_agent.py:MatLitAgent.__init__` 默认参数 False → True
+  - 向后兼容:`use_real_arxiv=False` 仍可用(走 W14 mock DB)
+
+- **`hard_max_results=20` 硬上限保护** — `ArxivClient` 默认
+  - 防滥用 max_results 拉巨大响应
+
+### Tests(测试)
+
+- 新增 `tests/unit/test_arxiv_client.py` — 33 测试(LRU/gzip/fallback/cache 命中)
+- 新增 `tests/unit/test_mat_arxiv_agent.py` — 24 测试(wrapper/confidence/safety)
+- `tests/unit/test_mat_lit_agent.py` 加 4 测试(`TestUseRealArxivDefault` 类)
+  - 验证 `MatLitAgent().use_real_arxiv is True`
+  - 验证 `review_literature()` 默认参数 `use_real_arxiv=True`
+  - 验证 `use_real_arxiv=False` 向后兼容
+
+总计:**57 个新测试 + 4 个更新测试 = 61 测试项**,全 PASS
+
+### Compatibility(兼容性)
+
+- 公开 API 不变:`ArxivClient().search()` / `MatLitAgent()` 签名兼容
+- 默认行为变化:`use_real_arxiv` 默认 True(W16 已支持,但默认 False)— 学院方升级后所有 literature_review workflow 自动走真 arXiv
+- 数据归属不变,无版权问题(只 metadata + abstract,不下载 PDF)
+
+### Documentation(文档)
+
+- `~/WAU-develop/develop-log/MatWAU/v1.3.2/` 新建:
+  - `MatWAU-v1.3.2-Academic-requirements-20260806.md` 需求
+  - `MatWAU-v1.3.2-Academic-dev-plan-20260806.md` 开发 plan
+  - `closure-2026-08-06.md`(本批完成后写)
+- Docker image tag:`v1.3.1-Academic` → `v1.3.2-Academic`
+- `serve.py` 默认 version 同步
+- `deploy_academic.sh` MATWAU_VERSION 同步
+
+### Performance(性能)
+
+- 单次 arxiv 真查:< 8s(per `ARXIV_TIMEOUT_SEC=8`)
+- LRU cache 命中:< 1ms
+- Fallback 路径:< 100ms(本地 mock)
+
+### Risk(风险与缓解)
+
+- **学院网络封 arxiv.org**:默认 `enable_fallback=True`,fallback mock 不报错
+- **CI 无外网**:unit 测试全 monkeypatch,真查只在学院服务器 acceptance 跑
+- **真查延迟 8s+**:LRU cache 复用 + 默认 n_results=5 + 可调小
+
+---
+
 ## [v1.3.1-Academic] - 2026-08-05 — PATCH: 4 P0/P1 + 1 P2 + 1 隐含 + Bug #5 收口
 
 per homerail 团队通过前端实测反馈的 6 个 bug(分 2 批收口)。

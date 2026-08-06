@@ -123,6 +123,7 @@ def _review_to_response(review: LitReview, config: LitConfig) -> AgentResponse:
             "query": review.query,
             "n_results": len(review.references),
             "sources_queried": review.sources_queried,
+            "is_real_query": review.is_real_query,  # v1.3.2-Academic bug fix
         },
         confidence=review.confidence,
         cost=cost,
@@ -151,7 +152,7 @@ class MatLitAgent(MatWAUAgentBase):
         default_n_results: int = 5,
         cost_per_review: float = 0.1,
         domain: str | None = None,
-        use_real_arxiv: bool = False,  # W16: 默认 False = W14 mock
+        use_real_arxiv: bool = True,  # v1.3.2-Academic: 默认 True = 真 arXiv API(失败 fallback mock)
         **kwargs,
     ) -> None:
         """构造
@@ -160,7 +161,8 @@ class MatLitAgent(MatWAUAgentBase):
             default_n_results: 默认引用文献数
             cost_per_review: 单次综述估算成本 ¥
             domain: 材料域(W15)
-            use_real_arxiv: W16 — True = 真查 arXiv API,False = mock DB
+            use_real_arxiv: v1.3.2-Academic 起默认 True = 真查 arXiv API(失败 fallback mock);
+                          设 False 可强制走 mock DB(向后兼容)
         """
         super().__init__(**kwargs)
         self.default_n_results = default_n_results
@@ -168,7 +170,7 @@ class MatLitAgent(MatWAUAgentBase):
         # W15: 域路由
         from agents.material_domain_router import DEFAULT_DOMAIN
         self.domain = domain or DEFAULT_DOMAIN
-        # W16: arXiv 开关(默认 False,W14 行为不变)
+        # W16: arXiv 开关;v1.3.2-Academic 起默认 True(失败 fallback mock,W14 兼容)
         self.use_real_arxiv = use_real_arxiv
 
         # 默认注入 harness

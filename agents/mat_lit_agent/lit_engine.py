@@ -62,6 +62,7 @@ class LitReview:
     suggestions: list[str] = field(default_factory=list)  # 给用户的建议
     confidence: float = 0.7             # 综述质量分
     sources_queried: list[str] = field(default_factory=list)  # 用了哪些数据库
+    is_real_query: bool = False         # v1.3.2-Academic bug fix: arxiv 真查状态透传(默认 False = 全部 mock)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -73,6 +74,7 @@ class LitReview:
             "suggestions": self.suggestions,
             "confidence": round(self.confidence, 3),
             "sources_queried": self.sources_queried,
+            "is_real_query": self.is_real_query,
         }
 
 
@@ -886,7 +888,7 @@ def review_literature(
     sources: list[str] | None = None,
     *,
     domain: str | None = None,
-    use_real_arxiv: bool = False,
+    use_real_arxiv: bool = True,
     use_real_mp: bool = False,
 ) -> LitReview:
     """主接口:从 user_intent 生成文献综述(W15: 支持 domain;W17: 2 个真实 source)
@@ -896,7 +898,7 @@ def review_literature(
         n_results: 引用文献数
         sources: 数据库列表(默认 4 个全用)
         domain: 材料域(per W15;None → 自动 detect / 默认 inorganic_crystal)
-        use_real_arxiv: W16 — 是否真查 arXiv API(默认 False = W14 行为)
+        use_real_arxiv: v1.3.2-Academic 起默认 True = 真查 arXiv API(失败自动 fallback mock)
         use_real_mp: W17-C — 是否真查 Materials Project API(默认 False = 行为不变)
 
     Returns:
@@ -917,16 +919,21 @@ def review_literature(
     query = parse_lit_query(user_intent, domain=domain)
 
     # 2. 检索文献(W17:arXiv 或 MP 任一真查都走专属路径,否则纯 mock)
+    # v1.3.2-Academic bug fix: 用 return_is_real=True 拿 is_real 状态(向后兼容老调用者)
     if use_real_arxiv or use_real_mp:
-        refs = search_literature_with_real_sources(
+        refs, is_real_per_source = search_literature_with_real_sources(
             query,
             n_results=n_results,
             sources=sources,
             use_real_arxiv=use_real_arxiv,
             use_real_mp=use_real_mp,
+            return_is_real=True,
         )
+        # arxiv 真查状态(per v1.3.2 focus)— MP 真查暂未实现,只看 arxiv
+        is_real_query = is_real_per_source.get("arxiv", False)
     else:
         refs = search_literature(query, n_results=n_results, sources=sources)
+        is_real_query = False
 
     # 3. 生成综述各部分
     background = _format_background(query, refs)
@@ -944,6 +951,7 @@ def review_literature(
         suggestions=suggestions,
         confidence=confidence,
         sources_queried=sources,
+        is_real_query=is_real_query,
     )
 
 
@@ -952,32 +960,40 @@ def search_literature_with_real_sources(
     n_results: int = 5,
     sources: list[str] | None = None,
     *,
-    use_real_arxiv: bool = False,
+    use_real_arxiv: bool = True,
     use_real_mp: bool = False,
-) -> list[LitReference]:
+    return_is_real: bool = False,
+) -> list[LitReference] | tuple[list[LitReference], dict[str, bool]]:
     """W17-C: 多源真查(arXiv + Materials Project 任选)+ mock 兜底
 
     Args:
         query: LitQuery
         n_results: 总数
         sources: 列出要查的 source(只对真查的有效,mock 全跑)
-        use_real_arxiv: 是否真查 arXiv
+        use_real_arxiv: v1.3.2-Academic 起默认 True = 真查 arXiv(失败 fallback mock)
         use_real_mp: 是否真查 Materials Project
+        return_is_real: v1.3.2-Academic 新增 — True 时返回 tuple (refs, is_real_per_source)
+                       is_real_per_source 是 dict[str, bool],key 是 source 名("arxiv" / "mp")
+                       False 时(默认)只返回 refs,向后兼容老调用者
 
     Returns:
-        List[LitReference](真查 + mock 合并)
+        - return_is_real=False(默认):List[LitReference](真查 + mock 合并,向后兼容)
+        - return_is_real=True:tuple[list[LitReference], dict[str, bool]](per source 真查状态)
     """
     from agents.material_domain_router import DEFAULT_DOMAIN
     raw_user_intent = query.raw_query
     domain = query.domain or DEFAULT_DOMAIN
 
     combined: list[LitReference] = []
+    # v1.3.2-Academic bug fix: 记录每个 source 真查状态(per source 维度)
+    is_real_per_source: dict[str, bool] = {"arxiv": False, "mp": False}
 
     # A. arXiv 真查 + fallback
     if use_real_arxiv:
         try:
             from agents.arxiv_client import search_arxiv
             refs, is_real = search_arxiv(raw_user_intent, max_results=n_results, domain=domain)
+            is_real_per_source["arxiv"] = is_real
             for r in refs:
                 combined.append(LitReference(
                     title=r.title,
@@ -997,6 +1013,7 @@ def search_literature_with_real_sources(
         try:
             from agents.materials_project_client import search_materials_project
             mp_refs, is_real = search_materials_project(raw_user_intent, max_results=n_results, domain=domain)
+            is_real_per_source["mp"] = is_real
             for mpr in mp_refs:
                 combined.append(LitReference(
                     title=f"{mpr.formula} ({mpr.spacegroup}, mp_id={mpr.mp_id})",
@@ -1018,10 +1035,16 @@ def search_literature_with_real_sources(
 
     # C. 没找到任一条才走 mock 兜底(避免空 results)
     if not combined:
-        return search_literature(query, n_results=n_results, sources=sources)
+        refs = search_literature(query, n_results=n_results, sources=sources)
+        if return_is_real:
+            return refs, is_real_per_source
+        return refs
 
     # 截断到 n_results
-    return combined[:n_results] if len(combined) > n_results else combined
+    truncated = combined[:n_results] if len(combined) > n_results else combined
+    if return_is_real:
+        return truncated, is_real_per_source
+    return truncated
 
 
 __all__ = [
