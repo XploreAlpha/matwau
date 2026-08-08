@@ -70,11 +70,43 @@ def summarize_for_voice(
     """
     n = len(records) if records else 0
 
-    # 中文 / 英文 + kind 文案映射
+    # 中文 / 英文 + kind 文案映射(v1.4-Academic M3 扩 6 种 kind)
     if kind == "recipes":
         cn_word = "实验方案"
         en_word = "recipe" if n == 1 else "recipes"
         en_empty = "No matching experiment recipes."
+    elif kind == "compounds":
+        cn_word = "化合物"
+        en_word = "compound" if n == 1 else "compounds"
+        en_empty = "No matching compounds."
+    elif kind == "journals":
+        cn_word = "期刊文章"
+        en_word = "journal article" if n == 1 else "journal articles"
+        en_empty = "No matching journal articles."
+    elif kind == "cross_source":
+        # N 个数据源 + 命中 records 一致性
+        # records 是 list[platform]，每个 element 是该 platform 的 records
+        n_platforms = n
+        if locale == "zh":
+            if n_platforms == 0:
+                return "没有可用的数据源结果。"
+            return f"查询了 {n_platforms} 个数据源。"
+        else:
+            if n_platforms == 0:
+                return "No source results available."
+            return f"Queried {n_platforms} data sources."
+    elif kind == "properties":
+        cn_word = "物性"
+        en_word = "property" if n == 1 else "properties"
+        en_empty = "No matching material properties."
+    elif kind == "fulltext":
+        cn_word = "段全文"
+        en_word = "paragraph" if n == 1 else "paragraphs"
+        en_empty = "No fulltext paragraphs parsed."
+    elif kind == "semantic":
+        cn_word = "语义命中"
+        en_word = "semantic match" if n == 1 else "semantic matches"
+        en_empty = "No semantic matches."
     else:  # papers (default)
         cn_word = "论文"
         en_word = "paper" if n == 1 else "papers"
@@ -310,6 +342,325 @@ def make_recipe_card_widget(
 # ============================================================================
 
 
+# ============================================================================
+# v1.4-Academic M3 — 6 新 make_*_widget() 工厂(per FE 6 个 Matwau*Widget 期望 data shape)
+# ============================================================================
+
+
+def make_compound_list_widget(
+    records: list[dict[str, Any]] | None,
+    *,
+    title: str | None = None,
+    fallback_text: str | None = None,
+    max_records: int = 10,
+) -> Widget:
+    """构造 matwau_compound_list widget(mat-pubchem-agent)
+
+    Wire format(对照 MatwauCompoundListWidget.vue):
+    data.records[i]: {cid, name, molecular_formula, molecular_weight, canonical_smiles, iupac_name, synonyms, url}
+
+    Args:
+        records: PubChemReference.to_dict() 列表
+        title: widget 标题(默认 "PubChem 化合物")
+        fallback_text: 渲染失败降级文本
+        max_records: 上限默认 10
+
+    Returns:
+        Widget(type="matwau_compound_list", data_ref="records", layout=CARD_GRID)
+    """
+    safe_records = (records or [])[:max_records]
+    if fallback_text is None:
+        fallback_text = summarize_for_voice(safe_records, "", locale="zh", kind="compounds")
+
+    return Widget(
+        type=WidgetType.MATWAU_COMPOUND_LIST.value,
+        title=title or "PubChem 化合物",
+        data_ref="records",
+        layout=WidgetLayout.CARD_GRID,
+        actions=[
+            WidgetAction.OPEN_URL,
+            WidgetAction.EXPAND_ABSTRACT,  # 复用"展开"语义(化合物别名展开)
+        ],
+        fallback_text=fallback_text,
+        data={
+            "records": safe_records,
+            "visual": "matwau_compound_list",
+        },
+    )
+
+
+def make_journal_list_widget(
+    records: list[dict[str, Any]] | None,
+    *,
+    title: str | None = None,
+    fallback_text: str | None = None,
+    max_records: int = 10,
+) -> Widget:
+    """构造 matwau_journal_list widget(mat-crossref-agent)
+
+    Wire format(对照 MatwauJournalListWidget.vue):
+    data.records[i]: {doi, title, authors, journal, year, volume, issue, pages, url, abstract}
+
+    Args:
+        records: CrossRefReference.to_dict() 列表
+        title: widget 标题(默认 "CrossRef 期刊文章")
+        fallback_text: 渲染失败降级文本
+        max_records: 上限默认 10
+
+    Returns:
+        Widget(type="matwau_journal_list", data_ref="records", layout=CARD_GRID)
+    """
+    safe_records = (records or [])[:max_records]
+    if fallback_text is None:
+        fallback_text = summarize_for_voice(safe_records, "", locale="zh", kind="journals")
+
+    return Widget(
+        type=WidgetType.MATWAU_JOURNAL_LIST.value,
+        title=title or "CrossRef 期刊文章",
+        data_ref="records",
+        layout=WidgetLayout.CARD_GRID,
+        actions=[
+            WidgetAction.OPEN_URL,
+            WidgetAction.COPY_DOI,
+            WidgetAction.EXPAND_ABSTRACT,
+        ],
+        fallback_text=fallback_text,
+        data={
+            "records": safe_records,
+            "visual": "matwau_journal_list",
+        },
+    )
+
+
+def make_cross_source_summary_widget(
+    *,
+    consensus_text: str,
+    confidence: float,
+    consensus_rate: float,
+    sources: list[dict[str, Any]],
+    query: str = "",
+    title: str | None = None,
+    fallback_text: str | None = None,
+) -> Widget:
+    """构造 matwau_cross_source_summary widget(mat-critic-agent L5 跨源)
+
+    Wire format(对照 MatwauCrossSourceSummaryWidget.vue):
+    data: {
+        query,
+        consensus: {text, confidence, consensus_rate},
+        sources: [{name, label, hit_count, agreed, error}]
+    }
+
+    Args:
+        consensus_text: L4 critic 总结文本
+        confidence: 0..1 综合置信度
+        consensus_rate: 0..1 跨源一致率
+        sources: 4 个 platform 的 hit 信息 list
+        query: 用户原始 query(供前端展示)
+        title: widget 标题(默认 "跨源一致性")
+        fallback_text: 渲染失败降级文本
+
+    Returns:
+        Widget(type="matwau_cross_source_summary", data_ref="sources", layout=LIST)
+    """
+    if fallback_text is None:
+        n_sources = len(sources)
+        fallback_text = summarize_for_voice(
+            sources, "", locale="zh", kind="cross_source"
+        ) if n_sources == 0 else consensus_text[:SPOKEN_TEXT_MAX_LENGTH]
+
+    return Widget(
+        type=WidgetType.MATWAU_CROSS_SOURCE_SUMMARY.value,
+        title=title or "跨源一致性",
+        data_ref="sources",
+        layout=WidgetLayout.LIST,
+        actions=[
+            WidgetAction.SHOW_SOURCES,
+            WidgetAction.EXPAND_ABSTRACT,
+        ],
+        fallback_text=fallback_text,
+        data={
+            "visual": "matwau_cross_source_summary",
+            "query": query,
+            "consensus": {
+                "text": consensus_text,
+                "confidence": round(confidence, 3),
+                "consensus_rate": round(consensus_rate, 3),
+            },
+            "sources": sources,
+        },
+    )
+
+
+def make_property_table_widget(
+    *,
+    formula: str,
+    properties: list[dict[str, Any]],
+    title: str | None = None,
+    fallback_text: str | None = None,
+    source_platform: str = "",
+) -> Widget:
+    """构造 matwau_property_table widget(mat-oqmd/cod/nomad/jarvis-agent)
+
+    Wire format(对照 MatwauPropertyTableWidget.vue):
+    data: {
+        formula,
+        properties: [{name, label, value, unit, source}]
+    }
+
+    Args:
+        formula: 化学式(主键,用作 widget 标题前缀)
+        properties: 物性 list
+        title: widget 标题(默认 "{formula} 物性")
+        fallback_text: 渲染失败降级文本
+        source_platform: 数据源平台(OQMD/COD/NOMAD/JARVIS),用于 fallback
+
+    Returns:
+        Widget(type="matwau_property_table", data_ref="properties", layout=TABLE)
+    """
+    if fallback_text is None:
+        fallback_text = summarize_for_voice(
+            properties, "", locale="zh", kind="properties"
+        )
+
+    # 构造 title(per widget)
+    widget_title = title or f"{formula or source_platform or '材料'} 物性"
+
+    return Widget(
+        type=WidgetType.MATWAU_PROPERTY_TABLE.value,
+        title=widget_title,
+        data_ref="properties",
+        layout=WidgetLayout.TABLE,
+        actions=[
+            WidgetAction.SHOW_SOURCES,
+        ],
+        fallback_text=fallback_text,
+        data={
+            "visual": "matwau_property_table",
+            "formula": formula,
+            "properties": properties,
+        },
+    )
+
+
+def make_paper_fulltext_widget(
+    *,
+    arxiv_id: str,
+    title: str = "",
+    authors: list[str] | None = None,
+    abstract: str = "",
+    sections: list[dict[str, Any]] | None = None,
+    url: str = "",
+    parser: str = "pdfplumber",
+    fallback_text: str | None = None,
+) -> Widget:
+    """构造 matwau_paper_fulltext widget(mat-pdf-agent)
+
+    Wire format(对照 MatwauPaperFulltextWidget.vue):
+    data: {
+        arxiv_id, title, authors, abstract,
+        sections: [{heading, text}],
+        url, parser
+    }
+
+    Args:
+        arxiv_id: 论文 ID(arxiv:2401.00001 → 前端期望 "2401.00001")
+        title: 论文标题
+        authors: 作者列表
+        abstract: 摘要
+        sections: 章节 list(每节 {heading, text})
+        url: 原始 PDF URL
+        parser: 解析器名(默认 pdfplumber)
+        fallback_text: 渲染失败降级文本
+
+    Returns:
+        Widget(type="matwau_paper_fulltext", data_ref="sections", layout=LIST)
+    """
+    safe_authors = list(authors or [])
+    safe_sections = list(sections or [])
+
+    if fallback_text is None:
+        fallback_text = summarize_for_voice(
+            safe_sections, "", locale="zh", kind="fulltext"
+        )
+
+    return Widget(
+        type=WidgetType.MATWAU_PAPER_FULLTEXT.value,
+        title=title or f"论文 {arxiv_id}",
+        data_ref="sections",
+        layout=WidgetLayout.LIST,
+        actions=[
+            WidgetAction.OPEN_URL,
+            WidgetAction.EXPAND_ABSTRACT,
+        ],
+        fallback_text=fallback_text,
+        data={
+            "visual": "matwau_paper_fulltext",
+            "arxiv_id": arxiv_id,
+            "title": title,
+            "authors": safe_authors,
+            "abstract": abstract,
+            "sections": safe_sections,
+            "url": url,
+            "parser": parser,
+        },
+    )
+
+
+def make_semantic_hits_widget(
+    *,
+    query: str,
+    query_english: str,
+    hits: list[dict[str, Any]] | None,
+    title: str | None = None,
+    fallback_text: str | None = None,
+    max_records: int = 8,
+) -> Widget:
+    """构造 matwau_semantic_hits widget(mat-semantic-search-agent)
+
+    Wire format(对照 MatwauSemanticHitsWidget.vue):
+    data: {
+        query, query_english,
+        hits: [{arxiv_id, title, authors, year, snippet, score}]
+    }
+
+    Args:
+        query: 用户原始 query(可能含中文)
+        query_english: 翻译后英文(per feedback-matwau-chinese-query-translation)
+        hits: 语义命中 list
+        title: widget 标题(默认 "语义检索:{query[:30]}")
+        fallback_text: 渲染失败降级文本
+        max_records: 上限默认 8(语义结果少而精)
+
+    Returns:
+        Widget(type="matwau_semantic_hits", data_ref="hits", layout=LIST)
+    """
+    safe_hits = (hits or [])[:max_records]
+
+    if fallback_text is None:
+        fallback_text = summarize_for_voice(
+            safe_hits, "", locale="zh", kind="semantic"
+        )
+
+    return Widget(
+        type=WidgetType.MATWAU_SEMANTIC_HITS.value,
+        title=title or f"语义检索:{query[:30]}",
+        data_ref="hits",
+        layout=WidgetLayout.LIST,
+        actions=[
+            WidgetAction.OPEN_URL,
+            WidgetAction.VIEW_HIT,
+        ],
+        fallback_text=fallback_text,
+        data={
+            "visual": "matwau_semantic_hits",
+            "query": query,
+            "query_english": query_english,
+            "hits": safe_hits,
+        },
+    )
+
+
 def attach_widget_protocol(
     response,  # AgentResponse(dataclass,不 import 避免循环)
     *,
@@ -349,5 +700,12 @@ __all__ = [
     "summarize_recipe_natural",
     "make_paper_list_widget",
     "make_recipe_card_widget",
+    # v1.4-Academic M3 — 6 new factories
+    "make_compound_list_widget",
+    "make_journal_list_widget",
+    "make_cross_source_summary_widget",
+    "make_property_table_widget",
+    "make_paper_fulltext_widget",
+    "make_semantic_hits_widget",
     "attach_widget_protocol",
 ]

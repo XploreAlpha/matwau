@@ -23,6 +23,12 @@ _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 from agents.crossref_client import CrossRefClient, CrossRefReference
+from agents.widget_helpers import (
+    assert_spoken_text_safe,
+    attach_widget_protocol,
+    make_journal_list_widget,
+    summarize_for_voice,
+)
 from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
@@ -102,7 +108,7 @@ def _results_to_response(
     reply = "\n".join(lines)
     cost = 0.02 if is_real else 0.001
 
-    return AgentResponse(
+    response = AgentResponse(
         reply=reply,
         artifacts={
             "records": records,
@@ -118,6 +124,23 @@ def _results_to_response(
         confidence=confidence,
         cost=cost,
     )
+
+    # v1.4-Academic M3 — attach matwau_journal_list widget
+    if records:
+        journal_widget = make_journal_list_widget(
+            records,
+            title=f"CrossRef 期刊文章 ({n} 篇)",
+        )
+        spoken = summarize_for_voice(records, user_intent, locale="zh", kind="journals")
+        attach_widget_protocol(
+            response,
+            widgets=[journal_widget],
+            spoken_text=spoken,
+            structured_data={"records": records, "n_results": n, "source_platform": "CrossRef"},
+        )
+        assert_spoken_text_safe(spoken)
+
+    return response
 
 
 # ============================================================================

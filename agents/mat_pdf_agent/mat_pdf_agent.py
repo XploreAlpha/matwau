@@ -32,6 +32,12 @@ from agents.pdf_parser import (
     PdfDocument,
     PdfParserClient,
 )
+from agents.widget_helpers import (
+    assert_spoken_text_safe,
+    attach_widget_protocol,
+    make_paper_fulltext_widget,
+    summarize_for_voice,
+)
 from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
@@ -128,7 +134,7 @@ def _document_to_response(
 
     reply = "\n".join(lines)
 
-    return AgentResponse(
+    response = AgentResponse(
         reply=reply,
         artifacts={
             "pdf_document": doc,
@@ -149,6 +155,43 @@ def _document_to_response(
         confidence=confidence,
         cost=cost if doc.parse_succeeded else 0.0,
     )
+
+    # v1.4-Academic M3 — attach matwau_paper_fulltext widget(only if parse_succeeded)
+    if doc.parse_succeeded and doc.paragraphs:
+        # 转 paragraphs → sections[{heading, text}]
+        sections = []
+        for p in doc.paragraphs[:50]:  # 限 50 段
+            heading = f"段 {p.paragraph_no} / 页 {p.page_no}"
+            sections.append({"heading": heading, "text": p.text[:2000]})
+        widget = make_paper_fulltext_widget(
+            arxiv_id=doc.paper_id,
+            title=doc.title or doc.paper_id,
+            authors=doc.authors,
+            abstract=doc.abstract or "",
+            sections=sections,
+            url=doc.source_url or "",
+            parser="pdfplumber",
+        )
+        spoken = summarize_for_voice(sections, user_intent, locale="zh", kind="fulltext")
+        attach_widget_protocol(
+            response,
+            widgets=[widget],
+            spoken_text=spoken,
+            structured_data={
+                "paper_id": doc.paper_id,
+                "title": doc.title,
+                "authors": doc.authors,
+                "year": doc.year,
+                "abstract": doc.abstract,
+                "sections": sections,
+                "n_paragraphs": n_para,
+                "n_pages": doc.n_pages,
+                "source_url": doc.source_url,
+            },
+        )
+        assert_spoken_text_safe(spoken)
+
+    return response
 
 
 # ============================================================================

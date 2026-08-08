@@ -25,6 +25,12 @@ from agents.jarvis_client import (
     JarvReference,
     is_jarvis_tools_available,
 )
+from agents.widget_helpers import (
+    assert_spoken_text_safe,
+    attach_widget_protocol,
+    make_property_table_widget,
+    summarize_for_voice,
+)
 from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
@@ -125,7 +131,7 @@ def _results_to_response(
 
     cost = 0.05 if is_real else 0.001
 
-    return AgentResponse(
+    response = AgentResponse(
         reply=reply,
         artifacts={
             "records": [r.to_dict() for r in refs],
@@ -143,6 +149,59 @@ def _results_to_response(
         confidence=confidence,
         cost=cost,
     )
+
+    # v1.4-Academic M3 — attach matwau_property_table widget(JARVIS 综合 + 2D 标记)
+    if refs:
+        primary = refs[0]
+        properties = []
+        if primary.band_gap_eV is not None:
+            properties.append({"name": "band_gap_eV", "label": "带隙",
+                               "value": round(primary.band_gap_eV, 3),
+                               "unit": "eV", "source": "JARVIS"})
+        if primary.formation_energy_per_atom_eV is not None:
+            properties.append({"name": "formation_energy_per_atom_eV", "label": "形成能",
+                               "value": round(primary.formation_energy_per_atom_eV, 3),
+                               "unit": "eV/atom", "source": "JARVIS"})
+        if primary.bulk_modulus_GPa is not None:
+            properties.append({"name": "bulk_modulus_GPa", "label": "体积模量",
+                               "value": round(primary.bulk_modulus_GPa, 2),
+                               "unit": "GPa", "source": "JARVIS"})
+        if primary.magmom is not None:
+            properties.append({"name": "magmom", "label": "磁矩",
+                               "value": round(primary.magmom, 3),
+                               "unit": "μB", "source": "JARVIS"})
+        if primary.spacegroup_symbol:
+            properties.append({"name": "spacegroup_symbol", "label": "空间群",
+                               "value": primary.spacegroup_symbol,
+                               "unit": "", "source": "JARVIS"})
+        # is_2d 二值 bool → 转中文标签
+        properties.append({
+            "name": "is_2d", "label": "维度",
+            "value": "🧊 2D 材料" if primary.is_2d else "🧱 3D 材料",
+            "unit": "", "source": "JARVIS",
+        })
+        if primary.xc_functional:
+            properties.append({"name": "xc_functional", "label": "XC 泛函",
+                               "value": primary.xc_functional,
+                               "unit": "", "source": "JARVIS"})
+
+        if properties:
+            widget = make_property_table_widget(
+                formula=primary.formula,
+                properties=properties,
+                source_platform="JARVIS",
+            )
+            spoken = summarize_for_voice(properties, user_intent, locale="zh", kind="properties")
+            attach_widget_protocol(
+                response,
+                widgets=[widget],
+                spoken_text=spoken,
+                structured_data={"records": [r.to_dict() for r in refs], "n_results": len(refs),
+                                 "source_platform": "JARVIS", "formula": primary.formula},
+            )
+            assert_spoken_text_safe(spoken)
+
+    return response
 
 
 # ============================================================================

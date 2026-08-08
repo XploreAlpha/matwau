@@ -26,6 +26,12 @@ from agents.oqmd_client import (
     OqmdClient,
     OqmdReference,
 )
+from agents.widget_helpers import (
+    assert_spoken_text_safe,
+    attach_widget_protocol,
+    make_property_table_widget,
+    summarize_for_voice,
+)
 from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
@@ -120,7 +126,7 @@ def _results_to_response(
 
     cost = 0.05 if is_real else 0.001  # 真查 > mock
 
-    return AgentResponse(
+    response = AgentResponse(
         reply=reply,
         artifacts={
             "records": [r.to_dict() for r in refs],
@@ -135,6 +141,44 @@ def _results_to_response(
         confidence=confidence,
         cost=cost,
     )
+
+    # v1.4-Academic M3 — attach matwau_property_table widget(取首条 record 作 formula + properties)
+    if refs:
+        primary = refs[0]
+        properties = [
+            {"name": "formation_energy_per_atom", "label": "形成能",
+             "value": round(primary.formation_energy_per_atom, 4),
+             "unit": "eV/atom", "source": "OQMD"},
+            {"name": "energy_above_hull", "label": "凸包距",
+             "value": round(primary.energy_above_hull, 4),
+             "unit": "eV/atom", "source": "OQMD"},
+            {"name": "volume", "label": "体积",
+             "value": round(primary.volume, 3),
+             "unit": "Å³", "source": "OQMD"},
+            {"name": "n_atoms", "label": "原子数",
+             "value": primary.n_atoms, "unit": "", "source": "OQMD"},
+            {"name": "spacegroup", "label": "空间群",
+             "value": primary.spacegroup or "?", "unit": "", "source": "OQMD"},
+            {"name": "is_stable", "label": "稳定性",
+             "value": "✓ 稳定" if primary.is_stable else "△ 亚稳",
+             "unit": "", "source": "OQMD"},
+        ]
+        widget = make_property_table_widget(
+            formula=primary.formula,
+            properties=properties,
+            source_platform="OQMD",
+        )
+        spoken = summarize_for_voice(properties, user_intent, locale="zh", kind="properties")
+        attach_widget_protocol(
+            response,
+            widgets=[widget],
+            spoken_text=spoken,
+            structured_data={"records": [r.to_dict() for r in refs], "n_results": len(refs),
+                             "source_platform": "OQMD", "formula": primary.formula},
+        )
+        assert_spoken_text_safe(spoken)
+
+    return response
 
 
 # ============================================================================

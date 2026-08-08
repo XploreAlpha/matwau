@@ -24,6 +24,12 @@ from agents.cod_client import (
     CodReference,
     fetch_cif,
 )
+from agents.widget_helpers import (
+    assert_spoken_text_safe,
+    attach_widget_protocol,
+    make_property_table_widget,
+    summarize_for_voice,
+)
 from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
@@ -143,12 +149,51 @@ def _results_to_response(
             artifacts["cif_text"] = cif_text[:4000]  # 限 4 KB
             artifacts["cif_cod_id"] = first.cod_id
 
-    return AgentResponse(
+    response = AgentResponse(
         reply=reply,
         artifacts=artifacts,
         confidence=confidence,
         cost=cost,
     )
+
+    # v1.4-Academic M3 — attach matwau_property_table widget(取首条 record 作 formula + 晶格常数 properties)
+    if refs:
+        primary = refs[0]
+        properties = [
+            {"name": "a", "label": "a 晶格",
+             "value": round(primary.a, 4), "unit": "Å", "source": "COD"},
+            {"name": "b", "label": "b 晶格",
+             "value": round(primary.b, 4), "unit": "Å", "source": "COD"},
+            {"name": "c", "label": "c 晶格",
+             "value": round(primary.c, 4), "unit": "Å", "source": "COD"},
+            {"name": "alpha", "label": "α 角",
+             "value": round(primary.alpha, 2), "unit": "°", "source": "COD"},
+            {"name": "beta", "label": "β 角",
+             "value": round(primary.beta, 2), "unit": "°", "source": "COD"},
+            {"name": "gamma", "label": "γ 角",
+             "value": round(primary.gamma, 2), "unit": "°", "source": "COD"},
+            {"name": "volume", "label": "体积",
+             "value": round(primary.volume, 3), "unit": "Å³", "source": "COD"},
+            {"name": "spacegroup", "label": "空间群",
+             "value": primary.spacegroup_h_m or "?", "unit": "", "source": "COD"},
+        ]
+        widget = make_property_table_widget(
+            formula=primary.formula,
+            properties=properties,
+            source_platform="COD",
+        )
+        spoken = summarize_for_voice(properties, user_intent, locale="zh", kind="properties")
+        response.artifacts["source_platform"] = "COD"
+        attach_widget_protocol(
+            response,
+            widgets=[widget],
+            spoken_text=spoken,
+            structured_data={"records": [r.to_dict() for r in refs], "n_results": len(refs),
+                             "source_platform": "COD", "formula": primary.formula},
+        )
+        assert_spoken_text_safe(spoken)
+
+    return response
 
 
 # ============================================================================

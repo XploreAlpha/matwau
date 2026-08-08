@@ -23,6 +23,12 @@ _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 from agents.pubchem_client import PubChemClient, PubChemReference
+from agents.widget_helpers import (
+    assert_spoken_text_safe,
+    attach_widget_protocol,
+    make_compound_list_widget,
+    summarize_for_voice,
+)
 from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
@@ -101,7 +107,7 @@ def _results_to_response(
     reply = "\n".join(lines)
     cost = 0.01 if is_real else 0.001
 
-    return AgentResponse(
+    response = AgentResponse(
         reply=reply,
         artifacts={
             "records": records,
@@ -117,6 +123,24 @@ def _results_to_response(
         confidence=confidence,
         cost=cost,
     )
+
+    # v1.4-Academic M3 — attach matwau_compound_list widget
+    if records:
+        compound_widget = make_compound_list_widget(
+            records,
+            title=f"PubChem 化合物 ({n} 个)",
+        )
+        spoken = summarize_for_voice(records, user_intent, locale="zh", kind="compounds")
+        attach_widget_protocol(
+            response,
+            widgets=[compound_widget],
+            spoken_text=spoken,
+            structured_data={"records": records, "n_results": n, "source_platform": "PubChem"},
+        )
+        # 硬约束:spoken_text ≤ 200 + 无禁忌词
+        assert_spoken_text_safe(spoken)
+
+    return response
 
 
 # ============================================================================

@@ -67,6 +67,14 @@ from .llm_reviewer import (
     get_default_reviewer as _get_default_reviewer,
 )
 
+# v1.4-Academic M3 — cross-source summary widget
+from agents.widget_helpers import (
+    assert_spoken_text_safe,
+    attach_widget_protocol,
+    make_cross_source_summary_widget,
+    summarize_for_voice,
+)
+
 # ============================================================================
 # 数据结构(对外暴露)
 # ============================================================================
@@ -341,6 +349,12 @@ verdict 阈值:
             except Exception:
                 pass
 
+        # v1.4-Academic M3 — attach matwau_cross_source_summary widget(Mode 5 路径)
+        if cross_source_priority and records_by_platform:
+            cs = getattr(verdict, "cross_source", None)
+            if cs is not None:
+                _attach_cross_source_widget(response, verdict, records_by_platform, user_message)
+
         return response
 
     def perceive(self, req: AgentRequest) -> dict[str, Any]:
@@ -520,6 +534,106 @@ verdict 阈值:
             confidence=0.0,
             error=error,
         )
+
+
+# ============================================================================
+# v1.4-Academic M3 — cross-source widget attach helper(module-level)
+# ============================================================================
+
+
+def _attach_cross_source_widget(
+    response: AgentResponse,
+    verdict: CriticVerdict,
+    records_by_platform: dict[str, list[dict]],
+    user_message: str,
+) -> None:
+    """attach matwau_cross_source_summary widget 到 critic AgentResponse
+
+    wire 字段(per homerail FE VoiceDynamicWidget union):
+    - data["query"] = user_message
+    - data["consensus"] = {text, confidence, consensus_rate}
+    - data["sources"] = [{name, label, hit_count, agreed, error}]
+    """
+    cross_source = getattr(verdict, "cross_source", None)
+
+    # 抽 4 platform sources — 调 module-level helpers(MatCriticAgent 实例方法用 __new__ copy 调用)
+    sources = _extract_sources_for_widget(records_by_platform, cross_source)
+    consensus_text, confidence = _cross_source_consensus_text(cross_source)
+    consensus_rate = cross_source.consensus_rate if cross_source else 0.0
+
+    widget = make_cross_source_summary_widget(
+        consensus_text=consensus_text,
+        confidence=confidence,
+        consensus_rate=consensus_rate,
+        sources=sources,
+        query=user_message,
+    )
+
+    # TTS — 用 sources 当 records(简化)
+    spoken_records = [{"name": s["name"], "agreed": s["agreed"], "hit_count": s["hit_count"]}
+                      for s in sources]
+    spoken = summarize_for_voice(spoken_records, user_message, locale="zh", kind="cross_source")
+    attach_widget_protocol(
+        response,
+        widgets=[widget],
+        spoken_text=spoken,
+        structured_data={
+            "query": user_message,
+            "consensus": {"text": consensus_text, "confidence": confidence,
+                          "consensus_rate": consensus_rate},
+            "sources": sources,
+            "records_by_platform": records_by_platform,
+        },
+    )
+    assert_spoken_text_safe(spoken)
+
+
+# module-level helpers(供 _attach_cross_source_widget)
+PLATFORM_LABELS = {
+    "OQMD": "OQMD(DFT)",
+    "COD": "COD(实验晶体)",
+    "NOMAD": "NOMAD(archive)",
+    "JARVIS": "JARVIS(综合)",
+}
+
+
+def _extract_sources_for_widget(
+    records_by_platform: dict[str, list[dict]],
+    cross_source,  # CrossSourceStats | None
+) -> list[dict]:
+    """从 records_by_platform 抽 4 platform source entries"""
+    n_consensus = cross_source.n_clusters if cross_source else 0
+    sources = []
+    for platform_name, label in PLATFORM_LABELS.items():
+        records = records_by_platform.get(platform_name, [])
+        hit_count = len(records)
+        error = "" if hit_count > 0 else "no_hits"
+        agreed = hit_count > 0 and n_consensus > 0
+        sources.append({
+            "name": platform_name,
+            "label": label,
+            "hit_count": hit_count,
+            "agreed": agreed,
+            "error": error,
+        })
+    return sources
+
+
+def _cross_source_consensus_text(cross_source) -> tuple[str, float]:
+    """生成 consensus.text + confidence"""
+    if cross_source is None:
+        return ("未跑跨源评估", 0.0)
+    rate = cross_source.consensus_rate
+    n_clusters = cross_source.n_clusters
+    confidence = cross_source.score
+    if rate >= 0.7:
+        tone = "高度一致"
+    elif rate >= 0.4:
+        tone = "中等一致"
+    else:
+        tone = "低一致性"
+    text = f"L5 跨源{tone}(consensus_rate={rate:.0%},达成 {n_clusters} 个 cluster)"
+    return (text, confidence)
 
 
 def create_default_agent() -> MatCriticAgent:

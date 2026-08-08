@@ -122,17 +122,44 @@ M2_SUPPORTED_TYPES: frozenset[str] = frozenset({
     WidgetType.MATWAU_RECIPE_CARD.value,
 })
 
+# v1.4-Academic M3 — 6 个新 widget type
+M3_SUPPORTED_TYPES: frozenset[str] = frozenset({
+    WidgetType.MATWAU_COMPOUND_LIST.value,
+    WidgetType.MATWAU_JOURNAL_LIST.value,
+    WidgetType.MATWAU_CROSS_SOURCE_SUMMARY.value,
+    WidgetType.MATWAU_PROPERTY_TABLE.value,
+    WidgetType.MATWAU_PAPER_FULLTEXT.value,
+    WidgetType.MATWAU_SEMANTIC_HITS.value,
+})
+
+# 全集(M2 + M3)
+ALL_SUPPORTED_TYPES: frozenset[str] = M2_SUPPORTED_TYPES | M3_SUPPORTED_TYPES
+
 
 def is_supported_widget_type(widget_type: str) -> bool:
-    """判断 widget type 是否在 M2 支持列表(M3 会扩展)
+    """判断 widget type 是否在 ALL 支持列表(M2 + M3)
 
     Args:
         widget_type: e.g. "matwau_paper_list"
 
     Returns:
-        True if M2 supported, False otherwise
+        True if supported (M2 or M3), False otherwise
     """
-    return widget_type in M2_SUPPORTED_TYPES
+    return widget_type in ALL_SUPPORTED_TYPES
+
+
+def is_m3_widget_type(widget_type: str) -> bool:
+    """判断 widget type 是否是 M3 新增(6 种)
+
+    给 serve.py / homerail 用,方便区分 widget 来自哪个 milestone。
+
+    Args:
+        widget_type: e.g. "matwau_compound_list"
+
+    Returns:
+        True if M3 specific, False otherwise
+    """
+    return widget_type in M3_SUPPORTED_TYPES
 
 
 # ============================================================================
@@ -154,6 +181,9 @@ __all__ = [
     "WidgetLayout",
     "WidgetAction",
     "M2_SUPPORTED_TYPES",
+    "M3_SUPPORTED_TYPES",
+    "ALL_SUPPORTED_TYPES",
     "is_supported_widget_type",
+    "is_m3_widget_type",
     "widget_to_dict",
 ]
