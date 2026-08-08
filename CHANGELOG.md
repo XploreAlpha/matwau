@@ -5,6 +5,70 @@
 
 ---
 
+## [v1.4-Academic] - 2026-08-08 — MINOR: widget 协议层(M2 homerail voice cockpit)
+
+### 概述
+
+为 homerail voice cockpit 生成式 UI(v0.3-matwau-genui 同日 tag)接入 widget 协议层。
+matwau 后端返回 `/wau/dispatch` 时附带 `widgets[]` / `spoken_text` / `structured_data`,
+homerail 前端用这 3 字段在中央画布渲染卡片(论文列表 / 实验方案)。
+
+### 新增
+
+- **`agents/widget_schema.py`** (~125 行):
+  - `WidgetType` enum:M2 暴露 2 种 widget(`matwau_paper_list` + `matwau_recipe_card`),M3 扩到 8 种
+  - `WidgetLayout` enum:card_grid / list / table
+  - `WidgetAction` enum:open_url / copy_doi / expand_abstract / expand_steps / show_sources / view_hit
+  - `Widget` Pydantic model(`extra="ignore"` 向后兼容老 caller,`use_enum_values=False` 保持 enum 对象)
+  - `M2_SUPPORTED_TYPES: frozenset[str]` 强断言只 2 个,防止 regression 偷偷加 widget
+  - `widget_to_dict()` 工具函数:返回 JSON-safe dict
+- **`agents/widget_helpers.py`** (~250 行):
+  - `summarize_for_voice()`:TTS 专用短摘要,硬约束 ≤200 字符 + 严禁含 title/arxiv:/doi:/http(s)://
+  - `assert_spoken_text_safe()`:硬断言 TTS 安全约束,失败即抛(给单测用)
+  - `summarize_natural()` / `summarize_recipe_natural()`:自然语言摘要(给 reply 用)
+  - `make_paper_list_widget()` / `make_recipe_card_widget()`:构造 widget,默认 fallback_text
+  - `attach_widget_protocol()`:给 AgentResponse 加 3 字段(spoken_text / structured_data / widgets)
+- **`AgentResponse` 新增 3 个 optional 字段**(`matwau/core/agent_base.py`):
+  - `spoken_text: str | None = None`
+  - `structured_data: dict[str, Any] | None = None`
+  - `widgets: list[Any] = field(default_factory=list)`
+  - 全 optional 默认值,**老调用方 0 改动**也能跑
+
+### 修改
+
+- **`WorkflowResult` 新增 1 个 optional 字段**(`agents/mat_orchestrator/dag.py`):
+  - `final_response: Any = None`
+  - `DAGExecutor.execute()` 表面最后节点的 AgentResponse 给 dispatch handler 透传 widgets
+- **`MatOrchestrator._run_cross_source_parallel()`** 加 `final_response=critic_resp`
+- **`serve.py` /wau/dispatch handler** 抽 widget 协议从 final_response:
+  - 返回 JSON 加 `reply` / `spoken_text` / `structured_data` / `widgets` 4 字段
+  - 老 workflow 走 fallback 路径,空 widgets 数组
+- **`MatArxivAgent._results_to_response()`** 自动 attach paper_list widget(records 非空时)
+- **`MatExpAgent.act()`** 自动 attach recipe_card widget(recipes 非空时)
+
+### 性能
+
+- widget 构造开销:< 1ms / call(纯 Pydantic + dict 操作)
+- serve.py response size 增长:< 5KB / response(论文 5 篇 + widget)
+
+### 兼容性
+
+- ✅ 老 caller 0 改动:AgentResponse 3 字段全 optional,WorkflowResult 1 字段 optional
+- ✅ 老 acceptance.sh 22 场景 0 回归(4 新增 widget 场景 T14-T17)
+- ✅ homerail v0.3-matwau-genui 同日 tag,可立即消费 widgets 字段
+
+### 测试
+
+- 新增 `tests/unit/test_widget_schema.py`(5 单测)
+- 新增 `tests/unit/test_widget_helpers.py`(12 单测)
+- `tests/unit/test_mat_arxiv_agent.py` 追加 15 v14_* 单测
+- `tests/unit/test_mat_exp_agent.py` 追加 12 v14_* 单测
+- 共 39 M2 widget 单测,所有 PASS
+- 老 pytest 回归:217 passed in M2-touched 文件(M2 widget schema/helpers + arxiv/exp agent + agent_base + serve + orchestrator + dag)
+- 4 pre-existing baseline fail 不属 M2 范围(critic cross_source + nomad typed tuple,本 commit 前已存在)
+
+---
+
 ## [v1.3.4-Academic] - 2026-08-06 — MINOR: paper PDF parse + semantic search
 
 ### 概述

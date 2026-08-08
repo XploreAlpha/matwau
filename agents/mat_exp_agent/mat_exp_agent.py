@@ -30,6 +30,7 @@ Stage 2(WAU v1.0.0 GA + 真实验设备后)切真仪器 + 反馈学习
 
 from __future__ import annotations
 
+import dataclasses
 import sys
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,13 @@ from typing import Any
 _AGENT_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
+
+from agents.widget_helpers import (
+    attach_widget_protocol,
+    make_recipe_card_widget,
+    summarize_for_voice,
+    summarize_recipe_natural,
+)
 
 from matwau.core.agent_base import (
     AgentRequest,
@@ -155,6 +163,9 @@ mat-gen(造物主)→ mat-sim(快速试菜)→ mat-hpc(超算对接员)→ mat-e
         3. 统计 + SafetyGuard 检查
         4. 返回 AgentResponse
         """
+        # v1.4-Academic M2 — perceive 注入 user_message 给 widget TTS 用
+        user_message = ctx.get("user_message") or ctx.get("message") or ""
+
         # 1. 拿 candidates
         candidates = ctx.get("_input_candidates") or []
         if not candidates:
@@ -209,6 +220,31 @@ mat-gen(造物主)→ mat-sim(快速试菜)→ mat-hpc(超算对接员)→ mat-e
             confidence=confidence,
             cost=total_cost,
         )
+
+        # v1.4-Academic M2 — widget 协议层(homerail voice cockpit 消费)
+        if recipes:
+            recipe_dicts = [
+                r.model_dump(mode="json") if hasattr(r, "model_dump")
+                else (dataclasses.asdict(r) if dataclasses.is_dataclass(r) else r)
+                for r in recipes
+            ]
+            recipe_widget = make_recipe_card_widget(
+                recipe_dicts,
+                title=f"实验方案 ({len(recipes)} 个)",
+                fallback_text=summarize_recipe_natural(recipe_dicts, user_message, locale="zh"),
+            )
+            attach_widget_protocol(
+                response,
+                widgets=[recipe_widget],
+                spoken_text=summarize_for_voice(
+                    recipe_dicts, user_message, locale="zh", kind="recipes"
+                ),
+                structured_data={
+                    "recipes": recipe_dicts,
+                    "input_count": len(candidates),
+                    "sint_temp_range": response.artifacts.get("sint_temp_range"),
+                },
+            )
 
         # 6. SafetyGuard 检查(Stage 1 简版)
         if self.safety_guard:

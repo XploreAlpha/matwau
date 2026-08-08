@@ -76,6 +76,13 @@ class AgentResponse:
     lineage_id: str | None = None
     error: str | None = None
 
+    # ─── v1.4-Academic widget 协议层新增字段(全 optional,默认值不破老调用方) ───
+    # homerail voice cockpit 通过这 3 字段读 widget protocol + TTS 友好摘要
+    # 老 agent 不填这 3 字段也兼容(hore 端 has 读 → None / [] fallback)
+    spoken_text: str | None = None       # ≤200 字语音摘要(per widget_helpers)
+    structured_data: dict[str, Any] | None = None  # raw records / recipes 备份
+    widgets: list[Any] = field(default_factory=list)  # list[Widget] — 避免循环 import
+
 
 # ============================================================================
 # Harness 部件(类型提示,W2 后续实现)

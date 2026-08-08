@@ -205,9 +205,26 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
 
         try:
             from agents.mat_orchestrator import MatOrchestrator
+            from agents.widget_schema import widget_to_dict
 
             orch = MatOrchestrator()
             wf_result = orch.run(user_intent=intent)
+
+            # v1.4-Academic — 抽 widget 协议从 final_response(最后节点的 AgentResponse)
+            final_response = getattr(wf_result, "final_response", None)
+            if final_response is not None and hasattr(final_response, "reply"):
+                reply_text = final_response.reply or wf_result.final_outputs.get("reply", "")
+                spoken_text = getattr(final_response, "spoken_text", None)
+                structured_data = getattr(final_response, "structured_data", None)
+                widget_list = getattr(final_response, "widgets", []) or []
+                widgets_json = [widget_to_dict(w) for w in widget_list]
+            else:
+                # 兜底:老 workflow / 没 widget 的 fallback
+                reply_text = wf_result.final_outputs.get("reply", "")
+                spoken_text = None
+                structured_data = None
+                widgets_json = []
+
             _ok(self, 200, {
                 "status": "ok" if wf_result.success else "fail",
                 "workflow_id": payload.get("workflow_id"),
@@ -216,6 +233,10 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
                 "success": wf_result.success,
                 "error": wf_result.error,
                 "total_duration_seconds": wf_result.total_duration_seconds,
+                "reply": reply_text,
+                "spoken_text": spoken_text,
+                "structured_data": structured_data,
+                "widgets": widgets_json,
                 "final_outputs": {
                     k: str(v)[:200] for k, v in (wf_result.final_outputs or {}).items()
                 },

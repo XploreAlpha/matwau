@@ -431,6 +431,7 @@ class MatOrchestrator:
         node_results.sort(key=lambda n: [k for k, _ in client_specs].index(n.node_id))
 
         # Step 5: critic L5(基于 4 client 结果)
+        critic_resp = None  # 初始化让 except 路径不 NameError(v1.4 M2 — 透传 final_response)
         try:
             critic_t0 = _time.time()
             critic = self.agent_registry.get("mat-critic-agent")
@@ -494,6 +495,7 @@ class MatOrchestrator:
             success=all(n.success for n in node_results),
             error=None if all(n.success for n in node_results) else "some nodes failed",
             final_outputs=final_outputs,
+            final_response=critic_resp,  # v1.4-Academic — 透传 critic AgentResponse(含 widgets)
         )
 
         # W32 — Lineage hook

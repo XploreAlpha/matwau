@@ -28,6 +28,12 @@ _PROJECT_ROOT = _AGENT_DIR.parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 from agents.arxiv_client import ArxivClient, ArxivReference
+from agents.widget_helpers import (
+    attach_widget_protocol,
+    make_paper_list_widget,
+    summarize_for_voice,
+    summarize_natural,
+)
 from matwau.core.agent_base import (
     AgentRequest,
     AgentResponse,
@@ -131,7 +137,7 @@ def _results_to_response(
     # arxiv 免费,无 cost,但真查 > mock 给个象征性 cost
     cost = 0.01 if is_real else 0.001
 
-    return AgentResponse(
+    response = AgentResponse(
         reply=reply,
         artifacts={
             "records": records,
@@ -147,6 +153,22 @@ def _results_to_response(
         confidence=confidence,
         cost=cost,
     )
+
+    # v1.4-Academic — widget 协议层(homerail voice cockpit 消费)
+    if records:
+        paper_widget = make_paper_list_widget(
+            records,
+            title=f"arXiv 论文 ({n} 篇)" if n > 0 else "arXiv 论文(0 篇)",
+            fallback_text=summarize_natural(records, user_intent, locale="zh"),
+        )
+        attach_widget_protocol(
+            response,
+            widgets=[paper_widget],
+            spoken_text=summarize_for_voice(records, user_intent, locale="zh"),
+            structured_data={"records": records, "n_results": n},
+        )
+
+    return response
 
 
 # ============================================================================

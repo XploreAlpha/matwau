@@ -73,6 +73,9 @@ class WorkflowResult:
     # 最终输出(per workflow 类型)
     final_outputs: dict[str, Any] = field(default_factory=dict)
 
+    # v1.4-Academic — 最后节点的 AgentResponse(供 /wau/dispatch handler 透传 widgets)
+    final_response: Any = None
+
     def to_summary(self) -> str:
         lines = []
         status = "✅" if self.success else "❌"
@@ -280,6 +283,10 @@ class DAGExecutor:
         # final_outputs = 最后节点的 outputs
         if result.node_results:
             result.final_outputs = result.node_results[-1].outputs
+            # v1.4-Academic — 表面最后节点的 AgentResponse(给 dispatch handler 透传 widgets)
+            last_outputs = result.node_results[-1].outputs
+            if isinstance(last_outputs, dict) and "response" in last_outputs:
+                result.final_response = last_outputs["response"]
         return result
 
 
