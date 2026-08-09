@@ -27,6 +27,12 @@ SUBCLASSES = [
     # M3 NEW — 跨数据源 2 个子类
     "external_db_query",         # 单源查询(OQMD / COD / NOMAD / JARVIS 任选)
     "cross_source_validation",   # 多源交叉验证(4 个数据源对比)
+    # M3.5 NEW — 6 个 widget 路由(2026-08-09 修复 orchestrator gap)
+    "compound_lookup",           # 单化合物查询(PubChem)→ matwau_compound_list
+    "journal_lookup",            # 期刊文章查询(CrossRef)→ matwau_journal_list
+    "paper_fulltext",            # 论文全文解析(PDF)→ matwau_paper_fulltext
+    "semantic_search",           # 语义检索(语义索引)→ matwau_semantic_hits
+    "property_query",            # 单材料物性查询(OQMD/COD/NOMAD/JARVIS)→ matwau_property_table
 ]
 
 # 9 个 material_system(per W7 demo + W6 exp categories)
@@ -143,6 +149,60 @@ SUBCLASS_PATTERNS = {
         r"在.*4.*库.*对比", r"4.*数据源.*对比", r"多源.*验证",
         r"求同.*存异", r"三方.*对比", r"三方.*验证",
     ],
+    # M3.5 NEW — 5 个 widget 路由(per 2026-08-09 orchestrator 修复)
+    # 优先级:paper_fulltext > property_query > semantic_search > journal_lookup > compound_lookup
+    # (paper_fulltext 优先是因为 arxiv/PDF 关键词最具体)
+    "compound_lookup": [
+        # 英文药物 / 化合物名
+        r"\baspirin\b", r"\bparacetamol\b", r"\bibuprofen\b", r"\bcaffeine\b",
+        r"\bglucose\b", r"\bethanol\b", r"\bmethane\b",
+        # 化学名称关键词
+        r"\bcompound\b", r"\bchemical compound\b", r"\bCID\b", r"\bpubchem\b",
+        # 显式 cid 编号
+        r"cid[:=]\s*\d+",
+        # 中文
+        r"化合物", r"化学物", r"有机分子", r"药物", r"分子式.*查",
+        # 化合物名(以 "酸 / 醇 / 酮" 结尾)
+        r"[一-鿿]*酸\b", r"[一-鿿]*醇\b", r"[一-鿿]*酮\b",
+    ],
+    "journal_lookup": [
+        # 期刊/论文查询关键词
+        r"\bDOI\b", r"\bdoi[:=]\s*10\.", r"\bcrossref\b",
+        r"\bjournal article\b", r"\bjournal paper\b",
+        # 常见材料期刊查询
+        r"perovskite solar cell", r"solar cell review", r"battery review",
+        # 中文
+        r"期刊", r"杂志", r"研究论文", r"找.*论文", r"查.*期刊",
+        r"文献综述", r"近期.*文献", r"相关.*文章",
+    ],
+    "paper_fulltext": [
+        # arxiv URL / ID
+        r"arxiv\.org/pdf", r"arxiv\.org/abs", r"arxiv:\d+",
+        # PDF 操作
+        r"parse\s+(this\s+)?pdf", r"\bpdf\b.*\bparse\b",
+        r"\bfulltext\b", r"full\s*text", r"full\s*paper",
+        # PDF 解析
+        r"pdf_url", r"parse_url",
+        # 中文
+        r"解析.*PDF", r"PDF.*解析", r"全文解析", r"全文.*论文", r"下载.*PDF",
+    ],
+    "semantic_search": [
+        # 英文
+        r"\bsemantic\s+search\b", r"\bsimilarity\b", r"\bsimilar\s+(passage|paper|text)s?\b",
+        # 中文
+        r"找.*相似", r"语义检索", r"相似段落", r"相似文献", r"相似.*段",
+        # 注:不要 `^[一-鿿]+$`(纯中文) — 任何中文 query 都会匹配,
+        #     让"我想做个材料"这种 fallback 误判成 semantic_search(per 2026-08-09 fix)
+    ],
+    "property_query": [
+        # 材料物性关键词
+        r"\bproperty\b", r"\bproperties\b", r"\bformation_energy\b", r"\bband_gap\b",
+        r"\bbulk_modulus\b", r"\bspacegroup\b",
+        # 中文物性
+        r"物性", r"形成能", r"形成焓", r"带隙", r"晶体结构", r"晶格常数",
+        # 单源查询(非跨源)— 物性查询但只要 1 个平台
+        # 注:cross_source_validation 优先(关键词更具体)
+    ],
 }
 
 
@@ -168,6 +228,13 @@ def classify_subclass(user_intent: str) -> tuple[str, float, str]:
     if not scores:
         # fallback:experiment_planning(默认走 4 段管线)
         return ("experiment_planning", 0.5, "无明确子类,默认走 experiment_planning")
+
+    # 优先级(per M3.5 修复):paper_fulltext 强信号(arxiv/PDF)优先于 score 高的子类
+    # 例:"parse this PDF with arxiv.org/pdf/1234" 应该走 paper_fulltext 而不是 property_query
+    if "paper_fulltext" in scores and scores["paper_fulltext"] >= 1:
+        n_hits = scores["paper_fulltext"]
+        confidence = 0.85 if n_hits >= 2 else 0.7
+        return ("paper_fulltext", confidence, f"arxiv/PDF 强信号: {matched_patterns['paper_fulltext']}")
 
     # 选最高分
     best = max(scores.items(), key=lambda x: x[1])

@@ -572,6 +572,114 @@ WORKFLOW_BY_SUBCLASS = {
 }
 
 
+# ============================================================================
+# M3.5 NEW — 5 个单节点 workflow(per 2026-08-09 orchestrator 修复)
+# 路由 MatIntent 的 5 个新 subclass → 6 种 M3 新 widget type
+# ============================================================================
+
+
+def compound_lookup_workflow() -> DAG:
+    """M3.5 compound_lookup: PubChem 化合物查询 → matwau_compound_list"""
+    return DAG(
+        name="compound_lookup",
+        nodes=[
+            DAGNode(
+                node_id="pubchem",
+                agent_name="mat-pubchem-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="pubchem_response",
+                description="mat-pubchem-agent(M3): PubChem 化合物 CID + 分子式 + SMILES",
+            ),
+        ],
+    )
+
+
+def journal_lookup_workflow() -> DAG:
+    """M3.5 journal_lookup: CrossRef 期刊文章查询 → matwau_journal_list"""
+    return DAG(
+        name="journal_lookup",
+        nodes=[
+            DAGNode(
+                node_id="crossref",
+                agent_name="mat-crossref-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="crossref_response",
+                description="mat-crossref-agent(M3): CrossRef DOI + 期刊 + 作者",
+            ),
+        ],
+    )
+
+
+def paper_fulltext_workflow() -> DAG:
+    """M3.5 paper_fulltext: PDF 解析 → matwau_paper_fulltext
+
+    接收 context.pdf_url / pdf_path / pdf_bytes(由 caller 传 initial_inputs.context)
+    """
+    return DAG(
+        name="paper_fulltext",
+        nodes=[
+            DAGNode(
+                node_id="pdf",
+                agent_name="mat-pdf-agent",
+                inputs={
+                    "message": "initial.user_intent",
+                    "pdf_url": "initial.pdf_url",
+                    "pdf_path": "initial.pdf_path",
+                    "pdf_bytes": "initial.pdf_bytes",
+                },
+                output_key="pdf_response",
+                description="mat-pdf-agent(M3): pdfplumber 解析 PDF → 段落 + metadata",
+            ),
+        ],
+    )
+
+
+def semantic_search_workflow() -> DAG:
+    """M3.5 semantic_search: 语义索引检索 → matwau_semantic_hits"""
+    return DAG(
+        name="semantic_search",
+        nodes=[
+            DAGNode(
+                node_id="semantic",
+                agent_name="mat-semantic-search-agent",
+                inputs={
+                    "message": "initial.user_intent",
+                    "query_english": "initial.query_english",
+                },
+                output_key="semantic_response",
+                description="mat-semantic-search-agent(M3): TF-IDF 语义检索 → 段落命中",
+            ),
+        ],
+    )
+
+
+def property_query_workflow() -> DAG:
+    """M3.5 property_query: 单源物性查询 → matwau_property_table
+
+    只跑 OQMD(4 平台 cross_source 走 cross_source_property workflow)
+    """
+    return DAG(
+        name="property_query",
+        nodes=[
+            DAGNode(
+                node_id="oqmd",
+                agent_name="mat-oqmd-agent",
+                inputs={"message": "initial.user_intent"},
+                output_key="oqmd_response",
+                description="mat-oqmd-agent(M3): DFT 形成能 + 凸包距离 + 体积",
+            ),
+        ],
+    )
+
+
+# 把 5 个 M3.5 workflow 注册到 WORKFLOW_BY_SUBCLASS
+WORKFLOW_BY_SUBCLASS["compound_lookup"] = compound_lookup_workflow
+WORKFLOW_BY_SUBCLASS["journal_lookup"] = journal_lookup_workflow
+WORKFLOW_BY_SUBCLASS["paper_fulltext"] = paper_fulltext_workflow
+WORKFLOW_BY_SUBCLASS["semantic_search"] = semantic_search_workflow
+WORKFLOW_BY_SUBCLASS["property_query"] = property_query_workflow
+
+
 def get_workflow_for_subclass(subclass: str) -> DAG | None:
     """根据子类选 workflow"""
     factory = WORKFLOW_BY_SUBCLASS.get(subclass)

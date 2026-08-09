@@ -88,6 +88,10 @@ class MatOrchestrator:
         cod_agent=None,                # M3 NEW
         nomad_agent=None,              # M3 NEW
         jarvis_agent=None,             # M3 NEW
+        pubchem_agent=None,            # M3.5 NEW (2026-08-09 orchestrator 修复)
+        crossref_agent=None,           # M3.5 NEW
+        pdf_agent=None,                # M3.5 NEW
+        semantic_search_agent=None,    # M3.5 NEW
         lineage_store=None,            # W32 — LineageStore 实例(默认 None → 不打 lineage)
         lineage_recorder=None,         # W32 — LineageRecorder 实例(默认 None → 不打 lineage)
         enable_lineage: bool = True,   # W32 — False → 关闭 lineage(测试用)
@@ -156,6 +160,28 @@ class MatOrchestrator:
             )
             jarvis_agent = create_jarvis()
 
+        # M3.5 懒加载 4 个 widget 路由 agent(per 2026-08-09 orchestrator 修复)
+        if pubchem_agent is None:
+            from agents.mat_pubchem_agent.mat_pubchem_agent import (
+                create_default_agent as create_pubchem,
+            )
+            pubchem_agent = create_pubchem()
+        if crossref_agent is None:
+            from agents.mat_crossref_agent.mat_crossref_agent import (
+                create_default_agent as create_crossref,
+            )
+            crossref_agent = create_crossref()
+        if pdf_agent is None:
+            from agents.mat_pdf_agent.mat_pdf_agent import (
+                create_default_agent as create_pdf,
+            )
+            pdf_agent = create_pdf()
+        if semantic_search_agent is None:
+            from agents.mat_semantic_search_agent.mat_semantic_search_agent import (
+                create_default_agent as create_semantic,
+            )
+            semantic_search_agent = create_semantic()
+
         self.intent_agent = intent_agent
         self.gen_agent = gen_agent
         self.sim_agent = sim_agent
@@ -168,11 +194,17 @@ class MatOrchestrator:
         self.cod_agent = cod_agent
         self.nomad_agent = nomad_agent
         self.jarvis_agent = jarvis_agent
+        # M3.5 NEW (per 2026-08-09 orchestrator 修复)
+        self.pubchem_agent = pubchem_agent
+        self.crossref_agent = crossref_agent
+        self.pdf_agent = pdf_agent
+        self.semantic_search_agent = semantic_search_agent
 
         # Agent registry
         # W12: mat-critic-agent 替换原 mat-critic-stub
         # W14: mat-lit-agent 替换原 mat-lit-stub
         # M3: 4 个 data agent
+        # M3.5: 4 个 widget 路由 agent(2026-08-09 修复 orchestrator gap)
         self.agent_registry = {
             "mat-gen-agent": gen_agent,
             "mat-sim-agent": sim_agent,
@@ -185,6 +217,11 @@ class MatOrchestrator:
             "mat-cod-agent": cod_agent,
             "mat-nomad-agent": nomad_agent,
             "mat-jarvis-agent": jarvis_agent,
+            # M3.5 NEW (per 2026-08-09 orchestrator 修复)
+            "mat-pubchem-agent": pubchem_agent,
+            "mat-crossref-agent": crossref_agent,
+            "mat-pdf-agent": pdf_agent,
+            "mat-semantic-search-agent": semantic_search_agent,
         }
 
         # DAG executor
@@ -218,6 +255,10 @@ class MatOrchestrator:
         budget: float | None = None,
         n_samples: int | None = None,
         domain: str | None = None,
+        **extra_inputs: Any,    # M3.5 NEW (2026-08-09 orchestrator 修复):
+                                # dispatch_handler 透传 pdf_url / pdf_path / pdf_bytes
+                                # / query_english / context dict 等给 paper_fulltext /
+                                # semantic_search workflow 用
     ) -> WorkflowResult:
         """跑编排(用户 1 句话 → mat-intent 解析 → 选 workflow → 跑 DAG)
 
@@ -226,6 +267,10 @@ class MatOrchestrator:
             budget: 总预算(可选)
             n_samples: 生成候选数(None → 用 mat-intent 解析)
             domain: 材料域(W15;None → 自动 detect / 默认 inorganic_crystal)
+            **extra_inputs: 额外透传给 workflow 的输入(per M3.5):
+                - pdf_url / pdf_path / pdf_bytes → paper_fulltext workflow
+                - query_english → semantic_search workflow
+                - context(dict) → 任何 workflow
 
         Returns:
             WorkflowResult
@@ -255,6 +300,7 @@ class MatOrchestrator:
 
         # Stage 2: 拼装 initial_inputs
         # 把 user_intent + 解析的 elements / forbidden / n_samples 传下去
+        # + M3.5 透传 extra_inputs(pdf_url / query_english 等)给对应 workflow
         initial_inputs = {
             "user_intent": user_intent,
             "subclass": mi.subclass,
@@ -267,6 +313,16 @@ class MatOrchestrator:
             "mat_intent": mi,
             "domain": run_domain,  # W15: 域路由透传到下游 agent
         }
+        # M3.5 — 合并 caller 传的额外 inputs(pdf_url / query_english / context)
+        # 不允许覆盖 protected key(subclass / material_system 等)
+        PROTECTED_KEYS = {
+            "user_intent", "subclass", "material_system", "target_props",
+            "elements", "forbidden", "n_samples", "budget", "mat_intent", "domain",
+        }
+        for k, v in extra_inputs.items():
+            if k in PROTECTED_KEYS:
+                continue
+            initial_inputs[k] = v
 
         # Stage 2.5: 2026-08-05 bug fix —
         # cross_source_lookup + cross_source_property 用 ThreadPoolExecutor 并行跑 4 client,

@@ -227,7 +227,18 @@ def make_dispatch_handler(
                 orch = MatOrchestrator()
                 # 2026-08-05 P2 fix:MatOrchestrator.run() 签名是 keyword-only user_intent:str
                 # 原代码 orch.run(req) 会 TypeError
-                wf_result = orch.run(user_intent=intent)
+                # M3.5 修复 (2026-08-09):透传 payload 给 paper_fulltext / semantic_search 用
+                # - pdf_url / pdf_path / pdf_bytes → paper_fulltext workflow
+                # - query_english → semantic_search workflow
+                # - context(dict) → 任何 workflow
+                wf_result = orch.run(
+                    user_intent=intent,
+                    pdf_url=payload.get("pdf_url"),
+                    pdf_path=payload.get("pdf_path"),
+                    pdf_bytes=payload.get("pdf_bytes"),
+                    query_english=payload.get("query_english"),
+                    context=payload.get("context"),
+                )
 
                 self._wau_ok(200, {
                     "status": "ok" if wf_result.success else "fail",
