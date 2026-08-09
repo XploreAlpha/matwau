@@ -232,7 +232,14 @@ class MatSemanticSearchAgent(MatWAUAgentBase):
         ctx = super().perceive(req)
         ctx["user_message"] = req.message
         ctx["_input_config"] = SemanticSearchConfig.from_dict(req.context)
-        ctx["query_english"] = (req.context or {}).get("query_english", "")
+        # M3.5 (2026-08-09) 修复 B6 semantic_search:优先 context
+        # (DAGExecutor 已合并 extra_inputs 到 context),fallback 到 artifacts
+        query_english = ""
+        if req.context and req.context.get("query_english"):
+            query_english = req.context.get("query_english")
+        elif req.artifacts and req.artifacts.get("query_english"):
+            query_english = req.artifacts.get("query_english")
+        ctx["query_english"] = query_english
         ctx["_input_artifacts"] = req.artifacts or {}
         return ctx
 

@@ -312,9 +312,19 @@ class MatPdfAgent(MatWAUAgentBase):
         ctx["user_message"] = req.message
         ctx["_input_config"] = PdfAgentConfig.from_dict(req.context)
         # PDF 输入 3 种入口(per AgentRequest.context 或 artifacts)
-        ctx["pdf_path"] = req.context.get("pdf_path") if req.context else None
-        ctx["pdf_url"] = req.context.get("pdf_url") if req.context else None
-        ctx["pdf_bytes"] = req.context.get("pdf_bytes") if req.context else None
+        # M3.5 (2026-08-09) 修复 B5 paper_fulltext:优先 context
+        # (DAGExecutor 已合并 extra_inputs 到 context),fallback 到 artifacts
+        # (老 caller 走 artifacts 路径仍兼容)
+        def _ctx_or_artifact(key: str) -> Any:
+            if req.context and req.context.get(key):
+                return req.context.get(key)
+            if req.artifacts and req.artifacts.get(key):
+                return req.artifacts.get(key)
+            return None
+
+        ctx["pdf_path"] = _ctx_or_artifact("pdf_path")
+        ctx["pdf_url"] = _ctx_or_artifact("pdf_url")
+        ctx["pdf_bytes"] = _ctx_or_artifact("pdf_bytes")
         ctx["_input_artifacts"] = req.artifacts or {}
         return ctx
 

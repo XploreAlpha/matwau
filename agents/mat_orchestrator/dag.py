@@ -197,9 +197,22 @@ class DAGExecutor:
                 artifacts = {k: v for k, v in agent_inputs.items() if k != "message"}
 
                 # W15: 把 domain 透传到 req.context(让下游 agent 走对应 backend)
+                # M3.5 (2026-08-09) 修复 B5 paper_fulltext:把 paper_fulltext / semantic_search
+                # 等 workflow 需要的 extra_inputs(pdf_url / pdf_path / pdf_bytes /
+                # query_english)也合并进 req.context,这样下游 agent.perceive() 读
+                # req.context.get("pdf_url") 时能拿到。
+                # 注:同时保留在 artifacts 里供后向兼容(老 caller 走 artifacts 路径)
                 req_context = {
                     "domain": initial_inputs.get("domain"),
                 }
+                # 合并 extra_inputs(跳过 message / domain / 已映射到顶层 artifact key)
+                # 用 agent_inputs(已解 initial.X / outputs.X / node.X)非 initial_inputs
+                for k, v in agent_inputs.items():
+                    if k in ("message", "domain"):
+                        continue
+                    if k in req_context:
+                        continue  # 不覆盖 domain
+                    req_context[k] = v
 
                 req = AgentRequest(
                     run_id=f"{dag.name}-{node.node_id}",
