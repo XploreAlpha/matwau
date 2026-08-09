@@ -1,20 +1,20 @@
-"""mat_pdf_agent / mat_pdf_agent.py — PDF 解析 wrapper(继承 MatWAUAgentBase)
+"""mat_pdf_agent / mat_pdf_agent.py — PDF URL 解析 wrapper(继承 MatWAUAgentBase)
 
 业务逻辑:
-1. 从 ctx 拿 pdf_path / pdf_url / pdf_bytes
-2. 调 PdfParserClient 解析(PdfDocument + paragraphs + metadata)
+1. 从 ctx 拿 pdf_url(URL-only 入口,per v1.4.1-Academic 移除本地路径 + bytes)
+2. 调 PdfParserClient.parse_pdf_from_url 解析(PdfDocument + paragraphs + metadata)
 3. 转 AgentResponse(artifacts: pdf_document + summary + parse_succeeded)
 
-3 种入口:
-- pdf_path: 本地文件路径(用于本地已有 PDF 库)
-- pdf_url: HTTP(S) URL(用于 arxiv 真 PDF URL)
-- pdf_bytes: 字节流(用于 /papers/upload 端点上传)
+URL-only 设计 rationale(v1.4.1-Academic):
+- 学院版用户从不手动上传 PDF 入库(本地上传功能已删除)
+- paper_fulltext widget 唯一用法是接 arxiv 真 PDF URL 下载 + 解析
+- 砍掉 pdf_path + pdf_bytes 入口降低 surface area,无 caller 回归
 
 设计:
 - 与 mat_arxiv_agent 模式对齐(继承 MatWAUAgentBase + 业务方法 + act/perceive)
 - LRU cache 已在 PdfParserClient 内置(wrapper 无需再加)
 
-per MatWAU-v1.3.4-Academic-dev-plan-20260806.md §二 M1
+per MatWAU-v1.3.4-Academic-dev-plan-20260806.md §二 M1 + v1.4.1-Academic 收紧到 URL-only
 """
 from __future__ import annotations
 
@@ -260,36 +260,22 @@ class MatPdfAgent(MatWAUAgentBase):
 """
 
     def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
-        """Inner Loop 第 3 步:执行 — PDF 解析特有业务逻辑"""
+        """Inner Loop 第 3 步:执行 — PDF 解析特有业务逻辑(v1.4.1-Academic URL-only)"""
         user_message = ctx.get("user_message") or ctx.get("message") or ""
         config: PdfAgentConfig = ctx.get("_input_config") or PdfAgentConfig()
 
-        # 3 种入口
-        pdf_path = ctx.get("pdf_path")
+        # v1.4.1-Academic: URL-only 入口(本地上传 pipeline 已删除)
         pdf_url = ctx.get("pdf_url")
-        pdf_bytes = ctx.get("pdf_bytes")
 
-        if not any([pdf_path, pdf_url, pdf_bytes]):
-            return self._error_response("缺 pdf_path / pdf_url / pdf_bytes")
+        if not pdf_url:
+            return self._error_response("缺 pdf_url(v1.4.1-Academic URL-only,本地上传已删除)")
 
-        # 按优先级:bytes > path > url
         try:
-            if pdf_bytes is not None:
-                doc = self.client.parse_pdf_from_bytes(
-                    data=pdf_bytes,
-                    paper_id=config.paper_id or "uploaded",
-                )
-            elif pdf_path:
-                doc = self.client.parse_pdf(
-                    pdf_path=pdf_path,
-                    paper_id=config.paper_id,
-                )
-            else:  # pdf_url
-                doc = self.client.parse_pdf_from_url(
-                    url=pdf_url,
-                    paper_id=config.paper_id,
-                    timeout=config.download_timeout,
-                )
+            doc = self.client.parse_pdf_from_url(
+                url=pdf_url,
+                paper_id=config.paper_id,
+                timeout=config.download_timeout,
+            )
         except Exception as e:
             return self._error_response(f"PDF 解析异常: {e}")
 
@@ -307,14 +293,13 @@ class MatPdfAgent(MatWAUAgentBase):
         return response
 
     def perceive(self, req: AgentRequest) -> dict[str, Any]:
-        """步骤 1 重写:抽取 user_message + config + PDF 输入"""
+        """步骤 1 重写:抽取 user_message + config + PDF URL 输入(v1.4.1-Academic URL-only)"""
         ctx = super().perceive(req)
         ctx["user_message"] = req.message
         ctx["_input_config"] = PdfAgentConfig.from_dict(req.context)
-        # PDF 输入 3 种入口(per AgentRequest.context 或 artifacts)
+        # v1.4.1-Academic: 仅 pdf_url(本地上传已删除)
         # M3.5 (2026-08-09) 修复 B5 paper_fulltext:优先 context
         # (DAGExecutor 已合并 extra_inputs 到 context),fallback 到 artifacts
-        # (老 caller 走 artifacts 路径仍兼容)
         def _ctx_or_artifact(key: str) -> Any:
             if req.context and req.context.get(key):
                 return req.context.get(key)
@@ -322,23 +307,14 @@ class MatPdfAgent(MatWAUAgentBase):
                 return req.artifacts.get(key)
             return None
 
-        ctx["pdf_path"] = _ctx_or_artifact("pdf_path")
         ctx["pdf_url"] = _ctx_or_artifact("pdf_url")
-        ctx["pdf_bytes"] = _ctx_or_artifact("pdf_bytes")
         ctx["_input_artifacts"] = req.artifacts or {}
         return ctx
 
     # ========================================================================
     # 业务方法(对外可直接调,不走 act)
+    # v1.4.1-Academic: 仅保留 parse_pdf_from_url(本地上传 pipeline 已删)
     # ========================================================================
-
-    def parse_pdf(
-        self,
-        pdf_path: str,
-        paper_id: str | None = None,
-    ) -> PdfDocument:
-        """业务方法:从本地路径解析"""
-        return self.client.parse_pdf(pdf_path, paper_id)
 
     def parse_pdf_from_url(
         self,
@@ -346,16 +322,8 @@ class MatPdfAgent(MatWAUAgentBase):
         paper_id: str | None = None,
         timeout: int | None = None,
     ) -> PdfDocument:
-        """业务方法:从 URL 解析"""
+        """业务方法:从 URL 下载 + 解析 PDF"""
         return self.client.parse_pdf_from_url(url, paper_id, timeout)
-
-    def parse_pdf_from_bytes(
-        self,
-        data: bytes,
-        paper_id: str,
-    ) -> PdfDocument:
-        """业务方法:从 bytes 解析"""
-        return self.client.parse_pdf_from_bytes(data, paper_id)
 
     # ========================================================================
     # 内部 helper

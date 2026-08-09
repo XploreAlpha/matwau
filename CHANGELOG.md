@@ -5,6 +5,78 @@
 
 ---
 
+## [v1.4.1-Academic] - 2026-08-09 — PATCH: 移除本地上传论文 + 修 B5 paper_fulltext 服务端 bug
+
+### 概述
+
+v1.4-Academic 引入的 `/papers/upload` + `/papers/search` + `MatSemanticSearchAgent` 学院方未实际使用,
+本 PATCH 版本移除整套本地论文库 pipeline,保留外部 API 集成
+(arxiv / CrossRef / PubChem / OQMD / COD / NOMAD / JARVIS)。
+同时修复 B5 paper_fulltext 服务端 bug(`serve.py:211` 未把 `pdf_url` 透传给 orchestrator),
+现在 paper_fulltext widget 真正能在服务器上返回 arxiv PDF 全文解析。
+
+### 移除
+
+- `POST /papers/upload` (multipart + JSON 双 handler) + `_handle_papers_upload_*`(`serve.py:137-156` + `400-562`)
+- `POST /papers/search` + `_handle_papers_search`(`serve.py:157-158` + `564-598`)
+- `agents/semantic_search/`(整个子模块 — SemanticSearchClient + sklearn TF-IDF 索引,~380 行)
+- `agents/mat_semantic_search_agent/`(整个子模块 — MatSemanticSearchAgent,~320 行)
+- `semantic_search` workflow + `WORKFLOW_BY_SUBCLASS["semantic_search"]` 注册项
+- `mat-semantic-search-agent` registry entry(`agent_registry` 14 → 13)
+- `semantic_search` SUBCLASSES + SUBCLASS_PATTERNS 项(SUBCLASSES 12 → 11)
+- `matwau_semantic_hits` widget type(M3 6 → 5;ALL 8 → 7)
+- `make_semantic_hits_widget()` 工厂函数 + `summarize_for_voice(kind="semantic")` 分支
+- `MatPdfAgent` 的 `pdf_path` + `pdf_bytes` 入口(改为 URL-only,本地上传 pipeline 已删)
+- `scikit-learn>=1.3.0` 依赖(`mat_bayesian_agent/__init__.py:10` 显式"无 sklearn 依赖",仅 `semantic_search` 用过)
+
+### 修复
+
+- **B5 paper_fulltext 服务端 bug**:
+  - `deploy/academic/serve.py:211` 原先 `orch.run(user_intent=intent)` 完全忽略 payload 里的 `pdf_url`
+  - 虽然 `agents/wau_protocol_adapter/dispatch_handler.py:234-241` 正确传 `pdf_url=payload.get("pdf_url")`,
+    但 `serve.py` POST `/wau/dispatch` 路由到**自己的** `_handle_wau_dispatch`(`serve.py:131-133`),
+    不走 dispatch_handler.py 的 Mixin → `pdf_url` 从来没传到 `MatPdfAgent.perceive()`
+  - 修法:`serve.py:211` 加 `pdf_url=payload.get("pdf_url")` kwarg(根因不在 dispatch_handler,在 serve.py)
+  - 验证:服务器 B5 端到端 duration 5-30s,返回 `matwau_paper_fulltext` widget + sections > 0
+- 顺带:`MatPdfAgent.perceive()` 移除了 `_ctx_or_artifact("pdf_path")` + `("pdf_bytes")` 抽取(URL-only 强制)
+
+### 测试
+
+- **删 3 文件 / 72 tests**:
+  - `tests/unit/test_semantic_search_client.py`(22 tests)
+  - `tests/unit/test_mat_semantic_search_agent.py`(11 tests)
+  - `tests/unit/test_serve_papers_endpoint.py`(13 tests,覆盖已删端点)
+  - `tests/unit/test_serve_papers_endpoint` 之外保留 papers upload 端点的多测(学院版用户操作流不走 upload)
+- **改 5 文件 — 严格 `==` 不变量**(per `feedback-matwau-defaults-cross-check.md`):
+  - `test_mat_orchestrator_m35.py`:`SUBCLASSES == 11`, `agent_registry == 13`, `WORKFLOW_BY_SUBCLASS == 14`, `M3_SUPPORTED_TYPES == 5`
+  - `test_mat_intent_agent.py`:`SUBCLASSES == 11`,删 `semantic_search in SUBCLASSES` 断言
+  - `test_mat_intent_agent_external_db.py`:`SUBCLASSES == 11`
+  - `test_widget_helpers.py`:`M3_SUPPORTED_TYPES == 5`, `ALL_SUPPORTED_TYPES == 7`,删 `TestMakeSemanticHitsWidget` 类
+  - `test_mat_pdf_agent.py`:URL-only,删 3 pdf_path + 3 pdf_bytes 用例
+- **加 1 文件 / 18 tests**(`test_serve_endpoint_metadata.py`):
+  - `/health` 6 测:200 / status=ok / 含 version / 含 service / 含 license / `/` 别名
+  - `/version` 5 测:200 / version == v1.4.1-Academic / donation_notice 含 XploreAlpha+institution+LICENSE / license / maintainer
+  - `/wau/dispatch` GET 4 测:200 / 含 version / agent=matwau / endpoint 字段
+  - `_version_string()` 2 测:读 VERSION 文件 / fallback 硬编码 v1.4.1-Academic
+  - `/unknown` 1 测:404 not found
+- **净增测试**:`+18 -72 -3 文件 = -54 个 test`,从 2025 → 约 1971 个 PASS
+  (注:`feedback-matwau-defaults-cross-check.md` 要求强 `==` 而非 `>=`,所以删了 72 个旧测试、新加了 18 个是真实改动量)
+
+### 兼容性
+
+- ✅ **老 caller 0 影响**:homerail / 外部系统从未调用 `/papers/upload` 或 `/papers/search`(学院版用户不手动入库)
+- ✅ `/literature` 端点不变(走 arxiv API 实时查,无 sklearn 依赖)
+- ✅ 4 个 M3 新 widget(化合物 / 期刊 / 跨源 / 物性)真 PASS,`paper_fulltext` 端到端也真 PASS
+- ✅ `W37.4` 一键部署脚本不变;`docker compose build --no-cache && up -d` 一条龙升级
+
+### Docker / 部署
+
+- image tag:`matwau/academic:v1.3.4-Academic` → `matwau/academic:v1.4.1-Academic`
+- 部署命令:**`docker compose build --no-cache && docker compose up -d`**(NOT `restart`,restart 不重 build 镜像)
+- 学院 IT 备份策略不变(matwau-data + matwau-db 两个 volume)
+
+---
+
 ## [v1.4-Academic] - 2026-08-08 — MINOR: widget 协议层(M2 homerail voice cockpit)
 
 ### 概述

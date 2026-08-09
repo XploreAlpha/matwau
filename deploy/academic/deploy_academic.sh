@@ -29,7 +29,7 @@ warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err() { echo -e "${RED}[✗]${NC} $*" >&2; }
 
 # ======== 元数据 ========
-MATWAU_VERSION="v1.3.4-Academic"
+MATWAU_VERSION="v1.4.1-Academic"
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$DEPLOY_DIR/../.." && pwd)"
 

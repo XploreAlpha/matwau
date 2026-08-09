@@ -624,9 +624,10 @@ def journal_lookup_workflow() -> DAG:
 
 
 def paper_fulltext_workflow() -> DAG:
-    """M3.5 paper_fulltext: PDF 解析 → matwau_paper_fulltext
+    """M3.5 paper_fulltext: PDF URL 解析 → matwau_paper_fulltext(v1.4.1-Academic URL-only)
 
-    接收 context.pdf_url / pdf_path / pdf_bytes(由 caller 传 initial_inputs.context)
+    接收 context.pdf_url(由 caller 传 initial_inputs.context)
+    v1.4.1-Academic: 删除 pdf_path / pdf_bytes 输入(本地上传 pipeline 已删)
     """
     return DAG(
         name="paper_fulltext",
@@ -637,33 +638,15 @@ def paper_fulltext_workflow() -> DAG:
                 inputs={
                     "message": "initial.user_intent",
                     "pdf_url": "initial.pdf_url",
-                    "pdf_path": "initial.pdf_path",
-                    "pdf_bytes": "initial.pdf_bytes",
                 },
                 output_key="pdf_response",
-                description="mat-pdf-agent(M3): pdfplumber 解析 PDF → 段落 + metadata",
+                description="mat-pdf-agent(M3): pdfplumber 解析 PDF URL → 段落 + metadata",
             ),
         ],
     )
 
 
-def semantic_search_workflow() -> DAG:
-    """M3.5 semantic_search: 语义索引检索 → matwau_semantic_hits"""
-    return DAG(
-        name="semantic_search",
-        nodes=[
-            DAGNode(
-                node_id="semantic",
-                agent_name="mat-semantic-search-agent",
-                inputs={
-                    "message": "initial.user_intent",
-                    "query_english": "initial.query_english",
-                },
-                output_key="semantic_response",
-                description="mat-semantic-search-agent(M3): TF-IDF 语义检索 → 段落命中",
-            ),
-        ],
-    )
+# v1.4.1-Academic: 删除 semantic_search_workflow — 语义搜索 pipeline 整体删除(WORKFLOW_BY_SUBCLASS 12→11)
 
 
 def property_query_workflow() -> DAG:
@@ -689,7 +672,6 @@ def property_query_workflow() -> DAG:
 WORKFLOW_BY_SUBCLASS["compound_lookup"] = compound_lookup_workflow
 WORKFLOW_BY_SUBCLASS["journal_lookup"] = journal_lookup_workflow
 WORKFLOW_BY_SUBCLASS["paper_fulltext"] = paper_fulltext_workflow
-WORKFLOW_BY_SUBCLASS["semantic_search"] = semantic_search_workflow
 WORKFLOW_BY_SUBCLASS["property_query"] = property_query_workflow
 
 

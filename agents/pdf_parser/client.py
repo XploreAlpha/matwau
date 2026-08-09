@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from pathlib import Path
+# v1.4.1-Academic: 删除 from pathlib import Path — 本地路径解析已删除,URL-only
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -279,46 +279,6 @@ class PdfParserClient:
 
     # ======== 公共 API ========
 
-    def parse_pdf(
-        self,
-        pdf_path: str,
-        paper_id: str | None = None,
-    ) -> PdfDocument:
-        """从本地路径解析 PDF
-
-        Args:
-            pdf_path: 本地 PDF 文件路径
-            paper_id: 唯一 ID(默认用 pdf_path 作为 key)
-        """
-        key = paper_id or pdf_path
-
-        # Cache hit
-        if self._cache:
-            cached = self._cache.get(key)
-            if cached:
-                logger.debug("PDF cache hit: %s", key)
-                return cached
-
-        # Parse
-        path = Path(pdf_path)
-        if not path.exists():
-            doc = PdfDocument(
-                paper_id=key,
-                title="",
-                parse_succeeded=False,
-                parse_error=f"file not found: {pdf_path}",
-            )
-        else:
-            with open(path, "rb") as f:
-                data = f.read()
-            doc = self._parse_bytes(data, key)
-
-        # Cache put
-        if self._cache:
-            self._cache.put(key, doc)
-
-        return doc
-
     def parse_pdf_from_url(
         self,
         url: str,
@@ -377,31 +337,6 @@ class PdfParserClient:
         # Cache put
         if self._cache:
             self._cache.put(key, doc)
-
-        return doc
-
-    def parse_pdf_from_bytes(
-        self,
-        data: bytes,
-        paper_id: str,
-    ) -> PdfDocument:
-        """从 bytes 解析 PDF(per /papers/upload 端点)
-
-        Args:
-            data: PDF 二进制
-            paper_id: 唯一 ID
-        """
-        # Cache hit
-        if self._cache:
-            cached = self._cache.get(paper_id)
-            if cached:
-                logger.debug("PDF cache hit: %s", paper_id)
-                return cached
-
-        doc = self._parse_bytes(data, paper_id)
-
-        if self._cache:
-            self._cache.put(paper_id, doc)
 
         return doc
 
@@ -508,16 +443,6 @@ def _get_default_client() -> PdfParserClient:
     return _default_client
 
 
-def parse_pdf(pdf_path: str, paper_id: str | None = None) -> PdfDocument:
-    """便利函数:从本地路径解析"""
-    return _get_default_client().parse_pdf(pdf_path, paper_id)
-
-
 def parse_pdf_from_url(url: str, paper_id: str | None = None, timeout: int | None = None) -> PdfDocument:
-    """便利函数:从 URL 解析"""
+    """便利函数:从 URL 下载 + 解析 PDF(v1.4.1-Academic 起唯一公开入口,本地上传已删除)"""
     return _get_default_client().parse_pdf_from_url(url, paper_id, timeout)
-
-
-def parse_pdf_from_bytes(data: bytes, paper_id: str) -> PdfDocument:
-    """便利函数:从 bytes 解析"""
-    return _get_default_client().parse_pdf_from_bytes(data, paper_id)

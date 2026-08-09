@@ -18,7 +18,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/academic/Dockerfile
-    image: matwau/academic:v1.3.4-Academic  # 2026-08-06 patch: PDF parse + semantic search + /papers/* 端点
+    image: matwau/academic:v1.4.1-Academic  # 2026-08-09 patch: 移除本地上传 + 修 B5 paper_fulltext 服务端 bug
     container_name: matwau-academic-app
     restart: unless-stopped
     ports:

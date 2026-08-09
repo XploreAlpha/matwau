@@ -103,10 +103,7 @@ def summarize_for_voice(
         cn_word = "段全文"
         en_word = "paragraph" if n == 1 else "paragraphs"
         en_empty = "No fulltext paragraphs parsed."
-    elif kind == "semantic":
-        cn_word = "语义命中"
-        en_word = "semantic match" if n == 1 else "semantic matches"
-        en_empty = "No semantic matches."
+    # v1.4.1-Academic:删除 kind="semantic" 分支(语义搜索 pipeline 整体删除)
     else:  # papers (default)
         cn_word = "论文"
         en_word = "paper" if n == 1 else "papers"
@@ -607,58 +604,8 @@ def make_paper_fulltext_widget(
     )
 
 
-def make_semantic_hits_widget(
-    *,
-    query: str,
-    query_english: str,
-    hits: list[dict[str, Any]] | None,
-    title: str | None = None,
-    fallback_text: str | None = None,
-    max_records: int = 8,
-) -> Widget:
-    """构造 matwau_semantic_hits widget(mat-semantic-search-agent)
-
-    Wire format(对照 MatwauSemanticHitsWidget.vue):
-    data: {
-        query, query_english,
-        hits: [{arxiv_id, title, authors, year, snippet, score}]
-    }
-
-    Args:
-        query: 用户原始 query(可能含中文)
-        query_english: 翻译后英文(per feedback-matwau-chinese-query-translation)
-        hits: 语义命中 list
-        title: widget 标题(默认 "语义检索:{query[:30]}")
-        fallback_text: 渲染失败降级文本
-        max_records: 上限默认 8(语义结果少而精)
-
-    Returns:
-        Widget(type="matwau_semantic_hits", data_ref="hits", layout=LIST)
-    """
-    safe_hits = (hits or [])[:max_records]
-
-    if fallback_text is None:
-        fallback_text = summarize_for_voice(
-            safe_hits, "", locale="zh", kind="semantic"
-        )
-
-    return Widget(
-        type=WidgetType.MATWAU_SEMANTIC_HITS.value,
-        title=title or f"语义检索:{query[:30]}",
-        data_ref="hits",
-        layout=WidgetLayout.LIST,
-        actions=[
-            WidgetAction.OPEN_URL,
-            WidgetAction.VIEW_HIT,
-        ],
-        fallback_text=fallback_text,
-        data={
-            "visual": "matwau_semantic_hits",
-            "query": query,
-            "query_english": query_english,
-            "hits": safe_hits,
-        },
-    )
+# v1.4.1-Academic: 删除 make_semantic_hits_widget — 语义搜索 pipeline 整体删除
+# (semantic_search_agent + semantic_search workflow + SemanticSearchClient 都已删)
 
 
 def attach_widget_protocol(
@@ -700,12 +647,11 @@ __all__ = [
     "summarize_recipe_natural",
     "make_paper_list_widget",
     "make_recipe_card_widget",
-    # v1.4-Academic M3 — 6 new factories
+    # v1.4.1-Academic M3 — 5 new factories(去掉 make_semantic_hits_widget)
     "make_compound_list_widget",
     "make_journal_list_widget",
     "make_cross_source_summary_widget",
     "make_property_table_widget",
     "make_paper_fulltext_widget",
-    "make_semantic_hits_widget",
     "attach_widget_protocol",
 ]

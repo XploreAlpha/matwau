@@ -91,7 +91,6 @@ class MatOrchestrator:
         pubchem_agent=None,            # M3.5 NEW (2026-08-09 orchestrator 修复)
         crossref_agent=None,           # M3.5 NEW
         pdf_agent=None,                # M3.5 NEW
-        semantic_search_agent=None,    # M3.5 NEW
         lineage_store=None,            # W32 — LineageStore 实例(默认 None → 不打 lineage)
         lineage_recorder=None,         # W32 — LineageRecorder 实例(默认 None → 不打 lineage)
         enable_lineage: bool = True,   # W32 — False → 关闭 lineage(测试用)
@@ -176,11 +175,6 @@ class MatOrchestrator:
                 create_default_agent as create_pdf,
             )
             pdf_agent = create_pdf()
-        if semantic_search_agent is None:
-            from agents.mat_semantic_search_agent.mat_semantic_search_agent import (
-                create_default_agent as create_semantic,
-            )
-            semantic_search_agent = create_semantic()
 
         self.intent_agent = intent_agent
         self.gen_agent = gen_agent
@@ -198,7 +192,6 @@ class MatOrchestrator:
         self.pubchem_agent = pubchem_agent
         self.crossref_agent = crossref_agent
         self.pdf_agent = pdf_agent
-        self.semantic_search_agent = semantic_search_agent
 
         # Agent registry
         # W12: mat-critic-agent 替换原 mat-critic-stub
@@ -221,7 +214,6 @@ class MatOrchestrator:
             "mat-pubchem-agent": pubchem_agent,
             "mat-crossref-agent": crossref_agent,
             "mat-pdf-agent": pdf_agent,
-            "mat-semantic-search-agent": semantic_search_agent,
         }
 
         # DAG executor
@@ -256,9 +248,8 @@ class MatOrchestrator:
         n_samples: int | None = None,
         domain: str | None = None,
         **extra_inputs: Any,    # M3.5 NEW (2026-08-09 orchestrator 修复):
-                                # dispatch_handler 透传 pdf_url / pdf_path / pdf_bytes
-                                # / query_english / context dict 等给 paper_fulltext /
-                                # semantic_search workflow 用
+                                # dispatch_handler 透传 pdf_url / context dict 等给
+                                # paper_fulltext workflow / 其他 workflow 用
     ) -> WorkflowResult:
         """跑编排(用户 1 句话 → mat-intent 解析 → 选 workflow → 跑 DAG)
 
@@ -268,8 +259,7 @@ class MatOrchestrator:
             n_samples: 生成候选数(None → 用 mat-intent 解析)
             domain: 材料域(W15;None → 自动 detect / 默认 inorganic_crystal)
             **extra_inputs: 额外透传给 workflow 的输入(per M3.5):
-                - pdf_url / pdf_path / pdf_bytes → paper_fulltext workflow
-                - query_english → semantic_search workflow
+                - pdf_url → paper_fulltext workflow(v1.4.1-Academic URL-only)
                 - context(dict) → 任何 workflow
 
         Returns:

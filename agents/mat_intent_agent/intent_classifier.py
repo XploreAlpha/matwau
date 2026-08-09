@@ -27,11 +27,11 @@ SUBCLASSES = [
     # M3 NEW — 跨数据源 2 个子类
     "external_db_query",         # 单源查询(OQMD / COD / NOMAD / JARVIS 任选)
     "cross_source_validation",   # 多源交叉验证(4 个数据源对比)
-    # M3.5 NEW — 6 个 widget 路由(2026-08-09 修复 orchestrator gap)
+    # M3.5 NEW — 5 个 widget 路由(per 2026-08-09 orchestrator 修复)
+    # v1.4.1-Academic: 删除 semantic_search(语义搜索 pipeline 整体删除),SUBCLASSES 12→11
     "compound_lookup",           # 单化合物查询(PubChem)→ matwau_compound_list
     "journal_lookup",            # 期刊文章查询(CrossRef)→ matwau_journal_list
     "paper_fulltext",            # 论文全文解析(PDF)→ matwau_paper_fulltext
-    "semantic_search",           # 语义检索(语义索引)→ matwau_semantic_hits
     "property_query",            # 单材料物性查询(OQMD/COD/NOMAD/JARVIS)→ matwau_property_table
 ]
 
@@ -186,14 +186,8 @@ SUBCLASS_PATTERNS = {
         # 中文
         r"解析.*PDF", r"PDF.*解析", r"全文解析", r"全文.*论文", r"下载.*PDF",
     ],
-    "semantic_search": [
-        # 英文
-        r"\bsemantic\s+search\b", r"\bsimilarity\b", r"\bsimilar\s+(passage|paper|text)s?\b",
-        # 中文
-        r"找.*相似", r"语义检索", r"相似段落", r"相似文献", r"相似.*段",
-        # 注:不要 `^[一-鿿]+$`(纯中文) — 任何中文 query 都会匹配,
-        #     让"我想做个材料"这种 fallback 误判成 semantic_search(per 2026-08-09 fix)
-    ],
+    # v1.4.1-Academic: 删除 "semantic_search" SUBCLASS_PATTERNS(语义搜索 pipeline 整体删除)
+    # 之前语义检索关键词("找相似的钙钛矿段落"等)会 fallback 到 experiment_planning
     "property_query": [
         # 材料物性关键词
         r"\bproperty\b", r"\bproperties\b", r"\bformation_energy\b", r"\bband_gap\b",
