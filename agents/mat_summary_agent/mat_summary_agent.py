@@ -301,50 +301,98 @@ class MatSummaryAgent(MatWAUAgentBase):
         )
 
     def act(self, ctx: dict[str, Any], tools: list[str]) -> AgentResponse:
-        """Inner Loop 第 3 步:LLM Markdown 合成"""
+        """Inner Loop 第 3 步:LLM Markdown 合成
+
+        v1.4.2-Academic FIX:即使 LLM 关闭 / 调用失败 / 用户 query 为空,
+        也要返回 1 个 matwau_markdown widget(空 markdown + fallback_text),
+        这样 FE 始终有内容渲染,不会出现 "widgets=[]" 静默失败。
+
+        Fail-soft 分档:
+          - LLM 成功    → markdown=原文, confidence=0.85
+          - LLM 跳过/失败 → markdown="", fallback_text="...", confidence=0.0
+          - query 空    → markdown="", fallback_text="请提供更具体的问题", confidence=0.3
+        """
         user_message = (ctx.get("user_message") or ctx.get("message") or "").strip()
         config: SummaryAgentConfig = ctx.get("_input_config") or SummaryAgentConfig()
 
+        markdown_text = ""
+        skip_reason: str | None = None
+        title = _guess_title(user_message) if user_message else "MatWAU 内容卡片"
+
         if not user_message:
-            return self._empty_response("用户 query 为空")
+            skip_reason = "用户 query 为空"
+            fallback_text = "请提供更具体的问题,我会尽力解释。"
+            confidence = 0.3
+            cost = 0.0
+            reply = "请提供更具体的问题,我会尽力解释。"
+        else:
+            if not config.enable_llm:
+                skip_reason = (
+                    "LLM 未启用(enable_llm=False)。"
+                    "学院服务器请在 .env 配 MATWAU_LLM_ENABLED=1 + MATWAU_LLM_API_KEY=<key>。"
+                )
+                fallback_text = (
+                    "Markdown 内容暂不可用:mat-summary-agent 默认 fail-soft 模式未启用 LLM。"
+                    "学院服务器运维可在 .env 配 MATWAU_LLM_ENABLED=1 + MATWAU_LLM_API_KEY=<key> 后重启服务启用。"
+                )
+                confidence = 0.0
+                cost = 0.0
+                reply = (
+                    "⚠️ mat-summary-agent: LLM 未启用(enable_llm=False)。"
+                    "已返回空 Markdown 卡片占位。"
+                )
+            else:
+                # 尝试调 LLM
+                try:
+                    system = config.system_prompt or _default_system_prompt(config.locale)
+                    markdown_text = self.llm_client.generate(
+                        system=system,
+                        user=user_message,
+                        max_chars=config.max_chars or self.default_max_chars,
+                    )
+                    markdown_text = _clean_markdown(markdown_text)
+                except LLMSkippedError as exc:
+                    skip_reason = f"LLM 跳过:{exc}"
+                except Exception as exc:  # noqa: BLE001 — fail-soft 兜底
+                    logger.warning("MatSummaryAgent.act 异常: %s", exc)
+                    skip_reason = f"LLM 失败:{exc}"
 
-        if not config.enable_llm:
-            return self._empty_response("LLM 未启用(enable_llm=False)")
+                if markdown_text:
+                    # 截到 config.max_chars
+                    max_chars = config.max_chars or self.default_max_chars
+                    if len(markdown_text) > max_chars:
+                        markdown_text = markdown_text[: max_chars - 1].rstrip() + "…"
+                    fallback_text = None
+                    confidence = 0.85
+                    cost = self.cost_per_query
+                    reply = f"已生成 Markdown 总结(长度 {len(markdown_text)} 字符)。"
+                else:
+                    # LLM 启用但返回空 / 失败
+                    fallback_text = (
+                        f"Markdown 内容生成失败:{skip_reason or 'LLM 返回空'}"
+                    )
+                    confidence = 0.0
+                    cost = 0.0
+                    reply = (
+                        f"⚠️ mat-summary-agent: {skip_reason or 'LLM 返回空 Markdown'}。"
+                        "已返回空 Markdown 卡片占位。"
+                    )
 
-        try:
-            system = config.system_prompt or _default_system_prompt(config.locale)
-            markdown = self.llm_client.generate(
-                system=system,
-                user=user_message,
-                max_chars=config.max_chars or self.default_max_chars,
-            )
-        except LLMSkippedError as exc:
-            return self._empty_response(f"LLM 跳过:{exc}")
-        except Exception as exc:  # noqa: BLE001 — fail-soft 兜底
-            logger.warning("MatSummaryAgent.act 异常: %s", exc)
-            return self._empty_response(f"LLM 失败:{exc}")
-
-        markdown = _clean_markdown(markdown)
-        if not markdown:
-            return self._empty_response("LLM 返回空 Markdown")
-
-        # 截到 config.max_chars
-        if len(markdown) > (config.max_chars or self.default_max_chars):
-            markdown = markdown[: (config.max_chars or self.default_max_chars) - 1].rstrip() + "…"
-
-        # 构造 widget
-        title = _guess_title(user_message)
+        # ===== 永远构造 1 个 widget =====
         widget = make_markdown_widget(
-            markdown=markdown,
+            markdown=markdown_text,
             title=title,
             source="mat_summary_agent",
             generated_at=_now_iso(),
+            data_ref="matwau_markdown:concept",
+            fallback_text=fallback_text,
         )
 
         response = AgentResponse(
-            reply=f"已生成 Markdown 总结(长度 {len(markdown)} 字符)。",
-            confidence=0.85,  # LLM 合成的内容相对可靠,但仍需前端再校验
-            cost=self.cost_per_query,
+            reply=reply,
+            confidence=confidence,
+            cost=cost,
+            artifacts={"skip_reason": skip_reason} if skip_reason else {},
         )
         attach_widget_protocol(response, widgets=[widget])
         return response
