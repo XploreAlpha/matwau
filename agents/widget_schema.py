@@ -1,13 +1,14 @@
-"""widget_schema.py — MatWAU v1.4.1-Academic widget 协议层 Pydantic 模型
+"""widget_schema.py — MatWAU v1.4.2-Academic widget 协议层 Pydantic 模型
 
 设计:
-- 7 种 widget type(m2 阶段实现 2 种 matwau_paper_list + matwau_recipe_card;m3 加 5 种)
+- 8 种 widget type(m2 阶段实现 2 种 matwau_paper_list + matwau_recipe_card;m3 加 5 种;v1.4.2 加 matwau_markdown)
 - Widget 是 envelope,内含 type + data_ref + data + layout + actions + fallback_text
 - 老调用方不用 widget 不报错(默认 widgets=[])
 - homerail 端 normalizeMatwauWidget() 用 MATWAU_WIDGET_TYPES 白名单过滤
 
 per MatWAU-v1.4-Academic-dev-plan-20260808.md §3 M2 + requirements §4.3 +
-    v1.4.1-Academic 删除 matwau_semantic_hits(语义搜索 pipeline 已删,M3 6→5;ALL 8→7)
+    v1.4.1-Academic 删除 matwau_semantic_hits(语义搜索 pipeline 已删,M3 6→5;ALL 8→7) +
+    v1.4.2-Academic 新增 matwau_markdown(free-form Markdown,M3 5→6;ALL 7→8)
 """
 from __future__ import annotations
 
@@ -23,12 +24,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class WidgetType(str, Enum):
-    """7 种 widget type(matwau 团队定义,严格匹配 homerail 端 MATWAU_WIDGET_TYPES 白名单)
+    """8 种 widget type(matwau 团队定义,严格匹配 homerail 端 MATWAU_WIDGET_TYPES 白名单)
 
     M2 阶段实现 matwau_paper_list + matwau_recipe_card。
     M3 阶段实现:matwau_compound_list + matwau_journal_list + matwau_cross_source_summary
                 + matwau_property_table + matwau_paper_fulltext
     v1.4.1-Academic 删除:matwau_semantic_hits(语义搜索 pipeline 已删)
+    v1.4.2-Academic 新增:matwau_markdown(free-form Markdown,Option C)
     """
 
     MATWAU_PAPER_LIST = "matwau_paper_list"
@@ -40,6 +42,8 @@ class WidgetType(str, Enum):
     MATWAU_PROPERTY_TABLE = "matwau_property_table"
     MATWAU_PAPER_FULLTEXT = "matwau_paper_fulltext"
     # v1.4.1-Academic: MATWAU_SEMANTIC_HITS 已删除
+    # v1.4.2-Academic: matwau_markdown — free-form Markdown 内容(Option C)
+    MATWAU_MARKDOWN = "matwau_markdown"
 
 
 class WidgetLayout(str, Enum):
@@ -116,7 +120,8 @@ class Widget(BaseModel):
 
 
 # ============================================================================
-# 7 种 widget type 白名单(M2 阶段只开放 2 种;M3 加 5 种,v1.4.1-Academic 起去掉 semantic_hits)
+# 8 种 widget type 白名单(M2 阶段只开放 2 种;M3 加 5 种,v1.4.1-Academic 起去掉 semantic_hits;
+# v1.4.2-Academic 新增 matwau_markdown)
 # ============================================================================
 
 M2_SUPPORTED_TYPES: frozenset[str] = frozenset({
@@ -124,16 +129,17 @@ M2_SUPPORTED_TYPES: frozenset[str] = frozenset({
     WidgetType.MATWAU_RECIPE_CARD.value,
 })
 
-# v1.4.1-Academic M3 — 5 个新 widget type(去掉 matwau_semantic_hits)
+# v1.4.2-Academic M3 — 6 个新 widget type(M3 5 + matwau_markdown 1)
 M3_SUPPORTED_TYPES: frozenset[str] = frozenset({
     WidgetType.MATWAU_COMPOUND_LIST.value,
     WidgetType.MATWAU_JOURNAL_LIST.value,
     WidgetType.MATWAU_CROSS_SOURCE_SUMMARY.value,
     WidgetType.MATWAU_PROPERTY_TABLE.value,
     WidgetType.MATWAU_PAPER_FULLTEXT.value,
+    WidgetType.MATWAU_MARKDOWN.value,
 })
 
-# 全集(M2 + M3)= 7 种
+# 全集(M2 + M3)= 8 种
 ALL_SUPPORTED_TYPES: frozenset[str] = M2_SUPPORTED_TYPES | M3_SUPPORTED_TYPES
 
 
@@ -150,7 +156,7 @@ def is_supported_widget_type(widget_type: str) -> bool:
 
 
 def is_m3_widget_type(widget_type: str) -> bool:
-    """判断 widget type 是否是 M3 新增(6 种)
+    """判断 widget type 是否是 M3 新增(7 种;v1.4.2-Academic 含 matwau_markdown)
 
     给 serve.py / homerail 用,方便区分 widget 来自哪个 milestone。
 

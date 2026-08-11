@@ -33,6 +33,8 @@ SUBCLASSES = [
     "journal_lookup",            # 期刊文章查询(CrossRef)→ matwau_journal_list
     "paper_fulltext",            # 论文全文解析(PDF)→ matwau_paper_fulltext
     "property_query",            # 单材料物性查询(OQMD/COD/NOMAD/JARVIS)→ matwau_property_table
+    # v1.4.2-Academic: 新增 summary(MatWAU v1.4.2-Academic),SUBCLASSES 11→12
+    "summary",                   # 概念解释 / 无结构化数据 → mat_summary_agent → matwau_markdown
 ]
 
 # 9 个 material_system(per W7 demo + W6 exp categories)
@@ -161,7 +163,7 @@ SUBCLASS_PATTERNS = {
         # 显式 cid 编号
         r"cid[:=]\s*\d+",
         # 中文
-        r"化合物", r"化学物", r"有机分子", r"药物", r"分子式.*查",
+        r"化合物", r"化学物", r"有机分子", r"药物", r"分子式",
         # 化合物名(以 "酸 / 醇 / 酮" 结尾)
         r"[一-鿿]*酸\b", r"[一-鿿]*醇\b", r"[一-鿿]*酮\b",
     ],
@@ -197,6 +199,19 @@ SUBCLASS_PATTERNS = {
         # 单源查询(非跨源)— 物性查询但只要 1 个平台
         # 注:cross_source_validation 优先(关键词更具体)
     ],
+    # v1.4.2-Academic NEW — summary 子类,概念解释 / 无结构化数据可查
+    # 优先级最末(其他 11 子类都没命中时 fallback 到 summary)
+    # 注意:中文概念词"介绍 / 什么是 / 解释 / 讲讲 / 说说"必须可单独成词(后跟任意字符),
+    # 因为 query 经常是"介绍阿司匹林"/"什么是钙钛矿"——后接名词而非空白。
+    "summary": [
+        # 中文概念解释(去掉 \s 要求 — 中文词后常直接接名词)
+        r"^介绍", r"^什么是", r"^什么是$", r"^什么是.*\?", r"^解释",
+        r"^讲讲", r"^说说", r"^简述", r"^概括",
+        r"科普", r"基础.*概念", r"原理",
+        # 英文(保留 \s 因为英文单词必须后接空格或字符串边界)
+        r"^explain\s", r"^describe\s", r"^what is\b", r"^tell me about\b",
+        r"^summarize\b", r"^overview of\b", r"^introduction to\b",
+    ],
 }
 
 
@@ -229,6 +244,15 @@ def classify_subclass(user_intent: str) -> tuple[str, float, str]:
         n_hits = scores["paper_fulltext"]
         confidence = 0.85 if n_hits >= 2 else 0.7
         return ("paper_fulltext", confidence, f"arxiv/PDF 强信号: {matched_patterns['paper_fulltext']}")
+
+    # v1.4.2-Academic:summary 强信号(^explain/^describe/^what is 等概念解释)
+    # 与 paper_fulltext 同优先级:anchor-prefix 命中时直接返回,避免 max-by-score 平局时被 journal_lookup 抢走
+    # 例:"explain perovskite solar cell" 同时命中 summary(1) + journal_lookup(1)
+    #     应该走 summary(用户意图是概念解释,不是查文献)
+    if "summary" in scores and scores["summary"] >= 1:
+        n_hits = scores["summary"]
+        confidence = 0.85 if n_hits >= 2 else 0.7
+        return ("summary", confidence, f"概念解释 强信号: {matched_patterns['summary']}")
 
     # 选最高分
     best = max(scores.items(), key=lambda x: x[1])

@@ -91,6 +91,7 @@ class MatOrchestrator:
         pubchem_agent=None,            # M3.5 NEW (2026-08-09 orchestrator 修复)
         crossref_agent=None,           # M3.5 NEW
         pdf_agent=None,                # M3.5 NEW
+        summary_agent=None,            # v1.4.2-Academic NEW — matwau_markdown widget 来源
         lineage_store=None,            # W32 — LineageStore 实例(默认 None → 不打 lineage)
         lineage_recorder=None,         # W32 — LineageRecorder 实例(默认 None → 不打 lineage)
         enable_lineage: bool = True,   # W32 — False → 关闭 lineage(测试用)
@@ -176,6 +177,14 @@ class MatOrchestrator:
             )
             pdf_agent = create_pdf()
 
+        # v1.4.2-Academic: mat-summary-agent 懒加载(matwau_markdown widget 来源)
+        # 默认 enable_llm=False → 无 API key 也安全构造,act() 走 fail-soft 空 widgets 路径
+        if summary_agent is None:
+            from agents.mat_summary_agent.mat_summary_agent import (
+                create_default_agent as create_summary,
+            )
+            summary_agent = create_summary()
+
         self.intent_agent = intent_agent
         self.gen_agent = gen_agent
         self.sim_agent = sim_agent
@@ -192,12 +201,15 @@ class MatOrchestrator:
         self.pubchem_agent = pubchem_agent
         self.crossref_agent = crossref_agent
         self.pdf_agent = pdf_agent
+        # v1.4.2-Academic: mat-summary-agent (matwau_markdown widget 来源)
+        self.summary_agent = summary_agent
 
         # Agent registry
         # W12: mat-critic-agent 替换原 mat-critic-stub
         # W14: mat-lit-agent 替换原 mat-lit-stub
         # M3: 4 个 data agent
         # M3.5: 4 个 widget 路由 agent(2026-08-09 修复 orchestrator gap)
+        # v1.4.2-Academic: + mat-summary-agent (registry 13→14)
         self.agent_registry = {
             "mat-gen-agent": gen_agent,
             "mat-sim-agent": sim_agent,
@@ -214,6 +226,8 @@ class MatOrchestrator:
             "mat-pubchem-agent": pubchem_agent,
             "mat-crossref-agent": crossref_agent,
             "mat-pdf-agent": pdf_agent,
+            # v1.4.2-Academic NEW
+            "mat-summary-agent": summary_agent,
         }
 
         # DAG executor

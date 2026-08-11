@@ -5,6 +5,60 @@
 
 ---
 
+## [v1.4.2-Academic] - 2026-08-11 — PATCH: 新增 matwau_markdown widget + mat_summary_agent (Option C)
+
+### 概述
+
+v1.4.1-Academic 的 widget 协议层只支持 5 种"结构化数据" widget(compound_list / journal_list / cross_source_summary / property_table / paper_fulltext),
+用户对"概念解释 / 无外部数据可查"类 query(介绍阿司匹林 / 什么是钙钛矿 / explain perovskite 等)的回答只能走空 reply + 空 widgets,
+UI 上只能看到 manager 兜底的"未能找到匹配结果"提示,体验差。
+
+v1.4.2-Academic 新增 **matwau_markdown widget**(第 6 种 widget)+ **mat-summary-agent**(第 14 个 agent)+ **summary subclass**(第 12 个 subclass):
+- agent 通过 OpenAI 兼容 LLM(默认 DeepSeek)生成 free-form Markdown 回答
+- homerail FE 用 markdown-it 渲染(html: false,XSS-safe),LLM 自由组织 heading + list + table + blockquote
+- Fail-soft:无 API key / LLM 异常 → 返回空 widgets,不阻断 orchestrator
+- 默认 `enable_llm=False`,显式配 MATWAU_LLM_API_KEY + MATWAU_LLM_ENABLED=1 才真调
+
+### 新增
+
+- `matwau_markdown` widget type(M3 5→6;ALL 7→8)— `agents/widget_schema.py`
+- `make_markdown_widget()` factory(server-side 16K 截断 + data.visual/data.markdown/data.source/data.generated_at)— `agents/widget_helpers.py`
+- `summarize_for_voice(kind="markdown")` 兜底文案分支
+- `agents/mat_summary_agent/` 新模块:`MatSummaryAgent` + `SummaryAgentConfig` + `OpenAICompatibleSummaryLLMClient`
+- `mat_summary_workflow` DAGNode(单节点 → mat-summary-agent)— `agents/mat_orchestrator/dag.py`
+- `summary` subclass + `SUBCLASS_PATTERNS`(中文 ^介绍/^什么是/^解释/^讲讲/^说说/科普/原理;英文 ^explain/^describe/^what is/^tell me about/^summarize/^overview/^introduction)— `agents/mat_intent_agent/intent_classifier.py`
+- `summary` SUBCLASSES entry(11→12)
+- `classify_subclass()` summary 优先级规则(^explain/^describe/^what is 等 anchor-prefix 强信号,与 paper_fulltext 同优先级)— 避免平局时被 journal_lookup 抢走
+- MatOrchestrator `summary_agent` 注入参数 + 懒加载 + `agent_registry["mat-summary-agent"]`(registry 13→14)
+- intent_classifier `^介绍\s` → `^介绍` 修复(中文后接名词也能命中);compound_lookup 加 `分子式` 关键字
+
+### 测试
+
+- 加 1 文件:`tests/unit/test_mat_summary_agent.py`(~25 测试:构造 / fail-soft / fake LLM / perceive / helpers / workflow / OpenAI client)
+- 加 9 测试:`TestSummarySubclassV142` + `TestSummaryWorkflowV142`(intent_classifier 路由 + DAG 结构 + orchestrator end-to-end)— `tests/unit/test_mat_orchestrator_m35.py`
+- 加 8 测试:`TestMakeMarkdownWidget` + `TestSummarizeForVoiceMarkdownKind` — `tests/unit/test_widget_helpers.py`
+- 改 5 文件 strict `==` invariants:WORKFLOW=14→15 / SUBCLASSES=11→12 / registry=13→14 / M3=5→6 / ALL=7→8
+- 改 2 文件 version assertion:`test_serve_literature_endpoint.py` + `test_serve_endpoint_metadata.py`
+- 全部 matwau pytest 单测 PASS(待 §Layer 3.1 验证)
+
+### 兼容性
+
+- ✅ 老 caller 0 影响(新增 widget type 不破坏老 widget 渲染)
+- ✅ homerail FE `MatwauMarkdownWidget.vue` 已部署(2026-08-10)— 验收见用户手动浏览器测试
+- ✅ `enable_llm=False` 默认 fail-soft,学院服务器即使不配 API key 也安全运行(无 matwau_markdown widget 但不报错)
+
+### Docker / 部署
+
+- image tag: `matwau/academic:v1.4.1-Academic` → `matwau/academic:v1.4.2-Academic`
+- 部署命令:**`docker compose build --no-cache && docker compose up -d`**(NOT `restart`)
+- 可选环境变量(per server-side LLM enable):
+  - `MATWAU_LLM_API_KEY=<key>`(必填,无则跳过 LLM)
+  - `MATWAU_LLM_BASE_URL=https://api.deepseek.com`(默认)
+  - `MATWAU_LLM_MODEL=deepseek-v4-flash`(默认)
+  - `MATWAU_LLM_ENABLED=1`(显式开关)
+
+---
+
 ## [v1.4.1-Academic] - 2026-08-09 — PATCH: 移除本地上传论文 + 修 B5 paper_fulltext 服务端 bug
 
 ### 概述

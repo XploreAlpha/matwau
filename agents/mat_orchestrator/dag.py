@@ -675,6 +675,46 @@ WORKFLOW_BY_SUBCLASS["paper_fulltext"] = paper_fulltext_workflow
 WORKFLOW_BY_SUBCLASS["property_query"] = property_query_workflow
 
 
+# ============================================================================
+# v1.4.2-Academic NEW — mat_summary_workflow
+# 路由 MatIntent.summary subclass → mat_summary_agent → matwau_markdown widget
+# ============================================================================
+
+
+def mat_summary_workflow() -> DAG:
+    """v1.4.2-Academic mat_summary_workflow: LLM Markdown 合成 → matwau_markdown
+
+    用于"概念解释 / 无结构化数据"类查询(query 不命中 11 个现有 subclass 时):
+      - 走 mat-summary-agent → OpenAI 兼容 LLM(默认 DeepSeek)
+      - 输出 matwau_markdown widget
+      - Fail-soft:无 API key / LLM 异常 → 空 widgets,orchestrator 兜底
+
+    路由触发:MatIntent.classify_subclass() 返回 "summary" 时
+    """
+    return DAG(
+        name="summary",
+        nodes=[
+            DAGNode(
+                node_id="summary",
+                agent_name="mat-summary-agent",
+                inputs={
+                    "message": "initial.user_intent",
+                    "enable_llm": "initial.enable_llm",
+                },
+                output_key="summary_response",
+                description=(
+                    "mat-summary-agent(v1.4.2-Academic): OpenAI 兼容 LLM "
+                    "(默认 DeepSeek)生成 free-form Markdown → matwau_markdown widget"
+                ),
+            ),
+        ],
+    )
+
+
+# v1.4.2-Academic: 注册 summary workflow(WORKFLOW_BY_SUBCLASS 11→12)
+WORKFLOW_BY_SUBCLASS["summary"] = mat_summary_workflow
+
+
 def get_workflow_for_subclass(subclass: str) -> DAG | None:
     """根据子类选 workflow"""
     factory = WORKFLOW_BY_SUBCLASS.get(subclass)

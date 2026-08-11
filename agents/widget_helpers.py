@@ -104,6 +104,12 @@ def summarize_for_voice(
         en_word = "paragraph" if n == 1 else "paragraphs"
         en_empty = "No fulltext paragraphs parsed."
     # v1.4.1-Academic:删除 kind="semantic" 分支(语义搜索 pipeline 整体删除)
+    elif kind == "markdown":
+        # v1.4.2-Academic:Markdown widget 的 spoken_text — LLM 主体内容已 TTS 渲染,
+        # 这里给个 "以下是详细 Markdown 回答" 的兜底提示。
+        cn_word = "段 Markdown 内容"
+        en_word = "markdown section" if n == 1 else "markdown sections"
+        en_empty = "No markdown content generated."
     else:  # papers (default)
         cn_word = "论文"
         en_word = "paper" if n == 1 else "papers"
@@ -608,6 +614,69 @@ def make_paper_fulltext_widget(
 # (semantic_search_agent + semantic_search workflow + SemanticSearchClient 都已删)
 
 
+def make_markdown_widget(
+    *,
+    markdown: str,
+    title: str = "",
+    source: str | None = None,
+    generated_at: str | None = None,
+    data_ref: str = "markdown",
+    fallback_text: str | None = None,
+) -> Widget:
+    """构造 matwau_markdown widget — free-form Markdown 内容(v1.4.2-Academic Option C)
+
+    Wire format(对照 homerail MatwauMarkdownWidget.vue):
+    data: {
+        markdown: str,           # 必填,Markdown 原文
+        source: str | None,      # 可选,数据来源 label(显示在 header)
+        generated_at: str | None # 可选,生成时间(显示在 header)
+    }
+
+    与其他 matwau_* widget 的区别:
+    - 不固定 schema(records / paragraphs / sections / hits),直接渲染 Markdown 原文
+    - LLM 自由组织内容:heading + list + table + blockquote + inline code + 链接 都可
+    - homerail 端用 markdown-it 渲染(html: false,XSS-safe)+ 外链强制 target=_blank rel=noopener
+    - 16K 字符硬截断(在 FE widget 里),超过溢出区有提示
+
+    Args:
+        markdown: Markdown 原文(必填,空字符串会走空状态)
+        title: widget 标题(默认 "MatWAU 内容卡片")
+        source: 数据来源 label,如 "mat_summary_agent"
+        generated_at: 生成时间 ISO string
+        data_ref: 透传字段名,默认 "markdown",与 homerail MATWAU_DATA_REF_TO_VISUAL 对齐
+        fallback_text: 渲染失败降级文本(默认 summarize_for_voice kind="markdown")
+
+    Returns:
+        Widget(type="matwau_markdown", data_ref="markdown", layout=LIST)
+    """
+    if not isinstance(markdown, str):
+        raise TypeError(f"markdown must be str, got {type(markdown).__name__}")
+
+    # 16K 上限对齐 FE MatwauMarkdownWidget.vue 的 MAX_MARKDOWN_CHARS,
+    # 服务端先截一次,避免超长 markdown 走 wire 浪费带宽。
+    MARKDOWN_MAX_CHARS = 16_000
+    if len(markdown) > MARKDOWN_MAX_CHARS:
+        markdown = markdown[: MARKDOWN_MAX_CHARS - 1].rstrip() + "…"
+
+    if fallback_text is None:
+        fallback_text = summarize_for_voice(markdown, "", locale="zh", kind="markdown")
+
+    return Widget(
+        type=WidgetType.MATWAU_MARKDOWN.value,
+        title=title or "MatWAU 内容卡片",
+        data_ref=data_ref,
+        layout=WidgetLayout.LIST,
+        actions=[],
+        fallback_text=fallback_text,
+        data={
+            "visual": "matwau_markdown",
+            "markdown": markdown,
+            "source": source,
+            "generated_at": generated_at,
+        },
+    )
+
+
 def attach_widget_protocol(
     response,  # AgentResponse(dataclass,不 import 避免循环)
     *,
@@ -653,5 +722,7 @@ __all__ = [
     "make_cross_source_summary_widget",
     "make_property_table_widget",
     "make_paper_fulltext_widget",
+    # v1.4.2-Academic: matwau_markdown widget — free-form Markdown
+    "make_markdown_widget",
     "attach_widget_protocol",
 ]

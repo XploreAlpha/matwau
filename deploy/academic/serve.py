@@ -42,7 +42,7 @@ def _version_string() -> str:
     version_file = _PROJECT_ROOT / "VERSION"
     if version_file.exists():
         return version_file.read_text().strip()
-    return "v1.4.1-Academic"  # 2026-08-09 patch: 移除本地上传 + 修 B5 paper_fulltext 服务端 bug
+    return "v1.4.2-Academic"  # 2026-08-11 patch: 新增 matwau_markdown widget + mat_summary_agent (Option C)
 
 
 def _ok(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
