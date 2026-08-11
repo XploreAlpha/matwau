@@ -261,9 +261,17 @@ class MatSummaryAgent(MatWAUAgentBase):
             cost_per_query: 单次 LLM 调用估算成本 ¥(DeepSeek Flash 实际 ~¥0.001)
             llm_client: 可选注入 SummaryLLMClient(测试用)
             context_manager / safety_guard: harness 组件
+
+        v1.4.3-Academic FIX:enable_llm 推断对齐 llm_client.from_env()
+        - 显式传 enable_llm=True/False → 用显式值
+        - 不传 → 从 MATWAU_LLM_ENABLED env 推断(对齐 client.from_env 逻辑)
+          修前:永远 False,即使 .env 配了 MATWAU_LLM_ENABLED=1 agent 也不调 LLM
         """
-        # enable_llm 不传 base,只用在 self 上做默认 config 标记
-        enable_llm_default = bool(kwargs.pop("enable_llm", False))
+        if "enable_llm" in kwargs:
+            enable_llm_default = bool(kwargs.pop("enable_llm"))
+        else:
+            # 从 env 推断(对齐 OpenAICompatibleSummaryLLMClient.from_env 行为)
+            enable_llm_default = os.environ.get("MATWAU_LLM_ENABLED", "").strip().lower() in ("1", "true", "yes")
 
         super().__init__(
             context_manager=context_manager,
