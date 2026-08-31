@@ -1,237 +1,375 @@
-# MatWAU — 材料科学 AI Agent 矩阵 (Material Science AI Universal)
+# MatWAU
 
-> 🏛️ **学院版捐赠项目** | 由 **XploreAlpha** 捐赠给母校 | Apache 2.0 双署名
+> A multi-discipline scientific super-agent running on the WAU Network OS — automate "query data → propose plan → simulate → control instruments → write reports" across **materials / chemistry / biology / physics / pharma / semiconductors / energy** in one HTTP API.
 
-| 维度 | 内容 |
-|---|---|
-| **主署名** | XploreAlpha(开发方 / 维护方)|
-| **子署名** | 母校(学术部署合作方)|
-| **License** | [Apache License 2.0](./LICENSE) |
-| **数据归属** | **学校**(详见 LICENSE §"DATA OWNERSHIP")|
-| **部署** | 完全在学校自有 / 指定服务器(详见 LICENSE §"DEPLOYMENT")|
-| **维护** | XploreAlpha 团队长期支持(详见 [MAINTENANCE.md](./MAINTENANCE.md))|
+[English](README.md) | [中文](README.zh-CN.md)
 
-| 文档 | 链接 |
-|---|---|
-| **捐赠与法律说明** | [LICENSE](./LICENSE) |
-| **维护说明** | [MAINTENANCE.md](./MAINTENANCE.md) |
-| **贡献者与子项目列表** | [NOTICE](./NOTICE) |
-| **给学院的"项目说明书"** | [docs/donation_proposal.md](./docs/donation_proposal.md) |
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org)
+[![Tests](https://img.shields.io/badge/Tests-1964%20passed-brightgreen)](tests/)
+[![WAU](https://img.shields.io/badge/WAU-v1.3.4-orange)](https://github.com/wau)
+[![Status](https://img.shields.io/badge/Status-v1.4.4--Academic%20GA-blueviolet)](RELEASE_NOTES_v1.1-Academic.md)
 
----
+## Why MatWAU?
 
-## 一、一句话定位
+Research workflows across every scientific domain share the same five steps — read literature, pick a system, run a simulation, do an experiment, write a report. Each step is slow, expensive, and inconsistent.
 
-**MatWAU = 材料科学 17 agent 矩阵 + 灵魂 3 件套 + 高效 3 件套,跑在 WAU v1.0.0 上,35 周 MVP,Stage 3 钢铁侠 JARVIS 雏形 + 可解释性 100% 收口。**
+**MatWAU** packages that five-step loop into **23 purpose-built agents** plus a **3-piece "soul"** (intent → orchestrator → critic), accessible through a single HTTP endpoint. It runs on the **WAU Network OS** alongside any client (HomeRail, Claude Desktop, Cursor, your own UI), and exposes **no UI of its own** — so it ships in days, not months.
 
-类比:**MatWAU = 材料科学领域的 nginx** — 不露脸,但所有应用都离不开。
+- **Multi-discipline by design** — the first vertical is materials (v1.x Academic), and `mat-sdk` lets any lab fork a new domain (chemistry / bio / physics / pharma / semiconductors) in weeks, not quarters.
+- **Real experiments, not toys** — `mat-robot-*` agents drive Bruker XRD / Netzsch DSC / synthesis robots; `mat-sim-service` runs MatterSim / CHGNet / VASP-GPU on real GPUs.
+- **Audit trail by default** — every decision recorded in `mat-data-lineage`, append-only hash chain, replayable end-to-end.
+- **Apache 2.0, 100% on-premise** — code is open, data stays on the host, no cloud lock-in.
 
----
+## Features
 
-## 二、学院版价值(给决策者看的 1 段)
+- **23 built-in agents** — 5 orchestrators + 8 data clients (arXiv / Materials Project / OQMD / COD / NOMAD / JARVIS / PubChem / CrossRef) + 5 experiment-design agents + 3 compute agents + 4 instrument drivers + 2 utilities.
+- **3-piece soul** — `mat-intent` parses natural language, `mat-orchestrator` runs DAG workflows, `mat-critic` scores results along 5 independent axes (physical consistency / synthesis feasibility / safety / cross-robot / cross-source).
+- **Headless backend** — only one HTTP endpoint `POST /wau/dispatch`; no UI to maintain.
+- **Cross-source consensus** — `CanonicalKey = (reduced_formula, Pearson_symbol, spacegroup_number)` aligns heterogeneous databases; consensus rate 0 → 1.0.
+- **Digital-twin simulation** — `mat-sim-service` Rust/gRPC sub-service runs VASP-GPU / LAMMPS-GPU / MatterSim / CHGNet.
+- **Multi-discipline SDK** — `mat-sdk` + `MatSubAgent` ABC + `install_into_matwau()` lets a single `pip install` extend MatWAU into a new domain.
+- **Audit-ready lineage** — `mat-data-lineage` writes append-only records (FAIR-compliant) so any decision can be replayed.
+- **4 reporting styles** — undergraduate / postgraduate / engineer / professor; export Markdown / LaTeX / PDF.
 
-学院版价值三件套:
-- 🎓 **教学** — 8 周实验课,本科生 4 小时看懂,2 天跑通
-- 🔬 **科研** — 30+ 开箱即用 material agent,覆盖金属/聚合物/陶瓷 3 域
-- 🏭 **示范** — Stage 3 JARVIS 雏形(从会跑到可观测到可解释),直接对接真仪器只需换 SDK
+## Architecture
 
----
+```mermaid
+flowchart TB
+    subgraph clients ["🖥️ Clients (who serves the meal)"]
+        direction LR
+        UI1[HomeRail]
+        UI2[Claude Desktop]
+        UI3[Cursor IDE]
+        UI4[Custom UI]
+    end
 
-## 三、目录结构
+    subgraph wau ["⚙️ WAU Network OS — github.com/wau (19 repos)"]
+        direction LR
+        subgraph kernel [wau-core-kernel · 7 Managers]
+            K1[LLM Core]
+            K2[Scheduler]
+            K3[Context]
+            K4[Memory]
+            K5[Storage]
+            K6[Tool]
+            K7[Access · JWT 4-claim]
+        end
+        subgraph middleware [Middleware · 9 repos]
+            M1[wau-registry]
+            M2[wau-edge]
+            M3[wau-intent]
+            M4[wau-channel]
+            M5[wau-store]
+            M6[wau-trust]
+            M7[wau-circuit]
+            M8[wau-llm-router]
+            M9[wau-scheduler]
+        end
+        subgraph net [Network]
+            N1[IOA / Agentsile · DHT + Gossip]
+            N2[MCP v1.2.11 + JSON-RPC]
+            N3[5 byte-equal SDKs · Go/Py/TS/Rust/Java]
+        end
+    end
 
+    subgraph matwau ["🎯 MatWAU Application Layer"]
+        direction TB
+        subgraph three [📡 Three deployment modes]
+            direction LR
+            A1[🏛️ Academic<br/>23 agents<br/>on-premise]
+            A2[🏢 Enterprise<br/>N agents · 2027 Q3+<br/>on-prem]
+            A3[🎙️ Personal<br/>HomeRail<br/>any device]
+        end
+        subgraph soul [🧠 Soul · 3 pieces]
+            S1[mat-intent]
+            S2[mat-orchestrator]
+            S3[mat-critic · 5 axes]
+        end
+        subgraph agents [🔧 23 built-in agents]
+            direction LR
+            AG1[Orchestration · 5]
+            AG2[Data · 8]
+            AG3[Experiment · 5]
+            AG4[Compute · 3]
+            AG5[Instrument · 4]
+            AG6[Utility · 2]
+        end
+        subgraph sim [🖥️ mat-sim-service · GPU sub-service]
+            SIM1[VASP-GPU]
+            SIM2[LAMMPS-GPU]
+            SIM3[MatterSim]
+            SIM4[CHGNet / ORB]
+        end
+        subgraph sdk [🧩 SDK + extensions]
+            direction LR
+            SD1[mat-sdk]
+            SD2[mat-material-sdk ✅]
+            SD3[mat-chemistry-sdk 📅]
+            SD4[mat-bio-sdk 📅]
+            SD5[mat-physics-sdk 📅]
+            SD6[mat-data-plugin 📅]
+        end
+    end
+
+    clients -->|WAU protocol · HTTPS + JWT| wau
+    wau -->|name=matwau| matwau
+    matwau -.->|hosted on| three
+    three -.->|driven by| soul
+    soul -.->|schedule| agents
+    agents -.->|invoke| sim
+    agents -.->|load| sdk
+
+    style clients fill:#fff4e1,stroke:#cc6600
+    style wau fill:#e1f5ff,stroke:#0066cc
+    style matwau fill:#e8f5e8,stroke:#00aa00
+    style soul fill:#ffe8f0,stroke:#cc0066
+    style sim fill:#fff0e8,stroke:#ff6600
+    style sdk fill:#f5f5e8,stroke:#aa8800
 ```
-matwau/                              ← 项目根(无头后端)
-├── README.md                        ← 本文件(项目入口)
-├── LICENSE                          ← ⭐ Apache 2.0 + 捐赠声明(W37.0)
-├── NOTICE                           ← ⭐ 双署名 + 17 子项目清单(W37.0)
-├── MAINTENANCE.md                   ← ⭐ 维护范围 + SLA(W37.0)
-├── agents/                          ← 17 agent 代码(纯后端)
-│   ├── mat-lit-agent/               ← 图书管理员(论文检索 + RAG)
-│   ├── mat-gen-agent/               ← 造物主(晶体结构生成)
-│   ├── mat-sim-agent/               ← 快速试菜员(MLIP 预筛)
-│   ├── mat-hpc-agent/               ← 超算对接员(VASP + Slurm)
-│   ├── mat-exp-agent/               ← 实验老师 + XRD 解谱
-│   ├── mat-intent-agent/            ← 翻译官(5 类意图)
-│   ├── mat-orchestrator/            ← DAG + 多实验并行
-│   ├── mat-critic-agent/            ← 4 路交叉验证 + LLM 复核
-│   ├── mat-bayesian/                ← 主动学习(Optuna)
-│   ├── mat-cost/                    ← 成本估算
-│   ├── mat-data-lineage/            ← 血缘记录
-│   ├── mat-chemist-agent/           ← 化学师协调器(W26)
-│   ├── mat_robot_synth/             ← OT-2 mock SDK(W19)
-│   ├── mat_robot_xrd/               ← Bruker .brml mock(W20)
-│   ├── mat_robot_em/                ← Zeiss SmartSEM mock(W21)
-│   ├── mat_robot_dsc/               ← TA Trios mock(W22)
-│   └── material_domain_router/      ← 3 材料域路由(W15)
-├── matwau/                          ← 核心库
-│   ├── core/                        ← MatWAUAgentBase + 类型
-│   ├── harness/                     ← 5 大 Harness 职责
-│   ├── outer_loop/                  ← Outer Loop 自愈
-│   └── configs/                     ← matwau_settings 工厂
-├── configs/                         ← 配置文件
-├── workflows/                       ← workflow 模板
-├── tests/                           ← 测试(35 周累计)
-│   ├── unit/                        ← 单元测试
-│   ├── integration/                 ← 集成测试
-│   └── goldens/                     ← Goldens 测试集
-├── docs/                            ← 用户 + 运维文档
-│   ├── donation_proposal.md         ← ⭐ 学院版说明书(W37.0)
-│   ├── user-manual.md
-│   ├── deploy.md
-│   └── ...
-├── examples/                        ← 演示脚本
-│   ├── multi_experiment_demo.py    ← W31 Stage 3 雏形
-│   └── ...
-├── scripts/                         ← 部署 + 维护脚本
-├── deploy/                          ← Docker Compose + k8s manifest
-└── requirements.txt
+
+### 4-step closed loop (the "JARVIS" promise)
+
+```mermaid
+flowchart LR
+    U(["👤 User<br/>'I want a Li-battery cathode'"])
+
+    subgraph step1 ["① Query data · 5 s"]
+        D1[arXiv / PubMed / CrossRef]
+        D2[Materials Project / OQMD / COD / NOMAD / JARVIS]
+        D3[PubChem / PDB / UniProt / ChEMBL]
+        CR[CrossSourceResolver · consensus 0→1.0]
+        D1 --> CR
+        D2 --> CR
+        D3 --> CR
+    end
+
+    subgraph step2 ["② Plan · 10 s · multi-turn"]
+        I[mat-intent]
+        O[mat-orchestrator · 7 workflows]
+        C[mat-critic · 5 axes]
+        G[mat-gen + mat-cost + mat-bayesian]
+        I --> O --> G --> C
+    end
+
+    subgraph step3 ["③ Digital-twin sim · 5 s"]
+        SIM[mat-sim-service · Rust/gRPC]
+        MS[MatterSim]
+        CG[CHGNet]
+        VS[VASP-GPU]
+        LM[LAMMPS-GPU]
+        SIM --> MS & CG & VS & LM
+    end
+
+    subgraph step4 ["④ Instrument · 3 d"]
+        RS[mat-robot-synth]
+        RX[mat-robot-xrd]
+        RD[mat-robot-dsc]
+        RE[mat-robot-em]
+        RS --> RX --> RD --> RE
+    end
+
+    U --> I
+    CR ==> O
+    C ==> SIM
+    MS ==> RS
+    RE ==> S["⑤ Report · 1 min<br/>Markdown / LaTeX / PDF"]
+    S ==> FE(["🏠 HomeRail · widget"])
 ```
 
-❌ MatWAU **不会**有的目录(无头架构):
-- `ui/` / `frontend/` / `mobile/` / `web/` — **0 行 UI 代码**
+## Multi-discipline coverage
 
----
+| Domain | SDK | Status | Data sources | Compute |
+|---|---|---|---|---|
+| **Materials** (first vertical) | `mat-material-sdk` | ✅ v1.4.4 GA | OQMD / COD / NOMAD / JARVIS / MP / arXiv | VASP / LAMMPS / MatterSim / CHGNet |
+| **Chemistry** | `mat-chemistry-sdk` | 📅 Phase 0 (Q4 2026) | PubChem / ChemSpider / CrossRef | DFT / RDKit |
+| **Biology** | `mat-bio-sdk` | 📅 Phase 1 (Q1 2027) | PDB / UniProt / ChEMBL / PubMed | AlphaFold / MD |
+| **Physics** | `mat-physics-sdk` | 📅 Phase 1 (Q1 2027) | INSPIRE-HEP / arXiv physics | Gaussian / QMC |
+| **Pharma / Med** | `mat-pharma-sdk` | 🤝 partner program | ClinicalTrials / DrugBank / FAERS | ADMET / PK/PD |
+| **Semiconductors** | `mat-semi-sdk` | 🤝 partner program | Materials Cloud / AFLOW | TCAD / Sentaurus |
+| **Energy / Batteries** | `mat-energy-sdk` | 🤝 partner program | MP battery subset + lab data | CALPHAD / cycle sim |
 
-## 四、3 层架构
+All SDKs share the same `MatSubAgent` ABC — write one class, ship a new domain.
 
-```
-╔════════════════════════════════════════════════════════════╗
-║  顶层 — 17 agent(11 核心 + 4 robot + 1 router + 1 chemist)║
-╠════════════════════════════════════════════════════════════╣
-║  中层 — 每 agent 内部 Harness + Inner Loop 4 步            ║
-╠════════════════════════════════════════════════════════════╣
-║  底层 — WAU OS 层 Harness 中间件(共享)                    ║
-╚════════════════════════════════════════════════════════════╝
-```
-
----
-
-## 五、当前状态(W33 末 / W37 启动)
-
-### 5.1 35 周 MVP 全部完成 ✅
-
-| 阶段 | 周次 | 内容 | 状态 |
-|---|---|---|---|
-| **Phase 1** | W1-W10 | 11 agent 上线 | ✅ |
-| **Phase 2** | W11-W16 | arXiv 真接 + SQLite + Lineage | ✅ |
-| **Phase 3** | W17-W23 | 4 机器人全家福 + Postgres | ✅ |
-| **Phase 4** | W24-W29 | 4 真 SDK + 化学师 + k8s | ✅ |
-| **Stage 3 可观测** | W30-W32 | critic L4 + 多实验并行 + LineageStore 自动接线 | ✅ |
-| **Stage 3 可解释** | W33 | LLM 二次复核(DeepSeek + fail-soft) | ✅ |
-| **学院版** | W37.0 | **Apache 2.0 + 双署名 + 法律框架**(本次)| ✅ |
-
-### 5.2 测试覆盖
-
-| 维度 | 数量 |
-|---|---|
-| **全量测试** | 1298 PASSED, 1 skipped, ~181s |
-| **代码模块** | 17 agent + 1 router + 1 chemist + 5 harness + 1 lineage |
-| **Goldens case** | 100+ 个 case,平均 90%+ |
-| **集成测试** | 35+ 件 |
-| **端到端** | Stage 3 JARVIS 雏形(Inconel 718 / PMMA / TiO2 多实验并行)|
-
-### 5.3 学院版适配(W37.0 起)
-
-- ✅ Apache 2.0 LICENSE
-- ✅ 双署名 NOTICE
-- ✅ 维护承诺 MAINTENANCE.md
-- ✅ W37.0 — 学院版捐赠法律框架
-- ✅ W37.2 — 8 周教学手册(1201 行 + 4 demo 脚本)
-- ✅ W37.3 — 学院版 Release v1.0-Academic
-- ✅ W37.4 — Docker Compose 单机包(833 行 + 8 端点 HTTP API)
-- ✅ W37.5 — 招生宣传样板(11 维对比表 + 1 分钟脚本)
-- ✅ W37.6 — 8 周课堂 PPT(1154 行 + 51 PPT 页 + 13 Mermaid 图)
-- ✅ W37.8 — 学院版 Release v1.1-Academic
-- ✅ W37.9 — 学院版 Patch v1.1.1-Academic(W1 demo import + SQLiteBackend expanduser,2 files / +18 -2)
-
-### 5.1 未来演进(高 level)
-
-| 版本 | 时间 | 定位 | 详细 |
-|---|---|---|---|
-| **v1.1-Academic** | 2026-07 | ✅ 教学 + 部署 + 宣传配套 | [RELEASE_NOTES_v1.1-Academic.md](./RELEASE_NOTES_v1.1-Academic.md) |
-| **v1.1.1-Academic** | 2026-07 | ✅ patch: W1 demo import + SQLiteBackend expanduser | [PATCH_NOTES_v1.1.1-Academic.md](./PATCH_NOTES_v1.1.1-Academic.md) |
-| **v1.2-Academic** | 2027 Q1 | 真仪器接入 + i18n 英文版 + Q&A 反馈 | [docs/v1.2-roadmap.md](./docs/v1.2-roadmap.md) |
-| **v2.0-Academic** | 2027 Q3+ | **WAU 网络 OS + App 生态 + Siri 入口**(学院版接入生态)| [docs/v2.0-vision.md](./docs/v2.0-vision.md) |
-
-> v2.0 愿景:把 wau-core-kernel 部署到云端作为**网络版 iOS**,MatWAU / 企业 agent / 其他学院 agent 作为**各类 App** 部署到各本机(数据归属各本机),HomeRail 作为**Siri 入口**。云端不存数据,各本机数据不出本机。
-
----
-
-## 六、快速开始(学院版)
-
-### 6.1 部署(给学院 IT)
+## Installation
 
 ```bash
-# 1. clone
+# 1. Clone
 git clone https://github.com/XploreAlpha/matwau.git
 cd matwau
 
-# 2. 装依赖
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. 跑通示例(mock 模式,无需任何外部 SDK / LLM)
-python3 examples/multi_experiment_demo.py
-# 期望:3 实验并行 + L4 复核 + BatchWorkflowResult
-
-# 4. (可选)启用 LLM 复核
-export MATWAU_LLM_API_KEY="<由学院 IT 配置>"
-export MATWAU_LLM_BASE_URL="https://api.deepseek.com"
-export MATWAU_LLM_MODEL="deepseek-v4-flash"
-export MATWAU_LLM_ENABLED="1"
+# 3. (Recommended) install the MatWAU SDK for extension
+pip install -e ./sdk
 ```
 
-### 6.2 跑单元测试
+Requirements: **Python 3.11+**. The `mat-sim-service` Rust sub-service needs a separate build (`cargo build --release` in `mat_sim_service/`) — optional if you only use the Python core.
+
+## Quickstart
+
+### 1. Run the canonical demo (mock mode, no GPU / no external SDK needed)
 
 ```bash
-cd /path/to/matwau
-pytest tests/ -v
-# 1298 passed, 1 skipped, ~181s
+python3 examples/multi_experiment_demo.py
+# Expected: 3 experiments in parallel + L4 critic review + BatchWorkflowResult
 ```
 
-### 6.3 写 1 个 MatWAU agent(3 步)
+### 2. Call the HTTP API
+
+```bash
+curl -X POST http://localhost:8080/wau/dispatch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "intent": "introduce aspirin",
+    "user_id": "alice@university.edu",
+    "tenant_id": "academic-2026"
+  }'
+```
+
+Response shape (JSON, no HTML):
+
+```json
+{
+  "widgets": [
+    {
+      "type": "matwau_markdown",
+      "data": { "markdown": "...", "title": "..." },
+      "fallback_text": "..."
+    }
+  ],
+  "duration": 71.0,
+  "success": true
+}
+```
+
+### 3. Enable real LLM (optional)
+
+```bash
+export MATWAU_LLM_ENABLED=1
+export MATWAU_LLM_API_KEY="<your-key>"
+export MATWAU_LLM_BASE_URL="https://api.deepseek.com"
+export MATWAU_LLM_MODEL="deepseek-v4-flash"
+```
+
+Verified end-to-end on v1.4.4-Academic — `widgets[0].data.markdown` returns **1133 chars** of real DeepSeek output for "introduce aspirin".
+
+### 4. Write your own agent (3 lines of Python)
 
 ```python
 from matwau.core.agent_base import MatWAUAgentBase, AgentRequest, AgentResponse
 
-class MyAgent(MatWAUAgentBase):
-    name = "my-agent"
+class MyDomainAgent(MatWAUAgentBase):
+    name = "my-domain-agent"
 
     def system_prompt(self) -> str:
-        return "你是材料科学 X agent,..."
+        return "You are a domain expert..."
 
     def act(self, ctx, tools):
         return AgentResponse(reply="ok", artifacts={}, confidence=0.9, cost=0.1)
 
-agent = MyAgent()
+agent = MyDomainAgent()
 req = AgentRequest(run_id="run-001", message="...", artifacts={}, context={})
-response = agent.run(req)
-print(response.reply)
+print(agent.run(req).reply)
 ```
 
----
+## Deployment
 
-## 七、协议与边界(per memory 记录)
+### Single-host Docker Compose (recommended for evaluation)
 
-| 组件 | 放哪 | 跟 WAU 关系 |
-|---|---|---|
-| **`MatWAUAgentBase` 基类** | `matwau/core/agent_base.py` | **不**放 WAU 仓,跟 wau-python-sdk 平级 |
-| **Goldens 测试集** | `tests/goldens/*.yaml` | 完全 MatWAU 自有 |
-| **17 agent** | `agents/` | MatWAU 自有,调用 WAU 中间件 |
-| **5 Harness 部件** | `matwau/harness/` | MatWAU 自有 |
-| **WAU 中间件** | 21 仓(共享基础设施)| MatWAU 显式调用 |
+```bash
+cd deploy/academic
+docker compose build --no-cache
+docker compose up -d
+sleep 10
+curl -s http://localhost:8080/version | jq -r '.version'
+# Expected: v1.4.2-Academic  (image ID is the real evidence)
+```
 
-**关键原则**:Harness 部件 MatWAU 自有,WAU 提供共享中间件。
+### Production on a dedicated host
 
----
+```bash
+# 1. Provision: Python 3.11+, Docker 24+, optional NVIDIA driver + CUDA 12.x
+# 2. Clone & configure
+git clone https://github.com/XploreAlpha/matwau.git /opt/matwau
+cd /opt/matwau
+cp deploy/academic/.env.example deploy/academic/.env
+# Edit .env to set MATWAU_LLM_API_KEY etc.
 
-## 八、致谢
+# 3. Build & launch
+cd deploy/academic
+docker compose build --no-cache
+docker compose up -d
 
-感谢母校给这次捐赠机会。XploreAlpha 团队承诺长期维护,Apache 2.0 允许学院独立 fork 继续演进。
+# 4. Verify
+curl -s http://localhost:8080/health
+docker images matwau/academic:v1.4.2-Academic --format "{{.ID}}\t{{.CreatedAt}}"
+```
 
----
+### Kubernetes (planned for v1.3.0)
 
-**end of MatWAU README**
+A Helm chart and Operator are scheduled for the v1.3.0 release; for now, the Docker Compose stack is the supported production path.
 
-> 主维护:XploreAlpha 团队
-> 反馈:GitHub Issues https://github.com/XploreAlpha/matwau/issues
-> 最后更新:2026-07-26(W37.0 学院版法律框架落地)
+### Hardware requirements
+
+| Profile | CPU | RAM | GPU | Notes |
+|---|---|---|---|---|
+| **Evaluation / dev** | 4 cores | 8 GB | — | mock mode only |
+| **Academic (single lab)** | 8 cores | 32 GB | — | real LLM via API, no DFT |
+| **Production + MLIP** | 16+ cores | 64+ GB | 1× A100 / H100 | `mat-sim-service` enabled |
+| **Multi-lab / enterprise** | 32+ cores | 128+ GB | 2× A100 + SLURM | multi-tenant |
+
+## API reference
+
+The single public endpoint:
+
+```
+POST /wau/dispatch
+Headers: Authorization: Bearer <JWT-HS256 with 4 claims>
+Body:    { intent, user_id, tenant_id, metadata? }
+Returns: { widgets[], duration, success }
+```
+
+Other endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /version` | Build version + image ID |
+| `GET /health` | Liveness / readiness |
+| `GET /agents` | List registered agents (sub-agent + 23 built-in) |
+| `POST /agents/install` | Hot-install a community sub-agent (Phase 1+) |
+| `GET /lineage/{run_id}` | Append-only lineage chain for a run |
+
+## Documentation
+
+| Doc | Purpose |
+|---|---|
+| [CHANGELOG.md](CHANGELOG.md) | Versioned release history |
+| [RELEASE_NOTES_v1.1-Academic.md](RELEASE_NOTES_v1.1-Academic.md) | v1.1-Academic release notes |
+| [PATCH_NOTES_v1.1.1-Academic.md](PATCH_NOTES_v1.1.1-Academic.md) | v1.1.1 patch notes |
+| [docs/donation_proposal.md](docs/donation_proposal.md) | Long-form project description (Chinese) |
+| [docs/user-manual.md](docs/user-manual.md) | User manual |
+| [docs/deploy.md](docs/deploy.md) | Detailed deployment guide |
+| [LICENSE](LICENSE) | Apache 2.0 license |
+
+## Versioning
+
+This release is **v1.4.4-Academic** (patch line of v1.4.x — patches share the `matwau/academic:v1.4.2-Academic` image tag; **the image ID is the source of truth**, not the version string).
+
+MatWAU follows [SemVer 2.0.0](https://semver.org/). Public API is stable since v1.0.0; breaking changes flow only through MAJOR bumps. Deprecated APIs are supported for at least one minor release with a compile-time migration hint.
+
+The v2.0 roadmap (Q3 2027) targets full JARVIS closed loop, multi-discipline SDK GA, and `mat-sim-service` production rollout.
+
+## Contributing
+
+Contributions welcome — new sub-agents, new data plugins, new benchmark queries, new domain SDKs. Please open an issue before substantial PRs.
+
+The project follows the WAU 19-repo lockstep versioning policy when the SDK or kernel bumps; community sub-agents in `sdk/examples/` follow their own cadence.
+
+## License
+
+[Apache License 2.0](LICENSE) — free for commercial and academic use, with attribution.
+
+Copyright © 2026 XploreAlpha.

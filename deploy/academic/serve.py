@@ -60,6 +60,39 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
     # W37.12 — wau dispatch handler(懒加载,sys.path 修了再 import)
     _wau_dispatch_handler = None
 
+    @staticmethod
+    def _render_frakio_markdown(
+        reply_text: str | None,
+        widgets_json: list[dict] | None,
+        final_outputs: dict | None,
+        success: bool,
+        error: str | None,
+    ) -> str | None:
+        """2026-08-14 Frakio Work 集成 — 把 wau response 预渲染成 Frakio fenced markdown。
+
+        失败时返回 None,让 caller 兜底(老调用方不读这字段也兼容)。
+        成功时调用 agents.widget_to_markdown.widgets_to_markdown()。
+        """
+        if not success:
+            if error:
+                return f"**⚠️ wau agent failed:** `{error}`"
+            return None
+        try:
+            from agents.widget_to_markdown import widgets_to_markdown
+            return widgets_to_markdown(
+                widgets=widgets_json or [],
+                reply=reply_text,
+                final_outputs=final_outputs,
+            )
+        except Exception as e:
+            # 失败吞掉 — 不影响主响应,只 stderr 一行
+            sys.stderr.write(f"[matwau] frakio_markdown render fail: {e}\n")
+            return None
+    """学院版 HTTP 处理器"""
+
+    # W37.12 — wau dispatch handler(懒加载,sys.path 修了再 import)
+    _wau_dispatch_handler = None
+
     def log_message(self, fmt, *args):
         """简化日志(学院 IT 友好)"""
         sys.stderr.write(f"[matwau] {self.address_string()} - {fmt % args}\n")
@@ -226,6 +259,11 @@ class MatWAUAcademicHandler(BaseHTTPRequestHandler):
                 "spoken_text": spoken_text,
                 "structured_data": structured_data,
                 "widgets": widgets_json,
+                # 2026-08-14 — Frakio Work 集成:
+                # 优先预生成 Frakio fenced markdown,让 Frakio 直接渲染成卡片
+                # (per frakio-work-wau-bridge/lib/widgets-to-markdown.mjs)
+                # 老 caller 不读这字段也兼容(default None when fail)
+                "frakio_markdown": self._render_frakio_markdown(reply_text, widgets_json, wf_result.final_outputs, wf_result.success, wf_result.error),
                 "final_outputs": {
                     k: str(v)[:200] for k, v in (wf_result.final_outputs or {}).items()
                 },
