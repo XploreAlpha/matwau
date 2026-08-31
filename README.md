@@ -7,7 +7,6 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org)
 [![Tests](https://img.shields.io/badge/Tests-1964%20passed-brightgreen)](tests/)
-[![WAU](https://img.shields.io/badge/WAU-v1.3.4-orange)](https://github.com/wau)
 [![Status](https://img.shields.io/badge/Status-v1.4.4--Academic%20GA-blueviolet)](RELEASE_NOTES_v1.1-Academic.md)
 
 ## Why MatWAU?
@@ -36,7 +35,7 @@ Research workflows across every scientific domain share the same five steps — 
 
 ```mermaid
 flowchart TB
-    subgraph clients ["🖥️ Clients (who serves the meal)"]
+    subgraph clients ["🖥️ Clients"]
         direction LR
         UI1[HomeRail]
         UI2[Claude Desktop]
@@ -44,38 +43,13 @@ flowchart TB
         UI4[Custom UI]
     end
 
-    subgraph wau ["⚙️ WAU Network OS — github.com/wau (19 repos)"]
-        direction LR
-        subgraph kernel [wau-core-kernel · 7 Managers]
-            K1[LLM Core]
-            K2[Scheduler]
-            K3[Context]
-            K4[Memory]
-            K5[Storage]
-            K6[Tool]
-            K7[Access · JWT 4-claim]
-        end
-        subgraph middleware [Middleware · 9 repos]
-            M1[wau-registry]
-            M2[wau-edge]
-            M3[wau-intent]
-            M4[wau-channel]
-            M5[wau-store]
-            M6[wau-trust]
-            M7[wau-circuit]
-            M8[wau-llm-router]
-            M9[wau-scheduler]
-        end
-        subgraph net [Network]
-            N1[IOA / Agentsile · DHT + Gossip]
-            N2[MCP v1.2.11 + JSON-RPC]
-            N3[5 byte-equal SDKs · Go/Py/TS/Rust/Java]
-        end
+    subgraph wau ["☁️ WAU Network OS"]
+        WAU[protocol · registry · routing · auth<br/>— treated as a black box —]
     end
 
-    subgraph matwau ["🎯 MatWAU Application Layer"]
+    subgraph matwau ["🎯 MatWAU"]
         direction TB
-        subgraph three [📡 Three deployment modes]
+        subgraph three [📡 Deployment modes]
             direction LR
             A1[🏛️ Academic<br/>23 agents<br/>on-premise]
             A2[🏢 Enterprise<br/>N agents · 2027 Q3+<br/>on-prem]
@@ -112,7 +86,7 @@ flowchart TB
         end
     end
 
-    clients -->|WAU protocol · HTTPS + JWT| wau
+    clients -->|HTTPS| wau
     wau -->|name=matwau| matwau
     matwau -.->|hosted on| three
     three -.->|driven by| soul

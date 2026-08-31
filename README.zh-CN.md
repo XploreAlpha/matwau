@@ -7,7 +7,6 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org)
 [![Tests](https://img.shields.io/badge/Tests-1964%20passed-brightgreen)](tests/)
-[![WAU](https://img.shields.io/badge/WAU-v1.3.4-orange)](https://github.com/wau)
 [![Status](https://img.shields.io/badge/Status-v1.4.4--Academic%20GA-blueviolet)](RELEASE_NOTES_v1.1-Academic.md)
 
 ## 为什么需要 MatWAU?
@@ -36,7 +35,7 @@
 
 ```mermaid
 flowchart TB
-    subgraph clients ["🖥️ 客户端(谁来'端菜')"]
+    subgraph clients ["🖥️ 客户端"]
         direction LR
         UI1[HomeRail]
         UI2[Claude Desktop]
@@ -44,36 +43,11 @@ flowchart TB
         UI4[自定制 UI]
     end
 
-    subgraph wau ["⚙️ WAU 网络 OS — github.com/wau(19 仓)"]
-        direction LR
-        subgraph kernel ["wau-core-kernel · 7 Manager"]
-            K1[LLM Core]
-            K2[Scheduler]
-            K3[Context]
-            K4[Memory]
-            K5[Storage]
-            K6[Tool]
-            K7[Access · JWT 4-claim]
-        end
-        subgraph middleware ["中间件 · 9 仓"]
-            M1[wau-registry]
-            M2[wau-edge]
-            M3[wau-intent]
-            M4[wau-channel]
-            M5[wau-store]
-            M6[wau-trust]
-            M7[wau-circuit]
-            M8[wau-llm-router]
-            M9[wau-scheduler]
-        end
-        subgraph net ["网络层"]
-            N1[IOA / Agentsile · DHT + Gossip]
-            N2[MCP v1.2.11 + JSON-RPC]
-            N3[5 个 byte-equal SDK · Go/Py/TS/Rust/Java]
-        end
+    subgraph wau ["☁️ WAU 网络 OS"]
+        WAU[协议 · 注册 · 路由 · 鉴权<br/>— 对外作为黑盒 —]
     end
 
-    subgraph matwau ["🎯 MatWAU 应用层"]
+    subgraph matwau ["🎯 MatWAU"]
         direction TB
         subgraph three ["📡 三种部署形态"]
             direction LR
@@ -112,10 +86,10 @@ flowchart TB
         end
     end
 
-    clients -->|"WAU 协议 · HTTPS + JWT"| wau
+    clients -->|"HTTPS"| wau
     wau -->|"name=matwau"| matwau
     matwau -.->|"宿主"| three
-    three -.->|"由 ... 驱动"| soul
+    three -.->|"驱动"| soul
     soul -.->|"调度"| agents
     agents -.->|"调用"| sim
     agents -.->|"加载"| sdk
